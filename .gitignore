@@ -58,3 +58,4 @@ data/*.db
 # Hatch / packaging
 *.egg
 MANIFEST
+uv.lock

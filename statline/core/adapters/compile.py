@@ -1,6 +1,9 @@
 # statline/core/adapters/compile.py
 from __future__ import annotations
 
+# ───────────────────── Strict-path helpers (no legacy / no eval) ─────────────
+# statline/core/adapters/compile.py  (add near helpers)
+import ast
 import math
 from dataclasses import dataclass
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
@@ -8,7 +11,47 @@ from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 from .hooks import get as get_hooks
 from .types import AdapterSpec, EffSpec, MetricSpec
 
-# ───────────────────── Strict-path helpers (no legacy / no eval) ─────────────
+_ALLOWED_BINOPS = (ast.Add, ast.Sub, ast.Mult, ast.Div, ast.FloorDiv, ast.Mod)
+_ALLOWED_UNARY  = (ast.UAdd, ast.USub)
+
+def _eval_expr(expr: str, ctx: Mapping[str, Any]) -> float:
+    try:
+        tree = ast.parse(str(expr), mode="eval")
+    except Exception:
+        return 0.0
+
+    def _ev(node: ast.AST) -> float:
+        if isinstance(node, ast.Expression): 
+            return _ev(node.body)
+        elif isinstance(node, ast.Constant):   
+            return _num(node.value)
+        elif isinstance(node, ast.Name):       
+            return _num(ctx.get(node.id, 0.0))
+        elif isinstance(node, ast.UnaryOp) and isinstance(node.op, _ALLOWED_UNARY):
+            v = _ev(node.operand)
+            return +v if isinstance(node.op, ast.UAdd) else -v
+        elif isinstance(node, ast.BinOp) and isinstance(node.op, _ALLOWED_BINOPS):
+            a, b = _ev(node.left), _ev(node.right)
+            if isinstance(node.op, ast.Add):      
+                return a + b
+            elif isinstance(node.op, ast.Sub):      
+                return a - b
+            elif isinstance(node.op, ast.Mult):     
+                return a * b
+            elif isinstance(node.op, ast.Div):      
+                return a / b if abs(b) > 1e-12 else 0.0
+            elif isinstance(node.op, ast.FloorDiv): 
+                return a // b if abs(b) > 1e-12 else 0.0
+            else:      
+                return a % b if abs(b) > 1e-12 else 0.0
+        # allow min/max only
+        elif isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and not node.keywords:
+            fn = node.func.id
+            if fn in ("min", "max"):
+                vals = [_ev(arg) for arg in node.args]
+                return (min if fn == "min" else max)(vals) if vals else 0.0
+        return 0.0
+    return float(_ev(tree))
 
 def _num(v: Any) -> float:
     try:
@@ -64,6 +107,9 @@ def _compute_source(row: Mapping[str, Any], src: Mapping[str, Any]) -> float:
     if "const" in src:
         return _num(src["const"])
 
+    if "expr" in src:
+        return _eval_expr(str(src["expr"]), row)
+
     raise ValueError(f"Unsupported source: {src}")
 
 
@@ -115,15 +161,12 @@ class CompiledAdapter:
     efficiency: List[EffSpec]
 
     def map_raw(self, raw: Dict[str, Any]) -> Dict[str, float]:
-        """
-        Compute metrics from strict specs (source/transform/clamp).
-        Legacy expression mapping is not supported.
-        """
         hooks = get_hooks(self.key)
         row = hooks.pre_map(raw) if hasattr(hooks, "pre_map") else raw
-        ctx = _sanitize_row(row)
-
+        ctx = _sanitize_row(row)  # base context comes from raw
         out: Dict[str, float] = {}
+
+        # 1) metrics (strict)
         for m in self.metrics:
             if m.source is None:
                 raise KeyError(
@@ -134,8 +177,21 @@ class CompiledAdapter:
             x = _apply_transform(x, m.transform)
             x = _clamp(x, m.clamp)
             out[m.key] = float(x)
+            ctx[m.key] = out[m.key]  # <- make it referencable by later expressions
+
+        # 2) efficiency (adapter-dependent, now computed here)
+        for e in self.efficiency:
+            mk = _eval_expr(e.make, ctx)
+            at = _eval_expr(e.attempt, ctx)
+            den = at if at >= max(1e-12, float(e.min_den or 1.0)) else float(e.min_den or 1.0)
+            val = (mk / den) if den > 0 else 0.0
+            val = _apply_transform(val, e.transform)
+            val = _clamp(val, e.clamp)
+            out[e.key] = float(val)
+            ctx[e.key] = out[e.key]
 
         return hooks.post_map(out) if hasattr(hooks, "post_map") else out
+
 
 
 def compile_adapter(spec: AdapterSpec) -> CompiledAdapter:

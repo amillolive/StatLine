@@ -1,9 +1,10 @@
 # statline/core/scoring.py
 from __future__ import annotations
 
+import math
 from contextlib import nullcontext
 from dataclasses import dataclass
-from typing import Any, Dict, List, Mapping, Optional
+from typing import Any, Dict, List, Mapping, Optional, Tuple
 
 from ..utils.config import (
     M_OFFSET,
@@ -100,6 +101,70 @@ def per_metric_weights_from_buckets(
         per_metric[m] = bw / n
     return per_metric
 
+def _resolve_expr(expr: Any, row: Mapping[str, Any]) -> float:
+    """Minimal, safe resolver for efficiency strings (no adapter.eval_expr needed)."""
+    try:
+        s = str(expr or "").strip()
+    except Exception:
+        return 0.0
+    if not s:
+        return 0.0
+
+    # $.metric → row['metric']
+    if s.startswith("$."):
+        return _to_float(row.get(s[2:], 0.0), 0.0)
+
+    # raw["field"] / raw['field'] → row['field']
+    if (s.startswith('raw["') and s.endswith('"]')) or (s.startswith("raw['") and s.endswith("']")):
+        return _to_float(row.get(s[5:-2], 0.0), 0.0)
+
+    # bare identifier (letters/digits/underscore)
+    ident = s.replace("_", "")
+    if ident.isalnum():
+        return _to_float(row.get(s, 0.0), 0.0)
+
+    # numeric literal fallback
+    try:
+        return float(s)
+    except Exception:
+        return 0.0
+
+def _apply_transform_value(x: float, spec: Optional[Mapping[str, Any]]) -> float:
+    if not spec:
+        return x
+    name = str(spec.get("name", "")).lower()
+    p = dict(spec.get("params") or {})
+    def _num(v: Any, d: float = 0.0) -> float:
+        try:
+            return float(v)
+        except Exception:
+            return d
+    if name == "linear":
+        return x * _num(p.get("scale", 1.0), 1.0) + _num(p.get("offset", 0.0), 0.0)
+    if name == "capped_linear":
+        cap = _num(p.get("cap", x))
+        return x if x <= cap else cap
+    if name == "minmax":
+        lo = _num(p.get("lo", x))
+        hi = _num(p.get("hi", x))
+        return min(max(x, lo), hi)
+    if name == "pct01":
+        by = _num(p.get("by", 100.0), 100.0) or 100.0
+        return x / by
+    if name == "softcap":
+        cap = _num(p.get("cap", x))
+        slope = _num(p.get("slope", 1.0), 1.0)
+        return x if x <= cap else cap + (x - cap) * slope
+    if name == "log1p":
+        return math.log1p(max(x, 0.0)) * _num(p.get("scale", 1.0), 1.0)
+    return x
+
+def _clamp_value(x: float, clamp: Optional[Tuple[float, float]]) -> float:
+    if not clamp:
+        return x
+    lo, hi = float(clamp[0]), float(clamp[1])
+    return min(max(x, lo), hi)
+    
 def _batch_context_from_rows(
     rows: List[Dict[str, Any]],
     metric_keys: List[str],
@@ -233,27 +298,40 @@ def calculate_pri(
         metric_to_bucket: Dict[str, str] = {m.key: m.bucket for m in metrics_spec}
         invert_map: Dict[str, bool] = {m.key: bool(m.invert) for m in metrics_spec}
 
-    # 2) Inject efficiency channels as derived metrics
+    # 2) Inject efficiency channels as derived metrics (no adapter.eval_expr required)
     with (T.stage("inject_eff") if T else nullcontext()):
         eff_list = list(getattr(adapter, "efficiency", []) or [])
         extended_rows: List[Dict[str, Any]] = []
 
-        eval_expr = getattr(adapter, "eval_expr", None)
-        if not callable(eval_expr):
-            raise TypeError("Adapter must implement eval_expr(expr, row)")
+        if not eff_list:
+            extended_rows = [dict(r) for r in mapped_rows]
+        else:
+            for raw in mapped_rows:
+                r: Dict[str, Any] = dict(raw)
+                for eff in eff_list:
+                    # 1) register metadata always
+                    if eff.key not in metric_to_bucket:
+                        metric_to_bucket[eff.key] = eff.bucket
+                    invert_map[eff.key] = bool(getattr(eff, "invert", False))
+                    if eff.key not in metric_keys:
+                        metric_keys.append(eff.key)
 
-        for raw in mapped_rows:
-            r: Dict[str, Any] = dict(raw)
-            for eff in eff_list:
-                make = max(0.0, _to_float(eval_expr(eff.make, raw), 0.0))
-                att  = max(1.0, _to_float(eval_expr(eff.attempt, raw), 1.0))
-                pct  = make / att
-                r[eff.key] = clamp01(pct)
-                if eff.key not in metric_to_bucket:
-                    metric_to_bucket[eff.key] = eff.bucket
-                    invert_map[eff.key] = False
-                    metric_keys.append(eff.key)
-            extended_rows.append(r)
+                    # 2) only compute if adapter didn't already
+                    if eff.key not in r:
+                        # Use current row `r` (not original `raw`) so later
+                        # efficiency items can reference earlier ones (e.g., pps_gap uses pps_fg).
+                        make = max(0.0, _resolve_expr(getattr(eff, "make", ""), r))
+                        att  = max(float(getattr(eff, "min_den", 1.0)),
+                                _resolve_expr(getattr(eff, "attempt", ""), r))
+
+                        val = (make / att) if att > 0 else 0.0
+                        # Honor optional transform/clamp if present on EffSpec
+                        val = _apply_transform_value(val, getattr(eff, "transform", None))
+                        val = _clamp_value(val, getattr(eff, "clamp", None))
+                        # Components are 0..1; keep it safe
+                        r[eff.key] = clamp01(val)
+
+                extended_rows.append(r)
 
     # 3) Resolve context (leaders/floors) & build caps
     with (T.stage("caps") if T else nullcontext()):

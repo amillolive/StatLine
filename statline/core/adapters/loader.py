@@ -84,7 +84,10 @@ def load_spec(name: str) -> AdapterSpec:
                 make=str(e["make"]),
                 attempt=str(e["attempt"]),
                 bucket=str(e["bucket"]),
-                transform=cast(Optional[str], e.get("transform")),
+                min_den=float(e.get("min_den", 1.0)),
+                clamp=_as_clamp(e.get("clamp")),
+                invert=bool(e.get("invert", False)),
+                transform=cast(Optional[Mapping[str, Any]], e.get("transform")),
             )
         )
 

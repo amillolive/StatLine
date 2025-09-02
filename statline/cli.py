@@ -18,10 +18,13 @@ from typing import (
     Generator,
     Iterable,
     List,
+    Literal,
     Mapping,
     Optional,
     Protocol,
     TextIO,
+    Tuple,
+    TypedDict,
     cast,
 )
 
@@ -33,7 +36,10 @@ import typer
 from statline.core.adapters import list_names
 from statline.core.adapters import load as load_adapter
 from statline.core.calculator import interactive_mode
-from statline.core.scoring import calculate_pri  # adapter-driven PRI
+from statline.core.scoring import (  # adapter-driven PRI
+    calculate_pri,  # adapter-driven PRI
+    calculate_pri_single,
+)
 from statline.utils.timing import StageTimes  # runtime import
 
 
@@ -45,9 +51,64 @@ class _StageTimesProto(Protocol):
 # ── typing helpers (reduce "Unknown" noise) ───────────────────────────────────
 Row = Dict[str, Any]
 Rows = List[Row]
+
+class _ViewRow(TypedDict):
+    Rank: int
+    Name: str
+    PRI: int
+    Raw: str
+    Context: str
+
+# Columns as Literals so TypedDict indexing is type-safe
+_COLS = Tuple[
+    Literal["Rank"],
+    Literal["Name"],
+    Literal["PRI"],
+    Literal["Raw"],
+    Literal["Context"],
+]
+COLS: _COLS = ("Rank", "Name", "PRI", "Raw", "Context")
+
 Context = Dict[str, Dict[str, float]]
 AdapterMappingFn = Callable[[Mapping[str, Any]], Mapping[str, Any]]
 
+def _render_table(rows: Rows, limit: int = 0) -> str:
+    data: List[_ViewRow] = []
+    for i, r in enumerate(rows, 1):
+        vr = cast(_ViewRow, {
+            "Rank": i,
+            "Name": str(r.get("name", "(unnamed)")),
+            "PRI": int(r.get("pri", 0)),
+            "Raw": f'{float(r.get("pri_raw", 0.0)):.4f}',
+            "Context": str(r.get("context_used", "")),
+        })
+        data.append(vr)
+
+    if limit and limit > 0:
+        data = data[:limit]
+
+    # compute widths without starred “unknown” comprehensions
+    widths: Dict[str, int] = {c: len(c) for c in COLS}
+    for row in data:
+        for c in COLS:
+            w = len(str(row[c]))
+            if w > widths[c]:
+                widths[c] = w
+
+    def line(ch: str) -> str:
+        parts: List[str] = []
+        for c in COLS:
+            parts.append(ch * (widths[c] + 2))
+        return "+" + "+".join(parts) + "+"
+
+    out: List[str] = []
+    out.append(line("-"))
+    out.append("| " + " | ".join(c.ljust(widths[c]) for c in COLS) + " |")
+    out.append(line("="))
+    for row in data:
+        out.append("| " + " | ".join(str(row[c]).ljust(widths[c]) for c in COLS) + " |")
+    out.append(line("-"))
+    return "\n".join(out)
 
 class AdapterProto(Protocol):
     """Minimal surface we rely on from adapters."""
@@ -208,14 +269,49 @@ def _maybe_sanity(adp: Any) -> Optional[Callable[[Mapping[str, Any]], None]]:
     return None
 
 
-def _name_for_row(raw: Mapping[str, Any]) -> str:
-    return str(
-        raw.get("display_name")
-        or raw.get("name")
-        or raw.get("player")
-        or raw.get("id")
-        or ""
-    )
+def _name_for_row(raw: Mapping[str, Any], preferred: Optional[List[str]] = None) -> str:
+    """
+    Resolve a display name:
+      1) first non-empty from --name-col list (case-insensitive)
+      2) common fields: display_name, name, player, id (any casing)
+      3) first+last / firstname+lastname
+      4) team + jersey/number
+      5) '(unnamed)'
+    """
+    # 1) user-preferred columns
+    if preferred:
+        for key in preferred:
+            for variant in (key, key.lower(), key.upper(), key.title()):
+                v = raw.get(variant)
+                if v:
+                    s = str(v).strip()
+                    if s:
+                        return s
+
+    # 2) common fields
+    for key in ("display_name", "name", "player", "id", "DISPLAY_NAME", "Player", "ID"):
+        v = raw.get(key)
+        if v:
+            s = str(v).strip()
+            if s:
+                return s
+
+    # 3) first + last combos
+    first = raw.get("first") or raw.get("First") or raw.get("firstname") or raw.get("Firstname")
+    last  = raw.get("last")  or raw.get("Last")  or raw.get("lastname")  or raw.get("Lastname")
+    if first or last:
+        s = f"{str(first or '').strip()} {str(last or '').strip()}".strip()
+        if s:
+            return s
+
+    # 4) synthetic label from team + jersey/number
+    team = raw.get("team") or raw.get("Team")
+    num  = raw.get("jersey") or raw.get("Jersey") or raw.get("number") or raw.get("Number")
+    if team or num:
+        return f"{team or 'Team'} #{num or '?'}"
+
+    # 5) fallback
+    return "(unnamed)"
 
 
 def _coerce_float(v: Any) -> float:
@@ -541,8 +637,8 @@ def score(
     ),
     weights: Optional[Path] = typer.Option(None, "--weights", help="YAML mapping of {bucket: weight}"),
     weights_preset: Optional[str] = typer.Option("pri", "--weights-preset", help="Adapter preset name (default: 'pri')"),
-    out: Optional[Path] = typer.Option(None, "--out", help="Write results CSV (omit to print to stdout)"),
-    include_headers: bool = typer.Option(True, "--headers/--no-headers", help="Include header row in CSV output"),
+    out: Optional[Path] = typer.Option(None, "--out", help="Write results (format via --fmt)"),
+    include_headers: bool = typer.Option(True, "--headers/--no-headers", help="Include header row for CSV output"),
     team_wins: int = typer.Option(0, "--team-wins", help="Team wins for small PRI multiplier"),
     team_losses: int = typer.Option(0, "--team-losses", help="Team losses for small PRI multiplier"),
     timing: Optional[bool] = typer.Option(
@@ -551,12 +647,22 @@ def score(
     caps_csv: Optional[Path] = typer.Option(
         None, "--caps-csv", help="CSV with per-metric caps (key[,lower,upper,cap])"
     ),
+    caps: str = typer.Option("batch", "--caps", help="Cap source: 'batch' or 'clamps'", case_sensitive=False),
+    fmt: str = typer.Option("table", "--fmt", help="Output format: csv|table|md|json", case_sensitive=False),
+    name_col: List[str] = typer.Option([], "--name-col", help="Preferred name column(s); first non-empty wins."),
+    limit: int = typer.Option(0, "--limit", min=0, help="Limit rows shown (0=all)"),
 ) -> None:
     """
-    Batch score via an adapter (YAML/CSV input; CSV/STDOUT output).
+    Batch score via an adapter. Supports name resolution, clamp/batch caps, and multiple output formats.
     """
     ensure_banner()
     show_timing = _resolve_timing(ctx, timing) or STATLINE_DEBUG_TIMING
+    fmt_lower = (fmt or "table").lower()
+    caps_mode = (caps or "batch").lower()
+    if caps_mode not in {"batch", "clamps"}:
+        raise typer.BadParameter("--caps must be 'batch' or 'clamps'")
+    if fmt_lower not in {"csv", "table", "md", "json"}:
+        raise typer.BadParameter("--fmt must be one of: csv, table, md, json")
 
     T: _StageTimesProto = cast(_StageTimesProto, StageTimes())
 
@@ -564,7 +670,8 @@ def score(
         adp = cast(AdapterProto, load_adapter(adapter))
         bucket_weights = _load_bucket_weights(adp, weights, weights_preset)
 
-    mapped_rows: Optional[Rows] = None
+    raw_rows: Rows = []
+    mapped_rows: Rows = []
 
     if not input_path.exists() and str(input_path) != "-":
         if guild_id is None:
@@ -578,68 +685,110 @@ def score(
                 f"Auto-generated {input_path} from guild '{guild_id}'.",
                 fg=getattr(typer.colors, "GREEN", None),
             )
-
-    if mapped_rows is None:
+    else:
         with T.stage("read"):
-            raw_rows: Rows = list(_read_rows(input_path))
-
+            raw_rows = list(_read_rows(input_path))
         with T.stage("map"):
-            mapped_rows = []
-            append_row = mapped_rows.append
             sanity = _maybe_sanity(adp)
             for r in raw_rows:
                 m = _map_with_adapter(adp, r)
                 if sanity:
                     sanity(m)
-                append_row(m)
+                mapped_rows.append(m)
 
     with T.stage("context"):
         context = _lazy_cache_context(guild_id) if guild_id else None
 
-    assert mapped_rows is not None
     mapped_rows_list: Rows = mapped_rows
 
+    # ── scoring ───────────────────────────────────────────────────────────────
+    results_list: Rows = []  # predeclare for type-checker
     with T.stage("score"):
-        results_list: Rows = _calc_pri_typed(
-            mapped_rows_list,
-            adp,
-            team_wins=team_wins,
-            team_losses=team_losses,
-            weights_override=bucket_weights,
-            context=context,
-            _timing=T,
-        )
+        if caps_mode == "clamps":
+            # Force clamp caps: use single-row scorer (no batch context)
+            for m in mapped_rows_list:
+                res = calculate_pri_single(
+                    m,
+                    adp,
+                    team_wins=team_wins,
+                    team_losses=team_losses,
+                    weights_override=bucket_weights,
+                    context=None,
+                    caps_override=None,  # single-row path prefers adapter clamps
+                )
+                results_list.append(res)
+        else:
+            # Batch caps (leaders/floors from batch or external context)
+            results_list = _calc_pri_typed(
+                mapped_rows_list,
+                adp,
+                team_wins=team_wins,
+                team_losses=team_losses,
+                weights_override=bucket_weights,
+                context=context,
+                _timing=T,
+            )
 
+    # ── format rows for output ────────────────────────────────────────────────
     with T.stage("write"):
         out_fields: List[str] = ["name", "pri", "pri_raw", "context_used"]
         rows_out: Rows = []
+        have_raw = len(raw_rows) == len(mapped_rows_list) and len(raw_rows) > 0
         for i in range(len(mapped_rows_list)):
-            raw = mapped_rows_list[i]
+            raw_src = raw_rows[i] if have_raw else mapped_rows_list[i]
             res = results_list[i]
             rows_out.append(
                 {
-                    "name": _name_for_row(raw) or raw.get("display_name") or "(unnamed)",
+                    "name": _name_for_row(raw_src, name_col),
                     "pri": int(res.get("pri", 0)),
                     "pri_raw": f"{float(res.get('pri_raw', 0.0)):.4f}",
                     "context_used": res.get("context_used", ""),
                 }
             )
 
+        # Sort for readability
+        rows_out.sort(key=lambda r: r.get("pri", 0), reverse=True)
+        view = rows_out[: (limit or len(rows_out))]
+
+        # File output
         if out:
-            with out.open("w", newline="", encoding="utf-8") as f:
-                writer = csv.writer(f)
+            if fmt_lower == "csv":
+                with out.open("w", newline="", encoding="utf-8") as f:
+                    writer = csv.writer(f)
+                    w = cast(_CsvWriter, writer)
+                    if include_headers:
+                        w.writerow(out_fields)
+                    for row in view:
+                        w.writerow([str(row.get(k, "")) for k in out_fields])
+            elif fmt_lower == "json":
+                import json
+                out.write_text(json.dumps(view, ensure_ascii=False, indent=2), encoding="utf-8")
+            elif fmt_lower == "md":
+                lines = ["| Rank | Name | PRI | Raw | Context |", "|---:|:-----|---:|----:|:---|"]
+                for i, r in enumerate(view, 1):
+                    lines.append(f'| {i} | {r["name"]} | {int(r["pri"])} | {float(r["pri_raw"]):.4f} | {r.get("context_used","")} |')
+                out.write_text("\n".join(lines) + "\n", encoding="utf-8")
+            else:  # table
+                out.write_text(_render_table(view, 0), encoding="utf-8")
+        else:
+            # Stdout
+            if fmt_lower == "csv":
+                writer = csv.writer(sys.stdout)
                 w = cast(_CsvWriter, writer)
                 if include_headers:
                     w.writerow(out_fields)
-                for row in rows_out:
+                for row in view:
                     w.writerow([str(row.get(k, "")) for k in out_fields])
-        else:
-            writer = csv.writer(sys.stdout)
-            w = cast(_CsvWriter, writer)
-            if include_headers:
-                w.writerow(out_fields)
-            for row in rows_out:
-                w.writerow([str(row.get(k, "")) for k in out_fields])
+            elif fmt_lower == "json":
+                import json
+                print(json.dumps(view, ensure_ascii=False, indent=2))
+            elif fmt_lower == "md":
+                print("| Rank | Name | PRI | Raw | Context |")
+                print("|---:|:-----|---:|----:|:---|")
+                for i, r in enumerate(view, 1):
+                    print(f'| {i} | {r["name"]} | {int(r["pri"])} | {float(r["pri_raw"]):.4f} | {r.get("context_used","")} |')
+            else:
+                print(_render_table(view, 0))
 
     if show_timing:
         total = sum(ms for _, ms in T.items)

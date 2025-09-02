@@ -1,0 +1,131 @@
+key: demo
+version: 0.3.5
+aliases: [demo]
+title: StatLine Demo (basketball, positionless + versatility)
+
+buckets:
+  ppg: {}
+  apg: {}
+  rpg: {}
+  spg: {}
+  bpg: {}
+  aefg: {}
+  effloor: {}
+  tov_eff: {}
+  rim: {}
+  stocks: {}
+  vers: {}
+  helios: {}
+  telem: {}
+  wl: {}
+
+metrics:
+  # Positionless clamps (season-realistic, not batch extremes)
+  - { key: ppg,  bucket: ppg,  clamp: [15.0, 30.0], source: { field: ppg } }
+  - { key: apg,  bucket: apg,  clamp: [ 2.0,  9.5], source: { field: apg } }
+  - { key: rpg,  bucket: rpg,  clamp: [ 4.0, 12.0], source: { field: rpg } }
+  - { key: spg,  bucket: spg,  clamp: [ 0.5,  2.2], source: { field: spg } }   # weight=0 (rolled into stocks)
+  - { key: bpg,  bucket: bpg,  clamp: [ 0.2,  3.0], source: { field: bpg } }   # weight=0 (rolled into stocks)
+  - { key: tov,  bucket: tov_eff, clamp: [ 1.0,  3.5 ], invert: true, source: { field: tov } }
+
+  # Telemetry
+  - { key: fgm,  bucket: telem, clamp: [ 4.0, 15.0 ], source: { field: fgm } }
+  - { key: fga,  bucket: telem, clamp: [ 8.0, 25.0 ], source: { field: fga } }
+  - { key: ftm,  bucket: telem, clamp: [ 2.0, 10.0 ], source: { field: ftm } }
+  - { key: win,  bucket: telem, clamp: [ 0.0, 16.0 ], source: { field: win } }
+  - { key: loss, bucket: telem, clamp: [ 0.0, 16.0 ], source: { field: loss } }
+
+efficiency:
+  # FG-only PPS (efficiency) + synergy with usage
+  - key: pps_fg
+    bucket: aefg
+    clamp: [1.00, 1.50]
+    min_den: 3
+    make: "min(3*fgm, max(2*fgm, ppg - ftm))"
+    attempt: "fga"
+
+  - key: eff_usage
+    bucket: aefg
+    clamp: [0.70, 1.55]
+    min_den: 1
+    make: "pps_fg * fga"
+    attempt: "22"
+
+  # Light penalties: low PPS and very low usage
+  - key: pps_gap
+    bucket: effloor
+    invert: true
+    clamp: [0.0, 0.60]
+    min_den: 1
+    make: "1.10 - pps_fg"
+    attempt: "1"
+
+  - key: vol_gap
+    bucket: effloor
+    invert: true
+    clamp: [0.0, 4.0]
+    min_den: 1
+    make: "17 - ppg"
+    attempt: "1"
+
+  # Rim pressure
+  - key: ftr
+    bucket: rim
+    clamp: [0.12, 0.55]
+    min_den: 1
+    make: "ftm"
+    attempt: "fga"
+
+  # Positionless defense
+  - key: stocks_score
+    bucket: stocks
+    clamp: [0.30, 1.60]
+    min_den: 1
+    make: "spg + bpg"
+    attempt: "2.6"
+
+  # Smooth versatility — continuous, not an on/off kick.
+  - key: vers_score
+    bucket: vers
+    clamp: [0.20, 1.00]
+    min_den: 1
+    make: "(0.7*((min(1, ppg/20) + min(1, rpg/11) + min(1, apg/11))/3)) + (0.4*((min(1, ppg/20)*min(1, rpg/11) + min(1, ppg/20)*min(1, apg/11) + min(1, rpg/11)*min(1, apg/11))/3))"
+    attempt: "1.18"
+
+  # Soft engine credit (kept small)
+  - key: helios_score
+    bucket: helios
+    clamp: [0.35, 0.85]
+    min_den: 1
+    make: "ppg + 0.7*apg"
+    attempt: "42"
+
+  # Optional WL nudge (0-weight below)
+  - key: wl_share
+    bucket: wl
+    clamp: [0.0, 1.0]
+    min_den: 0.5
+    make: "win"
+    attempt: "win + loss"
+
+weights:
+  # Positionless + balanced; sums to 1.00
+  pri:
+    ppg:      0.20
+    aefg:     0.19
+    vers:     0.25   # +0.01 (reallocated from removed spike)
+    stocks:   0.10
+    rpg:      0.08
+    rim:      0.06
+    tov_eff:  0.03
+    helios:   0.08
+    effloor:  0.01
+    apg:      0.00
+    spg:      0.00
+    bpg:      0.00
+    orpg:     0.00
+    drpg:     0.00
+    wl:       0.00
+
+sniff:
+  require_any_headers: [ppg, apg, rpg, orpg, drpg, spg, bpg, tov, fgm, fga, ftm, win, loss]

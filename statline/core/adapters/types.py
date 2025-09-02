@@ -29,12 +29,14 @@ class MetricSpec:
 
 @dataclass(frozen=True)
 class EffSpec:
-    """Optional efficiency modeling block (pass-through)."""
     key: str
     make: str
     attempt: str
     bucket: str
-    transform: Optional[str] = None
+    min_den: float = 1.0
+    clamp: Optional[Tuple[float, float]] = None
+    invert: bool = False
+    transform: Optional[Mapping[str, Any]] = None
 
 @dataclass(frozen=True)
 class AdapterSpec:

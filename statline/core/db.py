@@ -106,14 +106,6 @@ def get_conn(
 
 @contextmanager
 def transaction(conn: sqlite3.Connection, name: Optional[str] = None) -> Iterator[None]:
-    """
-    Nestable transaction using SAVEPOINTs, safe with autocommit connections.
-    Usage:
-        with get_conn() as c, transaction(c):
-            c.execute(...)
-            with transaction(c):  # nested OK
-                c.execute(...)
-    """
     sp = name or f"sp_{id(conn)}_{os.getpid()}"
     try:
         conn.execute(f"SAVEPOINT {sp}")
