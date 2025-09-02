@@ -120,12 +120,6 @@ weights:
     tov_eff:  0.03
     helios:   0.08
     effloor:  0.01
-    apg:      0.00
-    spg:      0.00
-    bpg:      0.00
-    orpg:     0.00
-    drpg:     0.00
-    wl:       0.00
 
 sniff:
   require_any_headers: [ppg, apg, rpg, orpg, drpg, spg, bpg, tov, fgm, fga, ftm, win, loss]
