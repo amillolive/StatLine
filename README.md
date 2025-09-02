@@ -30,7 +30,6 @@ Base install:
 
 ```bash
 # pip
-python -m venv .venv && source .venv/bin/activate   # use .\.venv\Scripts\activate on Windows
 pip install statline
 ```
 
@@ -104,7 +103,7 @@ StatLine reads **CSV** or **YAML**. The columns/keys must match what the adapter
 
 ```cs
 display_name,team,ppg,apg,orpg,drpg,spg,bpg,fgm,fga,tov
-Jordan,Red,27.3,4.8,1.2,3.6,1.9,0.7,10.2,22.1,2.1
+JordanRed,27.3,4.8,1.2,3.6,1.9,0.7,10.2,22.1,2.1
 ```
 
 ### Example adapter (yaml)
@@ -114,7 +113,7 @@ Below is the `example.yaml` you can ship in `statline/core/adapters/defs/`:
 
 ```yaml
 key: example_game
-version: 0.1.0
+version: 0.2.0
 aliases: [ex, sample]
 title: Example Game
 
@@ -132,15 +131,30 @@ buckets:
   discipline: {}
 
 metrics:
-  # direct fields
   - { key: stat3_count, bucket: utility,    clamp: [0, 50],  source: { field: stat3_count } }
   - { key: mistakes,    bucket: discipline, clamp: [0, 25], invert: true, source: { field: mistakes } }
 
-# ratios/derived — replace old mapping math
 efficiency:
-  - { key: stat1_per_round, make: raw["stat1_total"], attempt: raw["rounds_played"], bucket: scoring }
-  - { key: stat2_rate,      make: raw["stat2_numer"], attempt: raw["stat2_denom"],   bucket: impact }
-  - { key: stat4_quality,   make: raw["stat4_good"],  attempt: raw["stat4_total"],   bucket: survival }
+  - key: stat1_per_round
+    bucket: scoring
+    clamp: [0.00, 2.00]
+    min_den: 5
+    make: "stat1_total"
+    attempt: "rounds_played"
+
+  - key: stat2_rate
+    bucket: impact
+    clamp: [0.00, 1.00]
+    min_den: 10
+    make: "stat2_numer"
+    attempt: "stat2_denom"
+
+  - key: stat4_quality
+    bucket: survival
+    clamp: [0.00, 1.00]
+    min_den: 5
+    make: "stat4_good"
+    attempt: "stat4_total"
 
 weights:
   pri:
@@ -168,7 +182,8 @@ penalties:
   support: { discipline: 0.08 }
 
 sniff:
-  require_any_headers: [stat1_total, stat2_numer, stat2_denom, rounds_played, mistakes]
+  require_any_headers:
+    [stat1_total, rounds_played, stat2_numer, stat2_denom, stat4_good, stat4_total, stat3_count, mistakes]
 ```
 
 Reference `HOWTO.md` should you have any questions regarding adapters and yaml formatting.

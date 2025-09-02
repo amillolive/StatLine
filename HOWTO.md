@@ -24,20 +24,18 @@ StatLine/
 
 Keys:
 
-* **`key`** (required): Unique ID for the adapter, in kebab or snake case. Example: `valorant`, `legacy`.
-* **`version`** (required): Semantic version number.
-
-  * **Major**: Structure overhauls (metrics, buckets, clamps changes).
-  * **Minor**: Adding new metrics/buckets.
-  * **Patch**: Bug fixes or minor adjustments.
-* **`aliases`** (optional): Alternative names to help auto-detection. Example: `[ex, sample]`.
-* **`title`** (optional): Human-readable game name.
-
+* **`key`** (required): Unique ID (kebab or snake case).
+* **`version`** (required): SemVer.
+  * **Major**: structure overhauls (buckets/metrics/clamps).
+  * **Minor**: add new metrics/buckets or meaningful clamp shifts.
+  * **Patch**: small fixes/tuning.
+* **`aliases`** (optional): Alternate names.
+* **`title`** (optional): Human-friendly label.
 **Example:**
 
 ```yaml
 key: example_game
-version: 0.1.0
+version: 0.2.0
 aliases: [ex, sample]
 title: Example Game
 ```
@@ -46,11 +44,7 @@ title: Example Game
 
 ## 2) Dimensions (optional)
 
-**Purpose:** Define grouping/filtering categories for reports.
-
-These are labels used for breakdowns like per-map, per-role, per-side.
-
-**Example:**
+Used for filtering/rollups.
 
 ```yaml
 dimensions:
@@ -64,11 +58,7 @@ dimensions:
 
 ## 3) Buckets (required)
 
-**Purpose:** Group metrics into categories that weights apply to.
-
-3–6 categories recommended.
-
-**Example:**
+Group metrics into weighted categories.
 
 ```yaml
 buckets:
@@ -83,19 +73,12 @@ buckets:
 
 ## 4) Metrics (required)
 
-**Purpose:** Define the specific stats tracked in this adapter.
-
 Each metric:
 
-* Belongs to one bucket.
-* Has a realistic **`clamp: [min, max]`**.
-
-  * Example: For points per game, `clamp: [0, 60]` means the floor is 0 and ceiling is 60.
-  * If your sheets are set up for auto-calculation based on your league's data, clamps may not be necessary.
-* Optional `invert: true` for penalty metrics (where lower is better).
-* **`source.field`**: Points to the raw field name.
-
-**Example:**
+* belongs to a bucket,
+* uses realistic `clamp: [min, max]`,
+* optional `invert: true` for penalty metrics if *lower is better*,
+* pulls from `source.field`.
 
 ```yaml
 metrics:
@@ -105,36 +88,69 @@ metrics:
 
 ---
 
-## 5) Efficiency (optional)
+## 5) Efficiency / Derived Ratios (updated)
 
-**Purpose:** Define make/attempt pairs that are converted to percentages internally.
+**Purpose:** Define ratios and derived signals as **make/attempt** pairs.
+**New DSL:** write **field names or expressions** directly (no `raw[...]`). You may also use **numeric constants** for `attempt`.
 
-Good for ratios like accuracy, win rates, or success rates.
+* `make`, `attempt` accept:
+  * field names: `stat1_total` `rounds_played`
+  * expressions: `min(3*hits, max(2*hits, score - penalties))`
+  * numeric constants: `20`
+* `min_den`: minimum denominator required to score (guards divide-by-low).
+* `clamp`: post-compute clamp before normalization.
+* Supported ops: `+ - * /`, parentheses, `min(a,b), max (a,b).
 
-**Example:**
+**Examples:**
 
 ```yaml
 efficiency:
-  - { key: stat1_per_round, make: raw["stat1_total"], attempt: raw["rounds_played"], bucket: scoring }
-  - { key: stat2_rate,      make: raw["stat2_numer"], attempt: raw["stat2_denom"],   bucket: impact }
-  - { key: stat4_quality,   make: raw["stat4_good"],  attempt: raw["stat4_total"],   bucket: survival }
+  # Per-round scoring output
+  - key: stat1_per_round
+    bucket: scoring
+    clamp: [0.00, 2.00]
+    min_den: 5
+    make: "stat1_total"
+    attempt: "rounds_played"
+
+  # Impact success rate
+  - key: stat2_rate
+    bucket: impact
+    clamp: [0.00, 1.00]
+    min_den: 10
+    make: "stat2_numer"
+    attempt: "stat2_denom"
+
+  # Survival quality (good / total)
+  - key: stat4_quality
+    bucket: survival
+    clamp: [0.00, 1.00]
+    min_den: 5
+    make: "stat4_good"
+    attempt: "stat4_total"
+
+  # (Optional) Constant attempt — use to softly scale a raw signal
+  - key: pressure_hint
+    bucket: impact
+    clamp: [0.00, 1.00]
+    min_den: 1
+    make: "entries"      # raw count
+    attempt: "20"        # normalize by a fixed scale
 ```
 
 ---
 
-## 6) Mapping (not used in this example)
+## 6) Mapping (legacy)
 
-In older formats, mapping translated raw data to metric keys directly. In this example, source fields and efficiency definitions replace that.
+Legacy mapping isn’t needed when you use `source.field` and the efficiency DSL. Prefer this newer approach.
 
 ---
 
 ## 7) Weights (optional)
 
-**Purpose:** Assign importance to each bucket for different scoring presets.
+Assign bucket importance for different presets.
 
-Weights don’t need to sum to 1; the engine normalizes automatically.
-
-**Example:**
+Weights don’t need to sum to 1; the engine normalizes.
 
 ```yaml
 weights:
@@ -162,9 +178,7 @@ weights:
 
 ## 8) Penalties (optional)
 
-**Purpose:** Add extra scaling for negative influence in specific buckets.
-
-**Example:**
+Extra downweight by bucket per preset (applies after normalization).
 
 ```yaml
 penalties:
@@ -177,69 +191,52 @@ penalties:
 
 ## 9) Sniff (optional)
 
-**Purpose:** Help the engine auto-select the adapter by matching headers in the raw data.
-
-**Example:**
+Headers the engine can use to auto-select your adapter.
+**Tip:** include all fields referenced by `metrics` and `efficiency`.
 
 ```yaml
 sniff:
-  require_any_headers: [stat1_total, stat2_numer, stat2_denom, rounds_played, mistakes]
+  require_any_headers:
+    [stat1_total, rounds_played, stat2_numer, stat2_denom, stat4_good, stat4_total, stat3_count, mistakes]
 ```
 
 ---
 
 ## 10) Versioning Rules
 
-* **Major** = Structural change.
-* **Minor** = Additions or meaningful clamp shifts.
-* **Patch** = Minor fixes.
+* **Major** = structural change.
+* **Minor** = added signals or material clamp shifts.
+* **Patch** = tweaks/fixes.
 
 ---
 
 ## 11) Validation Checklist
 
-* All metrics match mapping/source fields.
+* Metrics reference real fields; buckets exist.
 * Buckets exist for all metrics.
-* Clamps are realistic.
-* Penalty metrics have `invert: true`.
+* Clamps realistic; penalty metrics use `invert: true`.
+* Efficiency pairs have valid fields/expressions; `min_den` set sensibly.
 * Efficiency pairs have valid fields.
-* Weights reference existing buckets.
-* Sniff headers match actual data.
-* All divides are guarded.
-* Use rates for stats that vary with match length.
+* Any constant denominators are quoted (e.g., `"20"`).
+* Weights only reference existing buckets.
+* Sniff headers cover all referenced raw fields.
 
 ---
 
-## 12) FAQ
+## 12) Future Hooks (not yet supported)
 
-**Q:** Why rates instead of totals?
-**A:** Totals inflate long matches and bias results.
-
-**Q:** Must weights sum to 1?
-**A:** No, normalization is automatic.
-
-**Q:** Should fewer mistakes be treated as positive?
-**A:** Yes — mark with `invert: true`.
-
-**Q:** Are dimensions required?
-**A:** Only if you want filtering/aggregation.
-
----
-
-## 13) Future Hooks (not yet supported)
-
-* Metric transforms.
+* Metric transforms
 * Per-dimension clamps.
 * Per-metric multipliers.
 * Team-factor modes.
 
 ---
 
-## 14) Minimal Starter Template (Updated Example)
+## 13) Minimal Starter Template (Updated Example)
 
 ```yaml
 key: example_game
-version: 0.1.0
+version: 0.2.0
 aliases: [ex, sample]
 title: Example Game
 
@@ -261,9 +258,26 @@ metrics:
   - { key: mistakes,    bucket: discipline, clamp: [0, 25], invert: true, source: { field: mistakes } }
 
 efficiency:
-  - { key: stat1_per_round, make: raw["stat1_total"], attempt: raw["rounds_played"], bucket: scoring }
-  - { key: stat2_rate,      make: raw["stat2_numer"], attempt: raw["stat2_denom"],   bucket: impact }
-  - { key: stat4_quality,   make: raw["stat4_good"],  attempt: raw["stat4_total"],   bucket: survival }
+  - key: stat1_per_round
+    bucket: scoring
+    clamp: [0.00, 2.00]
+    min_den: 5
+    make: "stat1_total"
+    attempt: "rounds_played"
+
+  - key: stat2_rate
+    bucket: impact
+    clamp: [0.00, 1.00]
+    min_den: 10
+    make: "stat2_numer"
+    attempt: "stat2_denom"
+
+  - key: stat4_quality
+    bucket: survival
+    clamp: [0.00, 1.00]
+    min_den: 5
+    make: "stat4_good"
+    attempt: "stat4_total"
 
 weights:
   pri:
@@ -291,5 +305,6 @@ penalties:
   support: { discipline: 0.08 }
 
 sniff:
-  require_any_headers: [stat1_total, stat2_numer, stat2_denom, rounds_played, mistakes]
+  require_any_headers:
+    [stat1_total, rounds_played, stat2_numer, stat2_denom, stat4_good, stat4_total, stat3_count, mistakes]
 ```
