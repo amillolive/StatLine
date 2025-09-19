@@ -45,6 +45,9 @@ Thumbs.db
 .ipynb_checkpoints/
 
 # Env / secrets
+/statline/.keys.json
+/.venv/
+**/.keys.json
 .keys.json
 .env
 .env.*
@@ -87,4 +90,3 @@ statline/slapi/storage/*.db*
 *.egg
 MANIFEST
 uv.lock
-/.keys.json
