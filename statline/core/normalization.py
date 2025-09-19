@@ -1,52 +1,35 @@
+# statline/core/normalization.py
 from __future__ import annotations
 
 import math
-from typing import Any, Callable, Optional, TypeVar, overload
+from typing import SupportsFloat
 
-T = TypeVar("T")
 
-def clamp01(x: float) -> float:
-    if isinstance(x, float):
-        if math.isnan(x):
-            return 0.0
-        if math.isinf(x):
-            return 1.0 if x > 0 else 0.0
-    return max(0.0, min(1.0, float(x)))
-
-def norm(value: float, max_value: float) -> float:
-    if not value or not max_value:
+def clamp01(x: SupportsFloat) -> float:
+    """
+    Clamp a numeric value to the [0.0, 1.0] range.
+    - NaN -> 0.0
+    - +inf -> 1.0
+    - -inf -> 0.0
+    """
+    xf = float(x)
+    if math.isnan(xf):
         return 0.0
-    if max_value <= 0 or math.isnan(value) or math.isnan(max_value):
-        return 0.0
-    try:
-        return clamp01(float(value) / float(max_value))
-    except ZeroDivisionError:
-        return 0.0
+    if math.isinf(xf):
+        return 1.0 if xf > 0 else 0.0
+    return 0.0 if xf < 0.0 else (1.0 if xf > 1.0 else xf)
 
-@overload
-def get_input(prompt: str, cast_func: type[int] = ..., allow_empty: bool = ..., default: Optional[int] = ...) -> Optional[int]: ...
-@overload
-def get_input(prompt: str, cast_func: type[float], allow_empty: bool = ..., default: Optional[float] = ...) -> Optional[float]: ...
-@overload
-def get_input(prompt: str, cast_func: type[str], allow_empty: bool = ..., default: Optional[str] = ...) -> Optional[str]: ...
-@overload
-def get_input(prompt: str, cast_func: Callable[[str], T], allow_empty: bool = ..., default: Optional[T] = ...) -> Optional[T]: ...
 
-def get_input(
-    prompt: str,
-    cast_func: Callable[[str], Any] | type[Any] = float,
-    allow_empty: bool = False,
-    default: Optional[Any] = None,
-) -> Optional[Any]:
-    while True:
-        try:
-            raw_any = input(prompt)
-        except (KeyboardInterrupt, EOFError):
-            raise
-        s = str(raw_any).strip()
-        if allow_empty and not s:
-            return default
-        try:
-            return cast_func(s)
-        except (ValueError, TypeError):
-            print("Invalid input, try again.")
+def norm(value: SupportsFloat, max_value: SupportsFloat) -> float:
+    """
+    Normalize `value` by `max_value` into [0, 1].
+    Returns 0.0 if max_value <= 0, or if either argument is NaN.
+    """
+    v = float(value)
+    m = float(max_value)
+    if m <= 0.0 or math.isnan(v) or math.isnan(m):
+        return 0.0
+    return clamp01(v / m)
+
+
+__all__ = ["clamp01", "norm"]

@@ -6,14 +6,15 @@ from typing import Dict, Iterable, Mapping, Optional, SupportsFloat
 
 def normalize_weights(weights: Mapping[str, SupportsFloat]) -> dict[str, float]:
     """
-    Normalize weights (ints/floats) so their L1 (sum of absolute values) is 1.0.
-    Preserves sign (so you can penalize 'bad' metrics with negative weights).
-    If all weights are zero/missing, returns {}.
+    L1-normalize a mapping of weights (ints/floats) so the sum of absolute values is 1.0.
+
+    - Preserves sign (negative weights are allowed to represent penalties).
+    - If all weights are zero or the mapping is empty, returns {}.
     """
     total = float(sum(abs(float(v)) for v in weights.values()))
     if total <= 0.0:
         return {}
-    return {k: float(v) / total for k, v in weights.items()}
+    return {str(k): float(v) / total for k, v in weights.items()}
 
 
 def resolve_weights(
@@ -24,14 +25,23 @@ def resolve_weights(
     fill_missing_with_zero: bool = True,
 ) -> dict[str, float]:
     """
-    Merge default weights with league overrides (override wins), then normalize.
+    Merge default weights with user/project overrides (override wins), then normalize.
 
-    - `metrics`: canonical metric keys for the current adapter (whatever it emits).
-    - `defaults`: adapter-provided weights (optional).
-    - `override`: league- or guild-specific overrides (sparse, optional).
-    - `fill_missing_with_zero`: if True, any metric not present gets 0 weight.
+    Parameters
+    ----------
+    metrics
+        Canonical metric keys for the current adapter (whatever it emits).
+    defaults
+        Adapter-provided baseline weights (optional).
+    override
+        Sparse mapping of weights supplied by the caller to change specific entries (optional).
+    fill_missing_with_zero
+        If True (default), any metric not present after merging is assigned 0 weight.
 
-    Returns unit (L1) weights; may be empty if everything is zero.
+    Returns
+    -------
+    dict[str, float]
+        L1-normalized weights over the provided metrics. May be {} if everything is zero.
     """
     merged: Dict[str, float] = {}
 
@@ -60,8 +70,13 @@ def pick_profile(
     name: str | None,
 ) -> Mapping[str, SupportsFloat]:
     """
-    If an adapter exposes multiple weight profiles (e.g., 'default', 'mvp', 'defense'),
-    select one by name; fall back to 'default' or empty mapping.
+    Select a weight profile by name from an adapter's provided profiles.
+
+    Behavior:
+    - If `profiles` is falsy, return {}.
+    - If `name` exists in `profiles`, return that mapping.
+    - Else, if "default" exists, return it.
+    - Else, return the first mapping deterministically.
     """
     if not profiles:
         return {}
@@ -69,6 +84,5 @@ def pick_profile(
         return profiles[name]
     if "default" in profiles:
         return profiles["default"]
-    # just grab the first profile deterministically
     first_key = next(iter(profiles.keys()))
     return profiles[first_key]

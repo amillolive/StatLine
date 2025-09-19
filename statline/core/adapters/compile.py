@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 # ───────────────────── Strict-path helpers (no legacy / no eval) ─────────────
-# statline/core/adapters/compile.py  (add near helpers)
 import ast
 import math
 from dataclasses import dataclass
@@ -11,80 +10,110 @@ from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 from .hooks import get as get_hooks
 from .types import AdapterSpec, EffSpec, MetricSpec
 
+# Allowed operations for tiny arithmetic inside expressions (safe subset).
 _ALLOWED_BINOPS = (ast.Add, ast.Sub, ast.Mult, ast.Div, ast.FloorDiv, ast.Mod)
-_ALLOWED_UNARY  = (ast.UAdd, ast.USub)
+_ALLOWED_UNARY = (ast.UAdd, ast.USub)
+
+
+def _finite(x: float) -> float:
+    """Coerce NaN/inf to safe values (0.0 for NaN/−inf, +inf→1e308 guard)."""
+    try:
+        xf = float(x)
+    except Exception:
+        return 0.0
+    if not math.isfinite(xf):
+        return 1e308 if xf > 0 else 0.0
+    return xf
+
+
+def _num(v: Any) -> float:
+    """Best-effort numeric coercion with comma-as-dot support."""
+    try:
+        if v is None:
+            return 0.0
+        if isinstance(v, (int, float)):
+            return _finite(float(v))
+        if isinstance(v, str):
+            s = v.strip().replace(",", ".")
+            return _finite(float(s)) if s else 0.0
+        return _finite(float(v))
+    except Exception:
+        return 0.0
+
 
 def _eval_expr(expr: str, ctx: Mapping[str, Any]) -> float:
+    """
+    Extremely small safe-expression evaluator.
+    Supports: numbers, identifiers, + - * / // %, unary +/-, min(), max(), and parentheses.
+    Identifiers resolve from ctx by name.
+    """
     try:
         tree = ast.parse(str(expr), mode="eval")
     except Exception:
         return 0.0
 
     def _ev(node: ast.AST) -> float:
-        if isinstance(node, ast.Expression): 
+        if isinstance(node, ast.Expression):
             return _ev(node.body)
-        elif isinstance(node, ast.Constant):   
+
+        if isinstance(node, ast.Constant):   # literals
             return _num(node.value)
-        elif isinstance(node, ast.Name):       
+
+        if isinstance(node, ast.Name):       # identifiers
             return _num(ctx.get(node.id, 0.0))
-        elif isinstance(node, ast.UnaryOp) and isinstance(node.op, _ALLOWED_UNARY):
+
+        if isinstance(node, ast.UnaryOp) and isinstance(node.op, _ALLOWED_UNARY):
             v = _ev(node.operand)
             return +v if isinstance(node.op, ast.UAdd) else -v
-        elif isinstance(node, ast.BinOp) and isinstance(node.op, _ALLOWED_BINOPS):
+
+        if isinstance(node, ast.BinOp) and isinstance(node.op, _ALLOWED_BINOPS):
             a, b = _ev(node.left), _ev(node.right)
-            if isinstance(node.op, ast.Add):      
+            if isinstance(node.op, ast.Add):
                 return a + b
-            elif isinstance(node.op, ast.Sub):      
+            if isinstance(node.op, ast.Sub):
                 return a - b
-            elif isinstance(node.op, ast.Mult):     
+            if isinstance(node.op, ast.Mult):
                 return a * b
-            elif isinstance(node.op, ast.Div):      
+            if isinstance(node.op, ast.Div):
                 return a / b if abs(b) > 1e-12 else 0.0
-            elif isinstance(node.op, ast.FloorDiv): 
+            if isinstance(node.op, ast.FloorDiv):
                 return a // b if abs(b) > 1e-12 else 0.0
-            else:      
-                return a % b if abs(b) > 1e-12 else 0.0
-        # allow min/max only
-        elif isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and not node.keywords:
+            # Mod
+            return a % b if abs(b) > 1e-12 else 0.0
+
+        # allow min/max only (positional args, no keywords)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and not node.keywords:
             fn = node.func.id
             if fn in ("min", "max"):
                 vals = [_ev(arg) for arg in node.args]
                 return (min if fn == "min" else max)(vals) if vals else 0.0
-        return 0.0
-    return float(_ev(tree))
 
-def _num(v: Any) -> float:
-    try:
-        if v is None:
-            return 0.0
-        if isinstance(v, (int, float)):
-            return float(v)
-        if isinstance(v, str):
-            s = v.strip().replace(",", ".")
-            return float(s) if s else 0.0
-        return float(v)
-    except Exception:
         return 0.0
+
+    return float(_ev(tree))
 
 
 def _sanitize_row(raw: Mapping[str, Any]) -> Dict[str, Any]:
+    """Normalize input row to str->(float/str) with numeric-like strings coerced."""
     out: Dict[str, Any] = {}
     for k, v in raw.items():
+        key = str(k)
         if isinstance(v, str):
             s = v.strip()
             if s == "":
-                out[str(k)] = 0.0
+                out[key] = 0.0
                 continue
             try:
-                out[str(k)] = float(s.replace(",", "."))
+                out[key] = _num(s.replace(",", "."))
                 continue
-            except ValueError:
+            except Exception:
                 pass
-        out[str(k)] = v
+        out[key] = v
     return out
 
 
 def _compute_source(row: Mapping[str, Any], src: Mapping[str, Any]) -> float:
+    """Evaluate a strict 'source' block into a numeric value."""
     if "field" in src:
         return _num(row.get(str(src["field"]), 0))
 
@@ -114,28 +143,36 @@ def _compute_source(row: Mapping[str, Any], src: Mapping[str, Any]) -> float:
 
 
 def _apply_transform(x: float, spec: Optional[Mapping[str, Any]]) -> float:
+    """Apply an optional transform to a numeric value."""
     if not spec:
         return x
     name = str(spec.get("name", "")).lower()
     p = dict(spec.get("params") or {})
+
     if name == "linear":
         return x * _num(p.get("scale", 1.0)) + _num(p.get("offset", 0.0))
+
     if name == "capped_linear":
-        cap = _num(p["cap"])
+        cap = _num(p.get("cap", x))
         return x if x <= cap else cap
+
     if name == "minmax":
-        lo = _num(p["lo"])
-        hi = _num(p["hi"])
+        lo = _num(p.get("lo", x))
+        hi = _num(p.get("hi", x))
         return min(max(x, lo), hi)
+
     if name == "pct01":
         by = _num(p.get("by", 100.0)) or 100.0
         return x / by
+
     if name == "softcap":
-        cap = _num(p["cap"]) 
-        slope = _num(p["slope"])
+        cap = _num(p.get("cap", x))
+        slope = _num(p.get("slope", 1.0))
         return x if x <= cap else cap + (x - cap) * slope
+
     if name == "log1p":
         return math.log1p(max(x, 0.0)) * _num(p.get("scale", 1.0))
+
     raise ValueError(f"Unknown transform '{name}'")
 
 
@@ -150,6 +187,10 @@ def _clamp(x: float, clamp: Optional[Tuple[float, float]]) -> float:
 
 @dataclass(frozen=True)
 class CompiledAdapter:
+    """
+    Fully strict compiled adapter: no legacy mapping, no eval(), no JSON configs.
+    Provides a stable mapping API used by the calculator/scorer.
+    """
     key: str
     version: str
     aliases: Tuple[str, ...]
@@ -160,13 +201,20 @@ class CompiledAdapter:
     penalties: Dict[str, Dict[str, float]]
     efficiency: List[EffSpec]
 
+    # Public API expected by the rest of core ---------------------------------
     def map_raw(self, raw: Dict[str, Any]) -> Dict[str, float]:
+        """
+        Map a raw input row (strings, numbers) into normalized metric values.
+        - Runs adapter hooks (pre_map/post_map) if present.
+        - Supports strict sources (field/ratio/sum/diff/const/expr).
+        - Evaluates `efficiency` specs after primary metrics so they can reference them.
+        """
         hooks = get_hooks(self.key)
         row = hooks.pre_map(raw) if hasattr(hooks, "pre_map") else raw
         ctx = _sanitize_row(row)  # base context comes from raw
         out: Dict[str, float] = {}
 
-        # 1) metrics (strict)
+        # 1) primary metrics
         for m in self.metrics:
             if m.source is None:
                 raise KeyError(
@@ -176,10 +224,11 @@ class CompiledAdapter:
             x = _compute_source(ctx, m.source)
             x = _apply_transform(x, m.transform)
             x = _clamp(x, m.clamp)
-            out[m.key] = float(x)
-            ctx[m.key] = out[m.key]  # <- make it referencable by later expressions
+            xv = float(x)
+            out[m.key] = _finite(xv)
+            ctx[m.key] = out[m.key]  # allow later expressions to reference prior outputs
 
-        # 2) efficiency (adapter-dependent, now computed here)
+        # 2) efficiency channels (derived after metrics)
         for e in self.efficiency:
             mk = _eval_expr(e.make, ctx)
             at = _eval_expr(e.attempt, ctx)
@@ -187,22 +236,29 @@ class CompiledAdapter:
             val = (mk / den) if den > 0 else 0.0
             val = _apply_transform(val, e.transform)
             val = _clamp(val, e.clamp)
-            out[e.key] = float(val)
+            out[e.key] = _finite(float(val))
             ctx[e.key] = out[e.key]
 
         return hooks.post_map(out) if hasattr(hooks, "post_map") else out
 
+    # Back-compat shim: some call sites prefer map_raw_to_metrics()
+    def map_raw_to_metrics(self, raw: Mapping[str, Any]) -> Mapping[str, Any]:
+        return self.map_raw(dict(raw))
 
 
 def compile_adapter(spec: AdapterSpec) -> CompiledAdapter:
-    # Enforce strict mode: refuse legacy mapping
+    """
+    Compile a strict AdapterSpec into a CompiledAdapter.
+    Refuses legacy/loose mapping: only `source/transform/clamp` and `efficiency` are supported.
+    """
+    # Enforce strict mode: refuse legacy mapping if someone tries to sneak it in.
     if getattr(spec, "mapping", None):
         raise ValueError(
             "Legacy expression mapping is no longer supported. "
             "Convert adapter to strict 'source/transform/clamp' spec."
         )
 
-    # Use annotated locals to pin concrete types and silence “partially unknown”.
+    # Concrete copies for immutability / type clarity.
     metrics: List[MetricSpec] = list(spec.metrics)
     buckets: Dict[str, Any] = dict(spec.buckets or {})
     weights: Dict[str, Dict[str, float]] = dict(spec.weights or {})
@@ -220,3 +276,6 @@ def compile_adapter(spec: AdapterSpec) -> CompiledAdapter:
         penalties=penalties,
         efficiency=efficiency,
     )
+
+
+__all__ = ["CompiledAdapter", "compile_adapter"]

@@ -1,14 +1,14 @@
 key: demo
-version: 0.3.5
+version: 0.4.0
 aliases: [demo]
-title: StatLine Demo (basketball, positionless + versatility)
+title: StatLine Demo
 
 buckets:
   ppg: {}
-  apg: {}
-  rpg: {}
-  spg: {}
-  bpg: {}
+  apg: {}          # unweighted; used by derived signals
+  rpg: {}          # filled via reb_value (efficiency)
+  spg: {}          # unweighted; input to stocks_boost
+  bpg: {}          # unweighted; input to stocks_boost
   aefg: {}
   effloor: {}
   tov_eff: {}
@@ -16,27 +16,48 @@ buckets:
   stocks: {}
   vers: {}
   helios: {}
+  two_way: {}      # NEW: synergy bonus (small weight)
   telem: {}
+  offball: {}
   wl: {}
+  spg_sig: {}
+  bpg_sig: {}
+  handle: {}
 
 metrics:
-  # Positionless clamps (season-realistic, not batch extremes)
-  - { key: ppg,  bucket: ppg,  clamp: [15.0, 30.0], source: { field: ppg } }
-  - { key: apg,  bucket: apg,  clamp: [ 2.0,  9.5], source: { field: apg } }
-  - { key: rpg,  bucket: rpg,  clamp: [ 4.0, 12.0], source: { field: rpg } }
-  - { key: spg,  bucket: spg,  clamp: [ 0.5,  2.2], source: { field: spg } }   # weight=0 (rolled into stocks)
-  - { key: bpg,  bucket: bpg,  clamp: [ 0.2,  3.0], source: { field: bpg } }   # weight=0 (rolled into stocks)
-  - { key: tov,  bucket: tov_eff, clamp: [ 1.0,  3.5 ], invert: true, source: { field: tov } }
-
-  # Telemetry
+  # Sheet pulls only (no math here)
+  - { key: ppg,  bucket: ppg,  clamp: [12.0, 32.0], source: { field: ppg } }
+  - { key: apg,  bucket: apg,  clamp: [1.5,  9.0], source: { field: apg } }  # not weighted directly
+  - { key: spg,  bucket: spg,  clamp: [0.5,  2.2], source: { field: spg } }  # not weighted directly
+  - { key: bpg,  bucket: bpg,  clamp: [0.2,  3.0], source: { field: bpg } }  # not weighted directly
+  # Basic turnover penalty (kept simple here; scaled versions live in efficiency)
+  - { key: tov,  bucket: tov_eff, clamp: [1.0, 3.5], invert: true, source: { field: tov } }
+  # Telemetry / availability (unweighted directly)
   - { key: fgm,  bucket: telem, clamp: [ 4.0, 15.0 ], source: { field: fgm } }
   - { key: fga,  bucket: telem, clamp: [ 8.0, 25.0 ], source: { field: fga } }
   - { key: ftm,  bucket: telem, clamp: [ 2.0, 10.0 ], source: { field: ftm } }
+  - { key: orpg, bucket: telem, clamp: [ 0.5,  5.0 ], source: { field: orpg } }
+  - { key: drpg, bucket: telem, clamp: [ 1.5, 10.0 ], source: { field: drpg } }
   - { key: win,  bucket: telem, clamp: [ 0.0, 16.0 ], source: { field: win } }
   - { key: loss, bucket: telem, clamp: [ 0.0, 16.0 ], source: { field: loss } }
 
 efficiency:
-  # FG-only PPS (efficiency) + synergy with usage
+  - key: spg_sig
+    bucket: spg_sig
+    clamp: [0.40, 1.80]
+    min_den: 1
+    make: "spg"           # pure steals rate
+    attempt: "1.2"
+
+  - key: bpg_sig
+    bucket: bpg_sig
+    clamp: [0.10, 1.10]
+    min_den: 1
+    # size-normalized blocks: DRB is a soft proxy for size/role
+    make: "(min(bpg, 2.0) + 0.25*max(0, bpg-2.0)) / max(0.85, 1.0 + 0.06*drpg)"
+    attempt: "2.2"
+
+  # --- Efficiency-first over volume ---
   - key: pps_fg
     bucket: aefg
     clamp: [1.00, 1.50]
@@ -51,13 +72,21 @@ efficiency:
     make: "pps_fg * fga"
     attempt: "22"
 
-  # Light penalties: low PPS and very low usage
+  # Net points per play (debits turnovers; soft APG credit in plays)
+  - key: net_pos_ppp
+    bucket: aefg
+    clamp: [0.85, 1.25]
+    min_den: 3
+    make: "ppg - 0.9*tov"
+    attempt: "fga + 0.44*(ftm/0.75) + 0.5*apg"
+
+  # --- Floor keepers (low PPS / low volume) ---
   - key: pps_gap
     bucket: effloor
     invert: true
     clamp: [0.0, 0.60]
     min_den: 1
-    make: "1.10 - pps_fg"
+    make: "max(0, 1.08 - pps_fg) + 0.50*max(0, pps_fg - 1.35)"
     attempt: "1"
 
   - key: vol_gap
@@ -65,42 +94,88 @@ efficiency:
     invert: true
     clamp: [0.0, 4.0]
     min_den: 1
-    make: "17 - ppg"
+    make: "16 - ppg"
     attempt: "1"
 
-  # Rim pressure
+  # --- Rim pressure (needs valid FTM) ---
   - key: ftr
     bucket: rim
     clamp: [0.12, 0.55]
     min_den: 1
-    make: "ftm"
+    make: "ftm / 0.75"
     attempt: "fga"
 
-  # Positionless defense
-  - key: stocks_score
+  # --- Defense: stocks with block premium (second-chance value) ---
+  - key: stocks_boost
     bucket: stocks
-    clamp: [0.30, 1.60]
+    clamp: [0.30, 1.50]
     min_den: 1
-    make: "spg + bpg"
+    make: "spg + 1.05*min(bpg, 2.0) + 0.35*max(0, bpg - 2.0)"
     attempt: "2.6"
 
-  # Smooth versatility — continuous, not an on/off kick.
+  - key: scoreless_impact
+    bucket: offball
+    clamp: [0.30, 1.00]
+    min_den: 1
+    make: "(0.55*min(1, apg/10) + 0.45*min(1, (1.3*orpg+0.7*drpg)/10))"
+    attempt: "1.0"
+  # --- Rebounding: ORB > DRB (extra possessions) ---
+  - key: reb_value
+    bucket: rpg
+    clamp: [2.0, 7.5]
+    min_den: 1
+    make: "1.5*orpg + 0.5*drpg"  
+    attempt: "1"
+
+  # --- Versatility: de-bias toward non-PPG (slower PPG saturation) ---
   - key: vers_score
     bucket: vers
     clamp: [0.20, 1.00]
     min_den: 1
-    make: "(0.7*((min(1, ppg/20) + min(1, rpg/11) + min(1, apg/11))/3)) + (0.4*((min(1, ppg/20)*min(1, rpg/11) + min(1, ppg/20)*min(1, apg/11) + min(1, rpg/11)*min(1, apg/11))/3))"
+    make: "(0.65*((min(1, ppg/24) + min(1, (1.6*orpg+drpg)/10) + min(1, apg/10))/3)) + (0.45*((min(1, ppg/24)*min(1, (1.6*orpg+drpg)/10) + min(1, ppg/24)*min(1, apg/10) + min(1, (1.6*orpg+drpg)/10)*min(1, apg/10))/3))"
     attempt: "1.18"
 
-  # Soft engine credit (kept small)
+  - key: handle_load
+    bucket: handle
+    clamp: [0.40, 1.10]
+    min_den: 1
+    make: "(apg) / max(1.0, 0.6*fga + 0.44*(ftm/0.75) + tov)"
+    attempt: "1"
+
+  # --- Scoring + table-setting blend (assist weight up) ---
   - key: helios_score
     bucket: helios
-    clamp: [0.35, 0.85]
+    clamp: [0.35, 0.90]
     min_den: 1
-    make: "ppg + 0.7*apg"
+    make: "ppg + 0.9*apg"
     attempt: "42"
 
-  # Optional WL nudge (0-weight below)
+  # --- Possession-killing tax (usage-scaled) + AST:TO credit ---
+  - key: tov_scaled
+    bucket: tov_eff
+    clamp: [0.40, 0.95]
+    min_den: 1
+    make: "1 - (tov / max(3, fga + 0.7*apg + 0.44*(ftm/0.75)))"
+    attempt: "1"
+
+  - key: ast_to_credit
+    bucket: tov_eff
+    clamp: [0.70, 2.50]
+    min_den: 1
+    make: "apg"
+    attempt: "max(1.0, tov)"
+
+  # --- Two-way synergy (small bonus; offense × defense) ---
+  - key: two_way_score
+    bucket: two_way
+    clamp: [0.10, 0.80]
+    min_den: 1
+    make: "let(o, (ppg + 0.9*apg)/42;
+                 d, (0.9*spg + 0.6*bpg)/2.5;
+                 (2*o*d)/max(0.0001, o+d))"
+    attempt: "1"
+
+  # Optional WL nudge
   - key: wl_share
     bucket: wl
     clamp: [0.0, 1.0]
@@ -109,17 +184,19 @@ efficiency:
     attempt: "win + loss"
 
 weights:
-  # Positionless + balanced; sums to 1.00
+  # Efficiency-first. Points still the single biggest raw stat; defense & boards elevated.
   pri:
-    ppg:      0.20
-    aefg:     0.19
-    vers:     0.25   # +0.01 (reallocated from removed spike)
-    stocks:   0.10
-    rpg:      0.08
-    rim:      0.06
-    tov_eff:  0.03
-    helios:   0.08
-    effloor:  0.01
-
-sniff:
-  require_any_headers: [ppg, apg, rpg, orpg, drpg, spg, bpg, tov, fgm, fga, ftm, win, loss]
+    ppg:      0.12
+    aefg:     0.17
+    vers:     0.15
+    stocks:   0.0
+    rpg:      0.06
+    rim:      0.08
+    tov_eff:  0.08
+    helios:   0.11
+    effloor:  0.02
+    two_way:  0.02
+    offball:  0.05
+    spg_sig:  0.09
+    bpg_sig:  0.02
+    handle:   0.05
