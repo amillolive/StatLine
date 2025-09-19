@@ -186,6 +186,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 10
     needs: [build]
+    env:
+      SLAPI_URL: "http://127.0.0.1:8000"   # if nothing is listening, we skip scoring
+      STATLINE_DEBUG: "0"
     strategy:
       fail-fast: false
       matrix:
@@ -204,24 +207,21 @@ jobs:
           name: dist-ubuntu
           path: dist
 
-      # Install WITH deps to simulate `pip install statline` (no extras)
       - name: Install wheel (base, no extras)
         run: uv pip install dist/*.whl
 
       - name: Import package
-        run: |
-          uv run python -c "import importlib; importlib.import_module('statline'); print('Import OK')"
+        run: uv run python -c "import importlib; importlib.import_module('statline'); print('Import OK')"
 
-      # --- BOTH FORMS: console script (if present) and module entry point ---
       - name: CLI help (console script if present)
         shell: bash
         run: |
           set -e
           BIN_DIR=$(uv run python -c "import sys, pathlib; print(pathlib.Path(sys.executable).parent)")
-          if [[ -x \"$BIN_DIR/statline\" ]]; then
-            \"$BIN_DIR/statline\" --help
-          elif [[ -x \"$BIN_DIR/statline.exe\" ]]; then
-            \"$BIN_DIR/statline.exe\" --help
+          if [[ -x "$BIN_DIR/statline" ]]; then
+            "$BIN_DIR/statline" --help
+          elif [[ -x "$BIN_DIR/statline.exe" ]]; then
+            "$BIN_DIR/statline.exe" --help
           else
             echo "Console script not found in venv; continuing."
           fi
@@ -238,283 +238,26 @@ jobs:
         run: |
           set -e
           EXAMPLE=$(uv run python -c "from importlib.resources import files; p=files('statline.data')/'example.yaml'; import sys; print(str(p) if p.is_file() else '', end='')")
-          if [ -n "$EXAMPLE" ]; then
+          if [ -z "$EXAMPLE" ]; then
+            echo "No packaged example.yaml; skipping."
+            exit 0
+          fi
+
+          # Probe SLAPI; skip scoring if unreachable
+          if curl -fsS --max-time 2 "$SLAPI_URL" >/dev/null; then
             echo "Scoring (module): $EXAMPLE"
             uv run python -m statline.cli score --adapter rbw5 "$EXAMPLE"
 
             BIN_DIR=$(uv run python -c "import sys, pathlib; print(pathlib.Path(sys.executable).parent)")
-            if [[ -x \"$BIN_DIR/statline\" ]]; then
+            if [[ -x "$BIN_DIR/statline" ]]; then
               echo "Scoring (console script): $EXAMPLE"
-              \"$BIN_DIR/statline\" score --adapter rbw5 "$EXAMPLE"
-            elif [[ -x \"$BIN_DIR/statline.exe\" ]]; then
+              "$BIN_DIR/statline" score --adapter rbw5 "$EXAMPLE"
+            elif [[ -x "$BIN_DIR/statline.exe" ]]; then
               echo "Scoring (console script): $EXAMPLE"
-              \"$BIN_DIR/statline.exe\" score --adapter rbw5 "$EXAMPLE"
+              "$BIN_DIR/statline.exe" score --adapter rbw5 "$EXAMPLE"
             else
               echo "Console script not found; module path already validated."
             fi
           else
-            echo "No packaged example.yaml; skipping."
+            echo "SLAPI not reachable at $SLAPI_URL; skipping scoring smoke."
           fi
-name: CI
-
-on:
-  push:
-    branches: ["main"]
-  pull_request:
-    types: ["opened", "synchronize", "reopened"]
-
-concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
-permissions:
-  contents: read
-
-env:
-  PIP_DISABLE_PIP_VERSION_CHECK: "1"
-  PIP_NO_PYTHON_VERSION_WARNING: "1"
-  PYTHONUNBUFFERED: "1"
-  PYTHONIOENCODING: "utf-8"
-  PYTHONUTF8: "1"
-  TZ: "UTC"
-  CI: "1"
-  ORION_TOKEN: "TEST_TOKEN"
-  STATLINE_ENV: "test"
-  SKIP_LIVE_SHEETS: "1"
-
-defaults:
-  run:
-    shell: bash
-
-jobs:
-  ruff:
-    name: Ruff (lint)
-    runs-on: ubuntu-latest
-    timeout-minutes: 7
-    steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v4
-        with:
-          python-version: "3.13"
-      - run: uv venv --python 3.13
-
-      - name: Restore ruff cache
-        uses: actions/cache@v4
-        with:
-          path: .ruff_cache
-          key: ruff-${{ runner.os }}-${{ hashFiles('pyproject.toml', '.ruff.toml', 'ruff.toml') }}
-
-      - name: Install ruff
-        run: uv pip install ruff
-
-      - name: Ensure ruff cache dir exists
-        run: mkdir -p .ruff_cache
-
-      - name: Ruff autofix + annotate (non-blocking)
-        run: |
-          uv run ruff check . --fix --unsafe-fixes --output-format=github --exit-zero
-          uv run ruff format .
-
-  mypy:
-    name: Mypy (type check on 3.13)
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v4
-        with:
-          python-version: "3.13"
-      - run: uv venv --python 3.13
-
-      - name: Restore mypy cache
-        uses: actions/cache@v4
-        with:
-          path: .mypy_cache
-          key: mypy-${{ runner.os }}-${{ hashFiles('pyproject.toml', '**/*.py') }}
-
-      - name: Install (dev)
-        run: uv pip install -e ".[dev]"
-
-      - name: Ensure mypy cache dir exists
-        run: mkdir -p .mypy_cache
-
-      - name: Type check (strict)
-        run: uv run python -m mypy --strict --ignore-missing-imports .
-
-  tests:
-    name: Tests (${{ matrix.os }} / py${{ matrix.python }})
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 25
-    strategy:
-      fail-fast: false
-      matrix:
-        os: ["ubuntu-latest", "macos-latest", "windows-latest"]
-        python: ["3.10", "3.11", "3.12", "3.13"]
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: astral-sh/setup-uv@v4
-        with:
-          python-version: ${{ matrix.python }}
-
-      - name: Create venv
-        run: uv venv --python ${{ matrix.python }}
-
-      - name: Restore uv cache (Linux/macOS)
-        if: runner.os != 'Windows'
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/uv
-          key: uv-${{ runner.os }}-py${{ matrix.python }}-${{ hashFiles('pyproject.toml') }}
-
-      - name: Restore uv cache (Windows)
-        if: runner.os == 'Windows'
-        uses: actions/cache@v4
-        with:
-          path: ${{ runner.temp }}\uv\cache
-          key: uv-${{ runner.os }}-py${{ matrix.python }}-${{ hashFiles('pyproject.toml') }}
-
-      - name: Install
-        run: uv pip install -e ".[dev,sheets]" pytest pytest-cov
-
-      - name: Prepare test results dir
-        run: mkdir -p test-results
-
-      - name: Run tests (skip if none)
-        shell: bash
-        run: |
-          shopt -s nullglob
-          files=(tests/test_*.py tests/*/test_*.py)
-          if [ ${#files[@]} -eq 0 ]; then
-            echo "No tests detected, skipping pytest."
-            echo '<?xml version="1.0" ?><testsuite></testsuite>' > test-results/junit.xml
-            echo '<?xml version="1.0" ?><coverage></coverage>' > coverage.xml
-            exit 0
-          fi
-          uv run pytest -ra \
-            --maxfail=1 \
-            --durations=10 \
-            --cov=statline \
-            --cov-report=xml \
-            --junitxml=test-results/junit.xml
-
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results-${{ matrix.os }}-py${{ matrix.python }}
-          path: |
-            test-results/junit.xml
-            coverage.xml
-          if-no-files-found: warn
-
-      - name: PR coverage summary
-        if: always() && github.event_name == 'pull_request'
-        uses: irongut/CodeCoverageSummary@v1.3.0
-        with:
-          filename: coverage.xml
-          badge: true
-          format: markdown
-          output: both
-
-  build:
-    name: Build (Ubuntu)
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    needs: [ruff, mypy, tests]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v4
-        with:
-          python-version: "3.13"
-      - name: Create venv
-        run: uv venv --python 3.13
-      - run: uv pip install build
-      - name: Build sdist & wheel
-        run: uv run python -m build
-      - name: Upload dist
-        uses: actions/upload-artifact@v4
-        with:
-          name: dist-ubuntu
-          path: dist/*
-
-smoke:
-  name: Base install & CLI smoke (${{ matrix.os }})
-  runs-on: ${{ matrix.os }}
-  timeout-minutes: 10
-  needs: [build]
-  env:
-    SLAPI_URL: "http://127.0.0.1:8000"   # if nothing is listening, we skip scoring
-    STATLINE_DEBUG: "0"
-  strategy:
-    fail-fast: false
-    matrix:
-      os: ["ubuntu-latest", "macos-latest", "windows-latest"]
-  steps:
-    - uses: actions/checkout@v4
-    - uses: astral-sh/setup-uv@v4
-      with:
-        python-version: "3.13"
-    - name: Create venv
-      run: uv venv --python 3.13
-
-    - name: Download built wheel
-      uses: actions/download-artifact@v4
-      with:
-        name: dist-ubuntu
-        path: dist
-
-    - name: Install wheel (base, no extras)
-      run: uv pip install dist/*.whl
-
-    - name: Import package
-      run: uv run python -c "import importlib; importlib.import_module('statline'); print('Import OK')"
-
-    - name: CLI help (console script if present)
-      shell: bash
-      run: |
-        set -e
-        BIN_DIR=$(uv run python -c "import sys, pathlib; print(pathlib.Path(sys.executable).parent)")
-        if [[ -x "$BIN_DIR/statline" ]]; then
-          "$BIN_DIR/statline" --help
-        elif [[ -x "$BIN_DIR/statline.exe" ]]; then
-          "$BIN_DIR/statline.exe" --help
-        else
-          echo "Console script not found in venv; continuing."
-        fi
-
-    - name: CLI help (module entry point)
-      run: uv run python -m statline.cli --help
-
-    - name: Adapters should exist
-      run: |
-        uv run python -c "from statline.core.adapters import list_names as L; n=L(); assert isinstance(n, list) and n, 'No adapters discovered'; print('Adapters:', n)"
-
-    - name: "CLI smoke: score packaged example (both forms)"
-      shell: bash
-      run: |
-        set -e
-        EXAMPLE=$(uv run python -c "from importlib.resources import files; p=files('statline.data')/'example.yaml'; import sys; print(str(p) if p.is_file() else '', end='')")
-        if [ -z "$EXAMPLE" ]; then
-          echo "No packaged example.yaml; skipping."
-          exit 0
-        fi
-
-        # Probe SLAPI; skip scoring if unreachable (no heredoc = YAML-safe)
-        if curl -fsS --max-time 2 "$SLAPI_URL" >/dev/null; then
-          echo "Scoring (module): $EXAMPLE"
-          uv run python -m statline.cli score --adapter rbw5 "$EXAMPLE"
-
-          BIN_DIR=$(uv run python -c "import sys, pathlib; print(pathlib.Path(sys.executable).parent)")
-          if [[ -x "$BIN_DIR/statline" ]]; then
-            echo "Scoring (console script): $EXAMPLE"
-            "$BIN_DIR/statline" score --adapter rbw5 "$EXAMPLE"
-          elif [[ -x "$BIN_DIR/statline.exe" ]]; then
-            echo "Scoring (console script): $EXAMPLE"
-            "$BIN_DIR/statline.exe" score --adapter rbw5 "$EXAMPLE"
-          else
-            echo "Console script not found; module path already validated."
-          fi
-        else
-          echo "SLAPI not reachable at $SLAPI_URL; skipping scoring smoke."
-        fi
