@@ -1,245 +1,230 @@
-# slapi/auth.py
+# statline/slapi/auth.py
 from __future__ import annotations
 
 import hashlib
 import hmac
-import os
+import json
 import secrets
 import time
-from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from dataclasses import asdict, dataclass
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Set, Tuple, cast
 
-from .errors import Forbidden, Unauthorized
-from .storage.sqlite import get_conn  # must return sqlite3.Connection (row_factory=sqlite3.Row)
+from fastapi import HTTPException
+from starlette.requests import Request
+from starlette.status import HTTP_401_UNAUTHORIZED, HTTP_403_FORBIDDEN
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Model
+# Paths / constants
 # ──────────────────────────────────────────────────────────────────────────────
 
-@dataclass(frozen=True)
+BASE_DIR: Path = Path(__file__).resolve().parents[1]
+SECRETS_DIR: Path = BASE_DIR / "secrets"
+DEVKEY_PATH: Path = SECRETS_DIR / "DEVKEY"
+KEYS_PATH: Path = (BASE_DIR / ".keys.json").resolve()
+KEYS_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# DEVKEY helpers
+# ──────────────────────────────────────────────────────────────────────────────
+
+def _read_devkey() -> bytes:
+    if not DEVKEY_PATH.exists():
+        raise RuntimeError("DEVKEY missing at statline/secrets/DEVKEY")
+    return DEVKEY_PATH.read_bytes()
+
+
+def _fp_devkey(raw: bytes) -> str:
+    return hashlib.sha256(raw).hexdigest()[:16]
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Models
+# ──────────────────────────────────────────────────────────────────────────────
+
+@dataclass
+class RegKey:
+    prefix: str
+    reg_hash: str
+    owner: str
+    scopes: List[str]
+    access: bool
+    host_fp: str
+    created_at: float
+    last_used_at: float = 0.0
+    expires_at: Optional[float] = None
+
+
+@dataclass
+class KeyStore:
+    version: int
+    keys: List[RegKey]
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Store IO
+# ──────────────────────────────────────────────────────────────────────────────
+
+def _load_store() -> KeyStore:
+    if not KEYS_PATH.exists():
+        return KeyStore(version=1, keys=[])
+
+    data: Dict[str, Any] = json.loads(KEYS_PATH.read_text(encoding="utf-8"))
+    raw_keys: List[Dict[str, Any]] = cast(List[Dict[str, Any]], data.get("keys", []))
+    return KeyStore(
+        version=int(data.get("version", 1)),
+        keys=[RegKey(**k) for k in raw_keys],
+    )
+
+
+def _save_store(store: KeyStore) -> None:
+    KEYS_PATH.write_text(
+        json.dumps(
+            {"version": store.version, "keys": [asdict(k) for k in store.keys]},
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Token helpers
+# ──────────────────────────────────────────────────────────────────────────────
+
+def _new_regkey() -> str:
+    return "reg_" + secrets.token_urlsafe(32)
+
+
+def _sha256(s: str) -> str:
+    return hashlib.sha256(s.encode("utf-8")).hexdigest()
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Admin ops
+# ──────────────────────────────────────────────────────────────────────────────
+
+def admin_generate_key(
+    owner: str,
+    scopes: Optional[List[str]] = None,
+    ttl_days: Optional[int] = None,
+) -> Tuple[str, RegKey]:
+    tok = _new_regkey()
+    dev = _read_devkey()
+    fp = _fp_devkey(dev)
+
+    rec = RegKey(
+        prefix=tok[4:12],
+        reg_hash=_sha256(tok),
+        owner=owner,
+        scopes=scopes or ["score"],
+        access=True,
+        host_fp=fp,
+        created_at=time.time(),
+        expires_at=(time.time() + ttl_days * 86400) if ttl_days else None,
+    )
+
+    store = _load_store()
+    store.keys.append(rec)
+    _save_store(store)
+    return tok, rec
+
+
+def admin_list_keys() -> List[Dict[str, Any]]:
+    store = _load_store()
+    out: List[Dict[str, Any]] = []
+    for k in store.keys:
+        out.append(
+            {
+                "prefix": k.prefix,
+                "owner": k.owner,
+                "scopes": list(k.scopes),
+                "access": k.access,
+                "host_fp": k.host_fp,
+                "created_at": k.created_at,
+                "last_used_at": k.last_used_at,
+                "expires_at": k.expires_at,
+            }
+        )
+    return out
+
+
+def admin_set_access(prefix8: str, value: bool) -> bool:
+    store = _load_store()
+    for k in store.keys:
+        if k.prefix == prefix8[:8]:
+            k.access = bool(value)
+            _save_store(store)
+            return True
+    return False
+
+
+def admin_revoke(prefix8: str) -> bool:
+    store = _load_store()
+    before = len(store.keys)
+    store.keys = [k for k in store.keys if k.prefix != prefix8[:8]]
+    _save_store(store)
+    return len(store.keys) < before
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Principal / auth
+# ──────────────────────────────────────────────────────────────────────────────
+
 class Principal:
-    """Authenticated identity."""
-    subject: str           # "env" or token hash
-    role: str              # "system" | "user"
-    scope: Optional[str]   # bound scope (None for env/system tokens)
-    label: Optional[str]   # optional human label for issued tokens
+    def __init__(self, subject: str, scopes: List[str], reg: Optional[RegKey] = None):
+        self.subject: str = subject
+        self.scopes: Set[str] = set(scopes)
+        self.reg: Optional[RegKey] = reg
 
-# ──────────────────────────────────────────────────────────────────────────────
-# Configuration
-# ──────────────────────────────────────────────────────────────────────────────
 
-# Single privileged env token (system role).
-_ENV_TOKEN = os.getenv("ORION_TOKEN") or os.getenv("STATLINE_TOKEN") or ""
+def host_fp() -> str:
+    return _fp_devkey(_read_devkey())
 
-# Token appearance and hashing
-_TOKEN_PREFIX = "slk_"  # only cosmetic; actual auth uses the full token
-_HASH_ALGO = "sha256"
 
-# Storage schema:
-#   api_tokens(
-#       token_hash TEXT PRIMARY KEY,
-#       scope      TEXT NOT NULL,
-#       label      TEXT,
-#       created_ts INTEGER NOT NULL,
-#       revoked_ts INTEGER
-#   )
-def _ensure_tables() -> None:
-    with get_conn() as conn:
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS api_tokens (
-                token_hash TEXT PRIMARY KEY,
-                scope      TEXT NOT NULL,
-                label      TEXT,
-                created_ts INTEGER NOT NULL,
-                revoked_ts INTEGER
-            )
-            """
-        )
-        conn.commit()
-
-# ──────────────────────────────────────────────────────────────────────────────
-# Low-level helpers
-# ──────────────────────────────────────────────────────────────────────────────
-
-def _now() -> int:
-    return int(time.time())
-
-def _hash_token(token: str) -> str:
-    h = hashlib.new(_HASH_ALGO)
-    h.update(token.encode("utf-8"))
-    return h.hexdigest()
-
-def _ct_equal(a: str, b: str) -> bool:
-    try:
-        return hmac.compare_digest(a, b)
-    except Exception:
-        # Fall back to safe behavior
-        if len(a) != len(b):
-            return False
-        result = 0
-        for x, y in zip(a.encode(), b.encode()):
-            result |= x ^ y
-        return result == 0
-
-def _is_prefixed(token: str) -> bool:
-    return token.startswith(_TOKEN_PREFIX)
-
-def _strip_prefix(token: str) -> str:
-    return token[len(_TOKEN_PREFIX):] if _is_prefixed(token) else token
-
-# ──────────────────────────────────────────────────────────────────────────────
-# Public API
-# ──────────────────────────────────────────────────────────────────────────────
-
-def parse_bearer(authorization_header: Optional[str]) -> Optional[str]:
+def require_regkey(request: Request) -> Principal:
     """
-    Extract token from an HTTP-style Authorization header.
-    Accepts: "Bearer <token>" (case-insensitive). Returns the raw token or None.
+    Validate Authorization: Bearer reg_xxx against the local keystore.
+    Enforces host fingerprint, blacklist, and optional expiry.
     """
-    if not authorization_header:
-        return None
-    s = authorization_header.strip()
-    if not s:
-        return None
-    parts = s.split()
-    if len(parts) != 2:
-        return None
-    if parts[0].lower() != "bearer":
-        return None
-    return parts[1].strip() or None
+    auth: str = str(request.headers.get("Authorization", ""))
+    if not auth.startswith("Bearer "):
+        raise HTTPException(HTTP_401_UNAUTHORIZED, "Missing Authorization Bearer regkey")
+
+    token = auth[7:].strip()
+    if not token.startswith("reg_"):
+        raise HTTPException(HTTP_401_UNAUTHORIZED, "Invalid token type")
+
+    store = _load_store()
+    dev = _read_devkey()
+    fp = _fp_devkey(dev)
+
+    prefix8 = token[4:12]
+    candidates = [k for k in store.keys if k.prefix == prefix8]
+
+    for k in candidates:
+        if hmac.compare_digest(k.reg_hash, _sha256(token)):
+            if k.host_fp != fp:
+                raise HTTPException(HTTP_401_UNAUTHORIZED, "Host mismatch")
+
+            if not k.access:
+                raise HTTPException(HTTP_403_FORBIDDEN, "blacklisted")
+
+            now = time.time()
+            if k.expires_at and now > k.expires_at:
+                raise HTTPException(HTTP_403_FORBIDDEN, "expired")
+
+            k.last_used_at = now
+            _save_store(store)
+            return Principal(subject=k.owner, scopes=k.scopes, reg=k)
+
+    raise HTTPException(HTTP_401_UNAUTHORIZED, "Invalid credentials")
 
 
-def issue_token(scope: str, *, label: Optional[str] = None) -> str:
+def need(scope: str, p: Principal) -> None:
     """
-    Create a new API token bound to `scope`. Returns the **plaintext token** (show once).
-    The token is stored **hashed**. Callers must persist the plaintext themselves.
+    Ensure the principal has the given scope; raise 403 if not.
     """
-    if not scope or not scope.strip():
-        raise Unauthorized("Scope is required to issue a token.")
-    _ensure_tables()
-
-    # 32 bytes -> 43 urlsafe chars (approx); add a tiny prefix for readability.
-    raw = _TOKEN_PREFIX + secrets.token_urlsafe(32)
-    token_hash = _hash_token(_strip_prefix(raw))
-    ts = _now()
-
-    with get_conn() as conn:
-        conn.execute(
-            """
-            INSERT INTO api_tokens (token_hash, scope, label, created_ts, revoked_ts)
-            VALUES (?, ?, ?, ?, NULL)
-            """,
-            (token_hash, scope.strip(), (label or None), ts),
-        )
-        conn.commit()
-
-    return raw
-
-
-def revoke_token(token: str) -> bool:
-    """
-    Revoke an issued token (by plaintext). Returns True if it existed and is now revoked.
-    """
-    if not token:
-        return False
-    h = _hash_token(_strip_prefix(token))
-    _ensure_tables()
-    with get_conn() as conn:
-        cur = conn.execute("UPDATE api_tokens SET revoked_ts = ? WHERE token_hash = ? AND revoked_ts IS NULL", (_now(), h))
-        conn.commit()
-        return cur.rowcount > 0
-
-
-def list_tokens(scope: Optional[str] = None) -> List[Dict[str, Any]]:
-    """
-    List token metadata (never returns plaintext). If `scope` is given, filters to that scope.
-    """
-    _ensure_tables()
-    with get_conn() as conn:
-        if scope:
-            cur = conn.execute(
-                """
-                SELECT token_hash, scope, label, created_ts, revoked_ts
-                FROM api_tokens
-                WHERE scope = ?
-                ORDER BY created_ts DESC
-                """,
-                (scope,),
-            )
-        else:
-            cur = conn.execute(
-                """
-                SELECT token_hash, scope, label, created_ts, revoked_ts
-                FROM api_tokens
-                ORDER BY created_ts DESC
-                """
-            )
-        return [dict(r) for r in cur.fetchall()]
-
-
-def _lookup_token_hash(token_hash: str) -> Optional[Principal]:
-    _ensure_tables()
-    with get_conn() as conn:
-        cur = conn.execute(
-            """
-            SELECT token_hash, scope, label, created_ts, revoked_ts
-            FROM api_tokens
-            WHERE token_hash = ?
-            """,
-            (token_hash,),
-        )
-        row = cur.fetchone()
-    if not row:
-        return None
-    if row["revoked_ts"] is not None:
-        return None
-    return Principal(subject=row["token_hash"], role="user", scope=row["scope"], label=row["label"])
-
-
-def validate(token: Optional[str], *, scope: Optional[str] = None, require_system: bool = False) -> Principal:
-    """
-    Validate a token. Returns a Principal or raises AuthError / Forbidden.
-
-    Rules:
-      - If token equals the env token → Principal(role="system").
-      - Else, token must match an issued (non-revoked) hash → Principal(role="user").
-      - If `scope` is provided and principal.scope is set, they must match.
-      - If `require_system` is True, only the env token passes.
-    """
-    if not token or not token.strip():
-        raise Unauthorized("Missing token.")
-
-    # System token (env)
-    if _ENV_TOKEN and _ct_equal(token, _ENV_TOKEN):
-        if require_system:
-            return Principal(subject="env", role="system", scope=None, label="env")
-        # system token can act across scopes
-        return Principal(subject="env", role="system", scope=None, label="env")
-
-    # Issued tokens (user role)
-    principal = _lookup_token_hash(_hash_token(_strip_prefix(token)))
-    if principal is None:
-        raise Unauthorized("Invalid token.")
-    if require_system:
-        # caller explicitly required a system principal
-        raise Forbidden("Operation requires a system token.")
-
-    # Optional scope check
-    if scope is not None and principal.scope is not None and principal.scope != scope:
-        raise Forbidden("Token not authorized for this scope.")
-    return principal
-
-
-def require(token: Optional[str], *, scope: Optional[str] = None) -> Principal:
-    """
-    Validate a token for (optional) scope; raise if not valid.
-    """
-    return validate(token, scope=scope, require_system=False)
-
-
-def require_system(token: Optional[str]) -> Principal:
-    """
-    Validate that `token` is the env/system token.
-    """
-    return validate(token, scope=None, require_system=True)
+    if scope == "*" or scope in p.scopes:
+        return
+    raise HTTPException(HTTP_403_FORBIDDEN, "insufficient scope")

@@ -351,12 +351,12 @@ def calculate_pri(
 
     # 5) Score each row, keep pri_raw (pre-batch 0..1), then renormalize pri to [55..99]
     with (T.stage("score_rows") if T else nullcontext()):
-        tmp: List[Tuple[Dict[str, Any], float]] = []
+        tmp: List[Tuple[int, Dict[str, Any], float]] = []
         buckets_def = getattr(adapter, "buckets", {}) or {}
         bucket_keys = list(buckets_def.keys())
 
         # First pass: compute raw components + pri_raw in [0..1]
-        for r in extended_rows:
+        for idx, r in enumerate(extended_rows):
             res = _pri_kernel_single(
                 metrics=r,
                 caps=caps,
@@ -388,35 +388,42 @@ def calculate_pri(
                 "weights": res.weights,
                 "context_used": context_used,
                 "pri_raw": raw01,
+                "_i": idx,  # original input order for potential consumers
             }
-            tmp.append((payload, raw01))
+            tmp.append((idx, payload, raw01))
 
-        # Second pass: affine-map raw01 → PRI band
+        # Second pass: affine-map raw01 across the batch → [55..99]
         LO, HI = 55.0, 99.0
-        out: List[Dict[str, Any]] = []
-        if len(tmp) == 1:
-            # Single-row mode:
-            # - caps come from: caps_override > adapter clamps > external context
-            # - map pri_raw (0..1) directly into the 55..99 band
-            payload, raw01 = tmp[0]
-            payload = dict(payload)
-            pri_f = LO + (max(0.0, min(1.0, raw01))) * (HI - LO)
-            payload["pri"] = int(round(pri_f))
-            out.append(payload)
-        else:
-            raw_vals = [raw for _, raw in tmp]
-            min_raw = min(raw_vals)
-            max_raw = max(raw_vals)
-            span = max(1e-6, max_raw - min_raw)
+        out_list: List[Dict[str, Any]]
 
-            for payload, raw01 in tmp:
+        if len(tmp) == 1:
+            # Single-row deterministic mapping within the band
+            _, payload, _ = tmp[0]
+            payload = dict(payload)
+            raw01_single: float = clamp01(_to_float(payload.get("pri_raw", 0.0), 0.0))
+            pri_f = LO + raw01_single * (HI - LO)
+            payload["pri"] = int(round(pri_f))
+            payload.pop("_i", None)
+            out_list = [payload]
+        else:
+            raw_vals: List[float] = [raw for _, _, raw in tmp]
+            min_raw: float = min(raw_vals)
+            max_raw: float = max(raw_vals)
+            span: float = max(1e-6, max_raw - min_raw)
+
+            # Keep ORIGINAL INPUT ORDER by filling via index map.
+            by_idx: Dict[int, Dict[str, Any]] = {}
+            for idx, payload, raw01 in tmp:
                 pri_f = LO + (raw01 - min_raw) * (HI - LO) / span
                 pri = int(round(max(LO, min(HI, pri_f))))
-                payload = dict(payload)
-                payload["pri"] = pri
-                out.append(payload)
+                item = dict(payload)
+                item["pri"] = pri
+                item.pop("_i", None)
+                by_idx[idx] = item
 
-    return out
+            out_list = [by_idx[i] for i in range(len(tmp))]
+
+    return out_list
 
 
 # ──────────────────────────────────────────────────────────────────────────────

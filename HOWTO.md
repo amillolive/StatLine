@@ -1,4 +1,4 @@
-# Creating a Compliant Adapter
+# Creating a Compliant Adapter (v2.1.0)
 
 > **Mission:** Adapters describe *your game's stats*; the PRI engine normalizes and scores them. Follow this document exactly.
 
@@ -24,13 +24,15 @@ StatLine/
 
 Keys:
 
-* **`key`** (required): Unique ID (kebab or snake case).
+* **`key`** (required): unique ID (kebab or snake case).
 * **`version`** (required): SemVer.
-  * **Major**: structure overhauls (buckets/metrics/clamps).
-  * **Minor**: add new metrics/buckets or meaningful clamp shifts.
+
+  * **Major**: structure overhauls (buckets/metrics/clamps/DSL changes).
+  * **Minor**: add metrics/buckets or meaningful clamp shifts.
   * **Patch**: small fixes/tuning.
-* **`aliases`** (optional): Alternate names.
-* **`title`** (optional): Human-friendly label.
+* **`aliases`** (optional): alternate names.
+* **`title`** (optional): human‑friendly label.
+
 **Example:**
 
 ```yaml
@@ -44,7 +46,7 @@ title: Example Game
 
 ## 2) Dimensions (optional)
 
-Used for filtering/rollups.
+Used for filtering and rollups (e.g., map/role/mode). Values are strict enums.
 
 ```yaml
 dimensions:
@@ -58,7 +60,7 @@ dimensions:
 
 ## 3) Buckets (required)
 
-Group metrics into weighted categories.
+Group metrics into weighted categories. Names are free‑form but must be consistent across `weights` and `penalties`.
 
 ```yaml
 buckets:
@@ -77,7 +79,7 @@ Each metric:
 
 * belongs to a bucket,
 * uses realistic `clamp: [min, max]`,
-* optional `invert: true` for penalty metrics if *lower is better*,
+* optional `invert: true` for penalty metrics (*lower is better*),
 * pulls from `source.field`.
 
 ```yaml
@@ -86,26 +88,30 @@ metrics:
   - { key: mistakes,    bucket: discipline, clamp: [0, 25], invert: true, source: { field: mistakes } }
 ```
 
+> **Tip:** Keep clamps tight and data‑driven. Wildly wide clamps dilute normalization and downstream PRI.
+
 ---
 
-## 5) Efficiency / Derived Ratios (updated)
+## 5) Efficiency / Derived Ratios (updated DSL)
 
 **Purpose:** Define ratios and derived signals as **make/attempt** pairs.
-**New DSL:** write **field names or expressions** directly (no `raw[...]`). You may also use **numeric constants** for `attempt`.
+
+**New DSL (v2.1.0):** write **field names or expressions** directly (no `raw[...]`). You may also use **numeric constants** for `attempt`.
 
 * `make`, `attempt` accept:
-  * field names: `stat1_total` `rounds_played`
-  * expressions: `min(3*hits, max(2*hits, score - penalties))`
-  * numeric constants: `20`
-* `min_den`: minimum denominator required to score (guards divide-by-low).
-* `clamp`: post-compute clamp before normalization.
-* Supported ops: `+ - * /`, parentheses, `min(a,b), max (a,b).
+
+  * **field names:** `stat1_total`, `rounds_played`
+  * **expressions:** `min(3*hits, max(2*hits, score - penalties))`
+  * **numeric constants:** `20`
+* `min_den`: minimum denominator required to score (guards divide‑by‑low).
+* `clamp`: post‑compute clamp before normalization.
+* Supported ops: `+ - * /`, parentheses, `min(a,b)`, `max(a,b)`.
 
 **Examples:**
 
 ```yaml
 efficiency:
-  # Per-round scoring output
+  # Per‑round scoring output
   - key: stat1_per_round
     bucket: scoring
     clamp: [0.00, 2.00]
@@ -129,28 +135,28 @@ efficiency:
     make: "stat4_good"
     attempt: "stat4_total"
 
-  # (Optional) Constant attempt — use to softly scale a raw signal
+  # (Optional) Constant attempt — softly scale a raw signal
   - key: pressure_hint
     bucket: impact
     clamp: [0.00, 1.00]
     min_den: 1
-    make: "entries"      # raw count
-    attempt: "20"        # normalize by a fixed scale
+    make: "entries"
+    attempt: "20"
 ```
+
+> **Guardrails:** choose `min_den` high enough to avoid volatile low‑sample noise; clamp tight to expected domain.
 
 ---
 
 ## 6) Mapping (legacy)
 
-Legacy mapping isn’t needed when you use `source.field` and the efficiency DSL. Prefer this newer approach.
+Legacy mapping isn’t needed when you use `source.field` and the efficiency DSL. Prefer the newer approach.
 
 ---
 
 ## 7) Weights (optional)
 
-Assign bucket importance for different presets.
-
-Weights don’t need to sum to 1; the engine normalizes.
+Assign bucket importance for different presets. **They don’t need to sum to 1**; the engine normalizes.
 
 ```yaml
 weights:
@@ -178,7 +184,7 @@ weights:
 
 ## 8) Penalties (optional)
 
-Extra downweight by bucket per preset (applies after normalization).
+Extra downweight by bucket per preset (applies **after normalization**).
 
 ```yaml
 penalties:
@@ -191,8 +197,7 @@ penalties:
 
 ## 9) Sniff (optional)
 
-Headers the engine can use to auto-select your adapter.
-**Tip:** include all fields referenced by `metrics` and `efficiency`.
+Headers the engine can use to auto‑select your adapter. **Include all fields referenced by `metrics` and `efficiency`.**
 
 ```yaml
 sniff:
@@ -202,37 +207,38 @@ sniff:
 
 ---
 
-## 10) Versioning Rules
+## 10) v2.1.0 Features & Compatibility
 
-* **Major** = structural change.
-* **Minor** = added signals or material clamp shifts.
-* **Patch** = tweaks/fixes.
+* **PRI Scale:** fixed **55–99**. Do not assume 0–99.
+* **Percentiles (batch/output):** adapters do not define these; they’re computed by the engine per request/dataset window.
+* **Output toggles:** callers may request `show_weights`, `hide_pri_raw`, per‑metric deltas, etc. Adapters should not rely on these.
+* **Batch filters:** callers may filter by `position`, `games_played`, and adapter‑defined predicates like `{stat, op, value}`.
+* **Versioning:** any breaking schema change → bump **major**.
 
 ---
 
 ## 11) Validation Checklist
 
-* Metrics reference real fields; buckets exist.
-* Buckets exist for all metrics.
-* Clamps realistic; penalty metrics use `invert: true`.
-* Efficiency pairs have valid fields/expressions; `min_den` set sensibly.
-* Efficiency pairs have valid fields.
-* Any constant denominators are quoted (e.g., `"20"`).
-* Weights only reference existing buckets.
-* Sniff headers cover all referenced raw fields.
+* [ ] Every `metric.bucket` exists in `buckets`.
+* [ ] `clamp` ranges are realistic; penalty metrics use `invert: true`.
+* [ ] `efficiency[*].make/attempt` reference real fields or valid expressions; `min_den` is set.
+* [ ] Constant denominators are quoted strings (e.g., `"20"`).
+* [ ] `weights` only reference existing buckets (engine normalizes totals).
+* [ ] `sniff.require_any_headers` includes all raw fields used by `metrics`/`efficiency`.
+* [ ] `version` follows SemVer and reflects material changes.
 
 ---
 
 ## 12) Future Hooks (not yet supported)
 
 * Metric transforms
-* Per-dimension clamps.
-* Per-metric multipliers.
-* Team-factor modes.
+* Per‑dimension clamps
+* Per‑metric multipliers
+* Team‑factor modes
 
 ---
 
-## 13) Minimal Starter Template (Updated Example)
+## 13) Minimal Starter Template (updated)
 
 ```yaml
 key: example_game
@@ -308,3 +314,13 @@ sniff:
   require_any_headers:
     [stat1_total, rounds_played, stat2_numer, stat2_denom, stat4_good, stat4_total, stat3_count, mistakes]
 ```
+
+---
+
+## 14) Gotchas & Best Practices
+
+* Keep buckets few and meaningful; noisy bucket design destroys interpretability.
+* Prefer **rates** to raw counts; clamp rates in realistic domains.
+* Use **`min_den`** to fight small‑sample volatility.
+* When in doubt, simulate on real match CSVs and check percentile stability.
+* Document your adapter’s required columns in repo docs for users.

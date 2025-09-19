@@ -11,6 +11,7 @@ from os import getenv
 from pathlib import Path
 from typing import (
     Any,
+    Callable,
     Dict,
     Generator,
     Iterable,
@@ -27,7 +28,6 @@ from typing import (
 
 # ── third-party ───────────────────────────────────────────────────────────────
 import click  # Typer is built on Click
-import httpx
 import typer
 
 # ── HTTP backend (quiet for type checkers) ────────────────────────────────────
@@ -55,6 +55,7 @@ DEFAULT_SLAPI_KEY: Optional[str] = os.getenv("SLAPI_KEY")
 # mutable runtime config (don’t mutate ALL-CAPS constants)
 _slapi_url: str = DEFAULT_SLAPI_URL
 _slapi_key: Optional[str] = DEFAULT_SLAPI_KEY
+_online: bool = False
 
 app = typer.Typer(no_args_is_help=True)
 
@@ -164,6 +165,46 @@ def _pick_dataset_via_menu(title: str) -> Optional[str]:
 # ── secrets locations ---------------------------------------------------------
 
 _STATLINE_DIR = Path(__file__).resolve().parent
+LOG_DIR: Path = _STATLINE_DIR / "log"
+TAMPER_NOTES: Path = LOG_DIR / "tamper-notes.log"
+BUG_NOTES: Path = LOG_DIR / "bug-notes.log"
+
+def _log_note(path: Path, line: str) -> None:
+    try:
+        LOG_DIR.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as f:
+            f.write(line.rstrip() + "\n")
+    except Exception:
+        # Logging must never crash the CLI
+        pass
+
+
+def _local_adapter_names() -> List[str]:
+    """List locally-available adapters for demo/fallback."""
+    try:
+        from statline.core.adapters import list_names as _L
+        names = _L()
+        return [str(n) for n in names if str(n).strip()]
+    except Exception as e:
+        _log_note(BUG_NOTES, f"[local_adapter_names] error: {e!r}")
+        # Last-ditch demo set
+        return ["rbw5", "demo"]
+
+def _has_regkey() -> bool:
+    try:
+        return REGKEY_PATH.exists() and bool((_read_text(REGKEY_PATH) or "").strip())
+    except Exception:
+        return False
+
+def _describe_regkey() -> str:
+    try:
+        s = (_read_text(REGKEY_PATH) or "").strip()
+        return f"{REGKEY_PATH}: {'present' if s else 'empty'}"
+    except Exception as e:
+        return f"{REGKEY_PATH}: error reading ({e!r})"
+
+def _fallback_banner(reason: str) -> None:
+    typer.secho(f"Warning: {reason}. Defaulting to demo/local adapters.", fg=typer.colors.YELLOW, bold=True)
 
 def _candidate_secret_dirs() -> List[Path]:
     env = getenv("STATLINE_SECRETS")
@@ -313,47 +354,71 @@ def _headers(*, extra: Optional[Dict[str, str]] = None, use_regkey: bool = True)
         h.update(extra)
     return h
 
-
-# ── HTTP client helpers ───────────────────────────────────────────────────────
-
-def _http_get(
-    path: str,
-    params: Optional[Dict[str, Any]] = None,
-    *,
-    extra_headers: Optional[Dict[str, str]] = None,
-) -> Any:
-    url = f"{_slapi_url}{path}"
-    use_reg = not path.startswith("/v2/admin")
-    headers = _headers(extra=extra_headers, use_regkey=use_reg)
-    with httpx.Client(timeout=60.0) as c:
-        r = c.get(url, headers=headers, params=params)
-        _raise_for_status(r)
-        return r.json()
-
-def _http_post(
-    path: str,
-    payload: Any,
-    *,
-    extra_headers: Optional[Dict[str, str]] = None,
-    params: Optional[Dict[str, Any]] = None,
-) -> Any:
-    url = f"{_slapi_url}{path}"
-    use_reg = not path.startswith("/v2/admin")
-    headers = _headers(extra=extra_headers, use_regkey=use_reg)
-    with httpx.Client(timeout=300.0) as c:
-        r = c.post(url, headers=headers, params=params, json=payload)
-        _raise_for_status(r)
-        return r.json()
-
 def _raise_for_status(resp: Any) -> None:
     code = getattr(resp, "status_code", None)
     if code is None or (200 <= code < 300):
         return
+    # Try to pull structured details, but never crash here
     try:
         detail = resp.json()
     except Exception:
         detail = getattr(resp, "text", "")
+    # Map to clearer cases
+    if code in (401, 403):
+        # Auth failures → likely invalid/missing regkey
+        msg = f"SLAPI {code} unauthorized: {detail}"
+        raise PermissionError(msg)
+    if code in (404, 502, 503, 504):
+        # Treat as "API not available"
+        msg = f"SLAPI {code}: {detail}"
+        raise ConnectionError(msg)
+    # Anything else → surface as a CLI error
     raise typer.BadParameter(f"SLAPI {code}: {detail}")
+
+# ── HTTP client helpers ───────────────────────────────────────────────────────
+
+def _http_get(path: str, params: Optional[Dict[str, Any]] = None, *,
+              extra_headers: Optional[Dict[str, str]] = None) -> Any:
+    url = f"{_slapi_url}{path}"
+    use_reg = not path.startswith("/v2/admin")
+    headers = _headers(extra=extra_headers, use_regkey=use_reg)
+    try:
+        if _http_lib == "httpx" and hasattr(_http, "Client"):
+            with _http.Client(timeout=60.0) as c:
+                r = c.get(url, headers=headers, params=params)
+                _raise_for_status(r)
+                return r.json()
+        else:
+            r = _http.get(url, headers=headers, params=params, timeout=60.0)
+            _raise_for_status(r)
+            return r.json()
+    except Exception as e:
+        # Normalize transport-layer connection errors to ConnectionError
+        etxt = repr(e)
+        if "ConnectError" in etxt or "ConnectionError" in etxt or "Connection refused" in etxt:
+            raise ConnectionError(f"Connection failed to {url}: {e}") from e
+        raise
+
+def _http_post(path: str, payload: Any, *, extra_headers: Optional[Dict[str, str]] = None,
+               params: Optional[Dict[str, Any]] = None) -> Any:
+    url = f"{_slapi_url}{path}"
+    use_reg = not path.startswith("/v2/admin")
+    headers = _headers(extra=extra_headers, use_regkey=use_reg)
+    try:
+        if _http_lib == "httpx" and hasattr(_http, "Client"):
+            with _http.Client(timeout=300.0) as c:
+                r = c.post(url, headers=headers, params=params, json=payload)
+                _raise_for_status(r)
+                return r.json()
+        else:
+            r = _http.post(url, headers=headers, params=params, json=payload, timeout=300.0)
+            _raise_for_status(r)
+            return r.json()
+    except Exception as e:
+        etxt = repr(e)
+        if "ConnectError" in etxt or "ConnectionError" in etxt or "Connection refused" in etxt:
+            raise ConnectionError(f"Connection failed to {url}: {e}") from e
+        raise
 
 # ── root options & helpers ────────────────────────────────────────────────────
 
@@ -418,6 +483,7 @@ def _yaml_load_text(text: str) -> Any:
 # ── IO helpers ────────────────────────────────────────────────────────────────
 
 def _name_for_row(raw: Mapping[str, Any], preferred: Optional[List[str]] = None) -> str:
+    # 1) Honor explicit preference order first (CLI --name-col can drive this)
     if preferred:
         for key in preferred:
             for variant in (key, key.lower(), key.upper(), key.title()):
@@ -426,22 +492,36 @@ def _name_for_row(raw: Mapping[str, Any], preferred: Optional[List[str]] = None)
                     s = str(v).strip()
                     if s:
                         return s
-    for key in ("display_name", "name", "player", "id", "DISPLAY_NAME", "Player", "ID"):
+
+    # 2) Common name-like fields (expanded to handle more real-world headers)
+    candidates = [
+        "display_name", "name", "player", "id",
+        "username", "user", "handle", "gamertag", "tag",
+        "ign", "alias", "nick", "nickname",
+        "DISPLAY_NAME", "Player", "ID",
+    ]
+    for key in candidates:
         v = raw.get(key)
         if v:
             s = str(v).strip()
             if s:
                 return s
+
+    # 3) First/Last combos
     first = raw.get("first") or raw.get("First") or raw.get("firstname") or raw.get("Firstname")
     last  = raw.get("last")  or raw.get("Last")  or raw.get("lastname")  or raw.get("Lastname")
     if first or last:
         s = f"{str(first or '').strip()} {str(last or '').strip()}".strip()
         if s:
             return s
+
+    # 4) Team + number fallback
     team = raw.get("team") or raw.get("Team")
     num  = raw.get("jersey") or raw.get("Jersey") or raw.get("number") or raw.get("Number")
     if team or num:
         return f"{team or 'Team'} #{num or '?'}"
+
+    # 5) Last resort
     return "(unnamed)"
 
 def _read_rows(input_path: Path) -> Iterable[Row]:
@@ -490,6 +570,24 @@ def _read_rows(input_path: Path) -> Iterable[Row]:
 
 # ── formatting helpers ────────────────────────────────────────────────────────
 
+def _try_call(module: Any, fn_candidates: List[str], **kwargs: Any) -> Optional[Any]:
+    """Find the first function that exists and call it with only the kwargs it accepts."""
+    if module is None:
+        return None
+    import inspect
+
+    for name in fn_candidates:
+        fn: Optional[Callable[..., Any]] = getattr(module, name, None)
+        if fn is None:
+            continue
+        try:
+            sig = inspect.signature(fn)
+            accepted = {k: v for k, v in kwargs.items() if k in sig.parameters}
+            return fn(**accepted)
+        except Exception:
+            # try next candidate
+            continue
+    return None
 class _CsvWriterProtocol:
     def writerow(self, row: Iterable[Any], /) -> Any: ...
 
@@ -547,11 +645,114 @@ def api_adapter_weight_presets(adapter: str) -> List[str]:
         pass
     return []
 
+def _local_fallback_score_batch(
+    adapter: str,
+    rows: Rows,
+    weights_override: Optional[Union[Dict[str, Any], str]],
+    context: Optional[Dict[str, Dict[str, float]]],
+    caps_override: Optional[Dict[str, float]],
+) -> Rows:
+    # Import as Any to avoid mypy binding to a strict signature
+    _core_scoring: Any
+    _slapi_scoring: Any
+    try:
+        from statline.core import (
+            scoring as _core_scoring,
+        )
+    except Exception:
+        _core_scoring = None
+    try:
+        from statline.slapi import scoring as _slapi_scoring
+    except Exception:
+        _slapi_scoring = None
+
+    # common candidate names we’ve seen in both modules
+    candidates = ["score_batch", "score_rows", "batch", "score"]
+
+    # Try core first
+    res = _try_call(
+        _core_scoring,
+        candidates,
+        adapter=adapter,
+        rows=rows,
+        weights_override=weights_override,
+        context=context,
+        caps_override=caps_override,
+    )
+    if res is None:
+        # Try slapi scoring second
+        res = _try_call(
+            _slapi_scoring,
+            candidates,
+            adapter=adapter,
+            rows=rows,
+            weights_override=weights_override,
+            context=context,
+            caps_override=caps_override,
+        )
+
+    if isinstance(res, list):
+        return cast(Rows, res)
+
+    # Last-resort, shape-preserving fallback so renderers don’t explode
+    out: Rows = []
+    for r in rows:
+        pri_raw = float(r.get("pri_raw", 1.0) or 1.0)
+        pri = int(max(55, min(99, round(55 + (pri_raw * 44))))) if pri_raw else 99
+        out.append({"pri": pri, "pri_raw": pri_raw, "context_used": "local-fallback"})
+    return out
+
+def _local_fallback_score_row(
+    adapter: str,
+    row: Row,
+    weights_override: Optional[Union[Dict[str, Any], str]],
+    context: Optional[Dict[str, Dict[str, float]]],
+    caps_override: Optional[Dict[str, float]],
+) -> Row:
+    res = _local_fallback_score_batch(adapter, [row], weights_override, context, caps_override)
+    return res[0] if res else {"pri": 99, "pri_raw": 1.0, "context_used": "local-fallback"}
 
 def api_list_adapters() -> List[str]:
-    data = _http_get("/v2/adapters")
-    adapters = data.get("adapters", [])
-    return [str(x) for x in adapters]
+    if not _online:
+        return _local_adapter_names()
+    """
+    Try server. On auth failure: inform, offer demo. On connection failure: demo.
+    If a regkey exists but server rejects it, log a tamper note.
+    """
+    try:
+        data = _http_get("/v2/adapters")
+        adapters = data.get("adapters", [])
+        out = [str(x) for x in adapters if str(x).strip()]
+        if out:
+            return out
+        # Empty list from server → fall back to local
+        _fallback_banner("Server returned no adapters")
+        return _local_adapter_names()
+    except PermissionError as e:
+        # 1) Auth fails → prompt & suggest demo
+        has_key = _has_regkey()
+        desc = _describe_regkey()
+        if has_key:
+            # Key present but rejected by server → tamper suspicion
+            _log_note(TAMPER_NOTES, f"[auth-reject] {desc} :: {e}")
+            _fallback_banner("Auth to host refused (regkey rejected)")
+        else:
+            _fallback_banner("No REGKEY found; auth refused")
+        # Print guided message once in interactive flows; still continue to demo
+        typer.secho(f"Auth failed: {e}\n{desc}\n"
+                    "You can place a valid reg key at the path above to enable SLAPI.\n"
+                    "Continuing in demo/local mode.", fg=typer.colors.YELLOW)
+        return _local_adapter_names()
+    except ConnectionError as e:
+        # 2) Connection fails → treat like 404 and default to demo
+        _log_note(BUG_NOTES, f"[connect-fail] {_slapi_url} :: {e}")
+        _fallback_banner("Connection to SLAPI failed (treating as 404)")
+        return _local_adapter_names()
+    except Exception as e:
+        # Unexpected → log, fall back, but surface in note
+        _log_note(BUG_NOTES, f"[api_list_adapters] unexpected: {e!r}")
+        _fallback_banner("Unexpected API error")
+        return _local_adapter_names()
 
 def api_adapter_inputs(adapter: str) -> List[str]:
     try:
@@ -568,6 +769,8 @@ def api_score_batch(
     context: Optional[Dict[str, Dict[str, float]]],
     caps_override: Optional[Dict[str, float]],
 ) -> Rows:
+    if not _online:
+        return _local_fallback_score_batch(adapter, rows, weights_override, context, caps_override)
     payload = {
         "adapter": adapter,
         "rows": rows,
@@ -580,14 +783,59 @@ def api_score_batch(
         if isinstance(data, list):
             return cast(Rows, data)
         return cast(Rows, data.get("results", []))
+    except (PermissionError,) as e:
+        # Auth refused ⇒ log, banner, demo/local
+        desc = _describe_regkey()
+        _log_note(TAMPER_NOTES if _has_regkey() else BUG_NOTES, f"[score-batch auth] {desc} :: {e}")
+        _fallback_banner("Auth to host refused")
+        return _local_fallback_score_batch(adapter, rows, weights_override, context, caps_override)
+    except (ConnectionError,) as e:
+        # Conn failed (includes “connection refused”, 404 treated upstream)
+        _log_note(BUG_NOTES, f"[score-batch connect] {_slapi_url} :: {e}")
+        _fallback_banner("Connection failed; treating as offline")
+        return _local_fallback_score_batch(adapter, rows, weights_override, context, caps_override)
     except typer.BadParameter as e:
+        # Old server without /v2/score/batch → try row-by-row (existing behavior)
         if "404" in str(e) or "Not Found" in str(e):
             out: Rows = []
             for r in rows:
                 out.append(api_score_row(adapter, r, weights_override, context, caps_override))
             return out
         raise
+    except Exception as e:
+        _log_note(BUG_NOTES, f"[score-batch unexpected] {e!r}")
+        _fallback_banner("Unexpected API error")
+        return _local_fallback_score_batch(adapter, rows, weights_override, context, caps_override)
+    
+def _tcp_probe(base_url: str, timeout: float = 1.5) -> bool:
+    """Best-effort TCP reachability check to decide online vs local mode."""
+    try:
+        import socket
+        from urllib.parse import urlparse
 
+        u = urlparse(base_url if "://" in base_url else f"http://{base_url}")
+        host = u.hostname or "127.0.0.1"
+        port = u.port or (443 if (u.scheme or "http") == "https" else 80)
+
+        with socket.create_connection((host, port), timeout=timeout):
+            return True
+    except Exception:
+        return False
+
+def _print_mode_banner(online: bool, url: str) -> None:
+    """
+    Emit a one-line banner showing whether we’re using SLAPI (online) or the
+    local demo/fallback path.
+    """
+    if online:
+        typer.secho(f"[ONLINE] Using SLAPI at {url}", fg=typer.colors.GREEN, bold=True)
+    else:
+        typer.secho(
+            "[LOCAL DEMO] SLAPI unavailable or auth rejected — using local adapters.",
+            fg=typer.colors.YELLOW,
+            bold=True,
+        )
+    
 def api_score_row(
     adapter: str,
     row: Row,
@@ -595,6 +843,8 @@ def api_score_row(
     context: Optional[Dict[str, Dict[str, float]]],
     caps_override: Optional[Dict[str, float]],
 ) -> Row:
+    if not _online:
+        return _local_fallback_score_row(adapter, row, weights_override, context, caps_override)
     payload = {
         "adapter": adapter,
         "row": row,
@@ -605,22 +855,52 @@ def api_score_row(
     try:
         data = _http_post("/v2/score/row", payload)
         return cast(Row, data)
+    except (PermissionError,) as e:
+        desc = _describe_regkey()
+        _log_note(TAMPER_NOTES if _has_regkey() else BUG_NOTES, f"[score-row auth] {desc} :: {e}")
+        _fallback_banner("Auth to host refused")
+        return _local_fallback_score_row(adapter, row, weights_override, context, caps_override)
+    except (ConnectionError,) as e:
+        _log_note(BUG_NOTES, f"[score-row connect] {_slapi_url} :: {e}")
+        _fallback_banner("Connection failed; treating as offline")
+        return _local_fallback_score_row(adapter, row, weights_override, context, caps_override)
     except typer.BadParameter as e:
         if "404" in str(e) or "Not Found" in str(e):
+            # Older servers: try PRI calc
             pri_payload = {"adapter": adapter, "row": row, "weights_override": weights_override}
             data = _http_post("/v2/calc/pri", pri_payload)
             return cast(Row, data)
         raise
+    except Exception as e:
+        _log_note(BUG_NOTES, f"[score-row unexpected] {e!r}")
+        _fallback_banner("Unexpected API error")
+        return _local_fallback_score_row(adapter, row, weights_override, context, caps_override)
 
 def api_calc_pri_single(adapter: str, row: Row, weights_override: Optional[Union[Dict[str, Any], str]]) -> Row:
+    if not _online:
+        return _local_fallback_score_row(adapter, row, weights_override, None, None)
     payload = {"adapter": adapter, "row": row, "weights_override": weights_override}
     try:
         data = _http_post("/v2/calc/pri", payload)
         return cast(Row, data)
+    except (PermissionError,) as e:
+        desc = _describe_regkey()
+        _log_note(TAMPER_NOTES if _has_regkey() else BUG_NOTES, f"[calc-pri auth] {desc} :: {e}")
+        _fallback_banner("Auth to host refused")
+        return _local_fallback_score_row(adapter, row, weights_override, None, None)
+    except (ConnectionError,) as e:
+        _log_note(BUG_NOTES, f"[calc-pri connect] {_slapi_url} :: {e}")
+        _fallback_banner("Connection failed; treating as offline")
+        return _local_fallback_score_row(adapter, row, weights_override, None, None)
     except typer.BadParameter as e:
         if "404" in str(e) or "Not Found" in str(e):
+            # Older server path
             return api_score_row(adapter, row, weights_override, None, None)
         raise
+    except Exception as e:
+        _log_note(BUG_NOTES, f"[calc-pri unexpected] {e!r}")
+        _fallback_banner("Unexpected API error")
+        return _local_fallback_score_row(adapter, row, weights_override, None, None)
 
 # ── commands ─────────────────────────────────────────────────────────────────
 def _root(
@@ -634,13 +914,8 @@ def _root(
         help="Base URL for StatLine API (default env SLAPI_URL).",
     ),
 ) -> None:
-    global _slapi_url
+    global _slapi_url, _online
     _slapi_url = (url or DEFAULT_SLAPI_URL).rstrip("/")
-
-    # sanity: fail fast if REGKEY is absent for non-admin commands
-    # (admin commands call with extra_headers, so they can run even if REGKEY absent)
-    # We won’t exit here because you might run an admin command first; runtime calls
-    # that need REGKEY will read it via _headers() and error clearly if missing.
 
     root = ctx.find_root()
     if root.obj is None:
@@ -649,9 +924,28 @@ def _root(
 
     ensure_banner()
 
+    # Decide connectivity once
+    _online = _tcp_probe(_slapi_url)
+    _print_mode_banner(_online, _slapi_url) # pyright: ignore[reportUndefinedVariable]  # noqa: F821
+
+    # OPTIONAL: refine to "auth rejected" if host is up but our regkey is bad/missing
+    if _online:
+        try:
+            # light GET; raises PermissionError on 401/403 via _raise_for_status
+            _http_get("/v2/adapters")
+        except PermissionError as e:
+            # record and inform, then force local mode for this process
+            desc = _describe_regkey()
+            _log_note(TAMPER_NOTES if _has_regkey() else BUG_NOTES, f"[startup-auth] {desc} :: {e}")
+            typer.secho("SLAPI reachable but authentication failed — switching to Local demo mode.",
+                        fg=typer.colors.YELLOW, bold=True)
+            typer.secho(f"{desc}\nProvide a valid reg key at the path above to enable SLAPI.", fg=typer.colors.YELLOW)
+            _online = False  # flip to local for the rest of this run
+
     if ctx.invoked_subcommand is None:
         typer.echo(ctx.get_help())
         raise typer.Exit(0)
+
 
 app.callback(invoke_without_command=True)(_root)
 
@@ -738,11 +1032,16 @@ def interactive(
                 {
                     "name": _name_for_row(src, []),
                     "pri": int(res.get("pri", 0)),
-                    "pri_raw": f"{float(res.get('pri_raw', 0.0)):.4f}",
+                    "pri_raw": float(res.get("pri_raw", 0.0)),  # keep numeric
                     "context_used": res.get("context_used", ""),
+                    "_i": i,  # stable fallback
                 }
             )
-        rows_out.sort(key=lambda r: r.get("pri", 0), reverse=True)
+
+        # Order primarily by pri_raw (desc), then PRI (desc), then original order
+        rows_out.sort(key=lambda r: (-float(r["pri_raw"]), -int(r["pri"]), int(r["_i"])))
+        for r in rows_out:
+            r.pop("_i", None)
 
         typer.secho("\nBatch results", bold=True)
         print(_render_table(rows_out, 0))
@@ -869,6 +1168,41 @@ def cli_use_key(prefix: str) -> None:
     _write_text(REGKEY_PATH, token)
     typer.secho(f"Activated key {prefix}. REGKEY updated.", fg=typer.colors.GREEN)
 
+@app.command("dev-logs")
+def dev_logs(action: str = typer.Argument("show", help="show|clear"), which: str = typer.Option("all", "--which", help="all|tamper|bug")) -> None:
+    """Developer helper: view or clear local diagnostic logs."""
+    targets = []
+    if which in ("all", "tamper"):
+        targets.append(("tamper-notes", TAMPER_NOTES)) # pyright: ignore[reportUnknownMemberType]
+    if which in ("all", "bug"):
+        targets.append(("bug-notes", BUG_NOTES)) # pyright: ignore[reportUnknownMemberType]
+    if not targets:
+        raise typer.BadParameter("--which must be all|tamper|bug")
+
+    if action == "clear":
+        for _, p in targets: # pyright: ignore[reportUnknownVariableType]
+            try:
+                if p.exists(): # pyright: ignore[reportUnknownMemberType]
+                    p.unlink() # pyright: ignore[reportUnknownMemberType]
+                    typer.secho(f"Cleared {p}", fg=typer.colors.GREEN)
+            except Exception as e:
+                typer.secho(f"Failed to clear {p}: {e}", fg=typer.colors.RED)
+        return
+
+    if action == "show":
+        for label, p in targets: # pyright: ignore[reportUnknownVariableType]
+            typer.secho(f"\n== {label} ({p}) ==", bold=True)
+            try:
+                if p.exists(): # pyright: ignore[reportUnknownMemberType]
+                    sys.stdout.write(p.read_text(encoding="utf-8")) # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
+                else:
+                    typer.echo("(empty)")
+            except Exception as e:
+                typer.secho(f"Error reading {p}: {e}", fg=typer.colors.RED)
+        return
+
+    raise typer.BadParameter("action must be 'show' or 'clear'")
+
 @app.command("score")
 def score(
     ctx: typer.Context,
@@ -929,11 +1263,17 @@ def score(
             {
                 "name": _name_for_row(src, name_col),
                 "pri": int(res.get("pri", 0)),
-                "pri_raw": f"{float(res.get('pri_raw', 0.0)):.4f}",
+                "pri_raw": float(res.get("pri_raw", 0.0)),  # keep numeric
                 "context_used": res.get("context_used", ""),
+                "_i": i,  # stable fallback
             }
         )
-    rows_out.sort(key=lambda r: r.get("pri", 0), reverse=True)
+
+    # Global order: pri_raw desc, then PRI desc, then original input order
+    rows_out.sort(key=lambda r: (-float(r["pri_raw"]), -int(r["pri"]), int(r["_i"])))
+    for r in rows_out:
+        r.pop("_i", None)
+
     view = rows_out[: (limit or len(rows_out))]
 
     if out:

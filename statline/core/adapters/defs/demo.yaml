@@ -77,7 +77,7 @@ efficiency:
     bucket: aefg
     clamp: [0.85, 1.25]
     min_den: 3
-    make: "ppg - 0.9*tov"
+    make: "ppg - 1.1*tov"
     attempt: "fga + 0.44*(ftm/0.75) + 0.5*apg"
 
   # --- Floor keepers (low PPS / low volume) ---
@@ -92,9 +92,9 @@ efficiency:
   - key: vol_gap
     bucket: effloor
     invert: true
-    clamp: [0.0, 4.0]
+    clamp: [0.0, 2.0]
     min_den: 1
-    make: "16 - ppg"
+    make: "max(0, 13 - ppg)"
     attempt: "1"
 
   # --- Rim pressure (needs valid FTM) ---
@@ -111,7 +111,7 @@ efficiency:
     clamp: [0.30, 1.50]
     min_den: 1
     make: "spg + 1.05*min(bpg, 2.0) + 0.35*max(0, bpg - 2.0)"
-    attempt: "2.6"
+    attempt: "3.2"
 
   - key: scoreless_impact
     bucket: offball
@@ -147,15 +147,15 @@ efficiency:
     bucket: helios
     clamp: [0.35, 0.90]
     min_den: 1
-    make: "ppg + 0.9*apg"
-    attempt: "42"
+    make: "ppg + 0.9*apg - 0.4*tov"
+    attempt: "38"
 
   # --- Possession-killing tax (usage-scaled) + AST:TO credit ---
   - key: tov_scaled
     bucket: tov_eff
     clamp: [0.40, 0.95]
     min_den: 1
-    make: "1 - (tov / max(3, fga + 0.7*apg + 0.44*(ftm/0.75)))"
+    make: "1 - (tov / max(3, 0.80*(fga + 0.7*apg) + 0.44*(ftm/0.75)))"
     attempt: "1"
 
   - key: ast_to_credit
@@ -171,8 +171,8 @@ efficiency:
     clamp: [0.10, 0.80]
     min_den: 1
     make: "let(o, (ppg + 0.9*apg)/42;
-                 d, (0.9*spg + 0.6*bpg)/2.5;
-                 (2*o*d)/max(0.0001, o+d))"
+             d, (0.7*spg + 0.4*bpg)/2.5;
+             (2*o*d)/max(0.0001, o+d))"
     attempt: "1"
 
   # Optional WL nudge
@@ -183,20 +183,27 @@ efficiency:
     make: "win"
     attempt: "win + loss"
 
+  - key: ast_to_bonus
+    bucket: tov_eff
+    clamp: [0.00, 0.08]
+    min_den: 1
+    make: "max(0, (apg / max(1.0, tov)) - 2.0)"
+    attempt: "6.0"
+
 weights:
   # Efficiency-first. Points still the single biggest raw stat; defense & boards elevated.
   pri:
-    ppg:      0.12
+    ppg:      0.06
     aefg:     0.17
     vers:     0.15
-    stocks:   0.0
+    stocks:   0.06
     rpg:      0.06
     rim:      0.08
-    tov_eff:  0.08
-    helios:   0.11
+    tov_eff:  0.14
+    helios:   0.07
     effloor:  0.02
-    two_way:  0.02
+    two_way:  0.04
     offball:  0.05
-    spg_sig:  0.09
-    bpg_sig:  0.02
+    spg_sig:  0.04
+    bpg_sig:  0.05
     handle:   0.05
