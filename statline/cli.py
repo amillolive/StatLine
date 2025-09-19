@@ -30,12 +30,19 @@ import click  # Typer is built on Click
 import typer
 
 # ── HTTP backend (quiet for type checkers) ────────────────────────────────────
-_http: Any  # single alias we treat as Any to avoid Pylance noise
+
+# Avoid mypy "no-redef": import into distinct names, then pick one alias.
+_http: Any  # single module-like alias we treat as Any to keep linters quiet
 try:
-    import httpx as _http
+    import httpx as _httpx
+    _http = _httpx
     _http_lib = "httpx"
 except Exception:  # pragma: no cover
-    import requests as _http
+    try:
+        import requests as _requests
+    except Exception as _e:  # extremely defensive; shouldn't happen in prod
+        raise RuntimeError("Neither httpx nor requests is available") from _e
+    _http = _requests
     _http_lib = "requests"
 
 # ── banner & timing defaults ──────────────────────────────────────────────────
