@@ -87,3 +87,4 @@ statline/slapi/storage/*.db*
 *.egg
 MANIFEST
 uv.lock
+statline/.keys.json
