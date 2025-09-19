@@ -45,6 +45,7 @@ Thumbs.db
 .ipynb_checkpoints/
 
 # Env / secrets
+statline/.keys.json
 .env
 .env.*
 .envrc

@@ -27,6 +27,7 @@ from typing import (
 
 # ── third-party ───────────────────────────────────────────────────────────────
 import click  # Typer is built on Click
+import httpx
 import typer
 
 # ── HTTP backend (quiet for type checkers) ────────────────────────────────────
@@ -315,17 +316,17 @@ def _headers(*, extra: Optional[Dict[str, str]] = None, use_regkey: bool = True)
 
 # ── HTTP client helpers ───────────────────────────────────────────────────────
 
-def _http_get(path: str, params: Optional[Dict[str, Any]] = None, *,
-              extra_headers: Optional[Dict[str, str]] = None) -> Any:
+def _http_get(
+    path: str,
+    params: Optional[Dict[str, Any]] = None,
+    *,
+    extra_headers: Optional[Dict[str, str]] = None,
+) -> Any:
     url = f"{_slapi_url}{path}"
     use_reg = not path.startswith("/v2/admin")
-    if _http_lib == "httpx" and hasattr(_http, "Client"):
-        with _http.Client(timeout=60.0) as c:
-            r = c.get(url, headers=_headers(extra=extra_headers, use_regkey=use_reg), params=params)
-            _raise_for_status(r)
-            return r.json()
-    else:
-        r = _http.get(url, headers=_headers(extra=extra_headers, use_regkey=use_reg), params=params, timeout=60.0)
+    headers = _headers(extra=extra_headers, use_regkey=use_reg)
+    with httpx.Client(timeout=60.0) as c:
+        r = c.get(url, headers=headers, params=params)
         _raise_for_status(r)
         return r.json()
 
@@ -338,24 +339,9 @@ def _http_post(
 ) -> Any:
     url = f"{_slapi_url}{path}"
     use_reg = not path.startswith("/v2/admin")
-    if _http_lib == "httpx" and hasattr(_http, "Client"):
-        with _http.Client(timeout=300.0) as c:
-            r = c.post(
-                url,
-                headers=_headers(extra=extra_headers, use_regkey=use_reg),
-                params=params,
-                json=payload,  # send proper JSON
-            )
-            _raise_for_status(r)
-            return r.json()
-    else:
-        r = _http.post(
-            url,
-            headers=_headers(extra=extra_headers, use_regkey=use_reg),
-            params=params,
-            json=payload,
-            timeout=300.0,
-        )
+    headers = _headers(extra=extra_headers, use_regkey=use_reg)
+    with httpx.Client(timeout=300.0) as c:
+        r = c.post(url, headers=headers, params=params, json=payload)
         _raise_for_status(r)
         return r.json()
 
