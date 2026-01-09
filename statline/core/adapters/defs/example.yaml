@@ -84,7 +84,8 @@ weights:
     discipline: 0.10
 
 penalties:
-  # our discipline bucket(s) is/are self weighted here; you invert the metrics, not the bucket
+  # our discipline bucket(s) is/are self weighted here; 
+  # acts as a downweight after normalization (eg: pri says discipline matters 8% less under support)
   pri:     { discipline: 0.10 }
   mvp:     { discipline: 0.12 }
   support: { discipline: 0.08 }

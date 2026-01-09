@@ -1,3 +1,6 @@
+# Awaiting refactor for V3
+
+~~ 
 # Creating a Compliant Adapter (v2.1.0)
 
 > **Mission:** Adapters describe *your game's stats*; the PRI engine normalizes and scores them. Follow this document exactly.
@@ -324,3 +327,4 @@ sniff:
 * Use **`min_den`** to fight small‑sample volatility.
 * When in doubt, simulate on real match CSVs and check percentile stability.
 * Document your adapter’s required columns in repo docs for users.
+~~
