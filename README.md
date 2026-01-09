@@ -10,7 +10,7 @@ Brand, name, and logo are **not** covered by the AGPL (see `TRADEMARK_POLICY.md`
 
 ## What is StatLine?
 
-StatLine is an **adapter‑driven analytics framework** with an optional **remote API (SLAPI)**It:
+StatLine is an **adapter‑driven analytics framework** with an optional **remote API (SLAPI)**. StatLine..
 
 * normalizes raw game stats,
 * computes per‑metric scores,
