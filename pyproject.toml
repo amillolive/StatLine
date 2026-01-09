@@ -1,0 +1,156 @@
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "statline"
+version = "3.0.0"
+description = "StatLine — weighted player scoring, efficiency modeling, CLI + adapter tooling"
+readme = "README.md"
+requires-python = ">=3.10,<3.15"
+license = { file = "LICENSE" }
+authors = [{ name = "StatLine LLC" }]
+keywords = [
+  "statline", "pri", "adapters", "analytics", "esports", "basketball",
+  "mvp", "efg", "google-sheets", "cli"
+]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "License :: OSI Approved :: GNU Affero General Public License v3",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Science/Research",
+  "Topic :: Scientific/Engineering :: Information Analysis",
+  "Environment :: Console",
+]
+
+# Core runtime deps for local scoring + CLI
+dependencies = [
+  "typer>=0.12",
+  "pyyaml>=6",
+  'typing-extensions>=4.7; python_version < "3.11"',
+  "pydantic>=2.0,<3.0",
+  "httpx>=0.27",
+  "cryptography>=46.0"
+]
+
+[project.optional-dependencies]
+# Google Sheets ingestion
+sheets = ["gspread>=6.0.0", "google-auth>=2.0.0"]
+
+# Pretty CLI output
+cli-pretty = ["rich>=13.0"]
+
+# Extra CLI conveniences / types
+cli = [
+  "httpx>=0.27",
+  "types-requests; python_version<'3.14'"
+]
+
+# SLAPI (serve the API). Kept optional to avoid forcing FastAPI on core users.
+api = [
+  "fastapi>=0.110,<1.0",
+  "uvicorn[standard]>=0.30",
+]
+
+dev = [
+  "pytest>=8.1",
+  "pytest-cov>=4.1",
+  "ruff>=0.5",
+  "mypy>=1.11",
+  "coverage>=7.5",
+  "hypothesis>=6.100",
+  "types-PyYAML",
+  "types-requests",
+]
+
+[project.scripts]
+statline = "statline.cli:main"
+# If/when you expose a server entrypoint:
+# slapi = "statline.slapi.__main__:main"
+
+[project.urls]
+Homepage  = "https://github.com/amillolive/StatLine"
+Repository = "https://github.com/amillolive/StatLine"
+Issues    = "https://github.com/amillolive/StatLine/issues"
+Docs      = "https://github.com/amillolive/StatLine#readme"
+Security  = "https://github.com/amillolive/StatLine/security/policy"
+
+# ------------------------
+# Tooling
+# ------------------------
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+extend-select = ["I"]
+src = ["statline", "tests"]
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+ignore_missing_imports = true
+pretty = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+show_error_codes = true
+plugins = ["pydantic.mypy"]
+mypy_path = ["typings"]
+
+[[tool.mypy.overrides]]
+module = ["fastapi.*", "uvicorn.*"]
+ignore_missing_imports = true
+
+[tool.pyright]
+typeCheckingMode = "strict"
+stubPath = "typings"
+reportMissingTypeStubs = "none"
+exclude = [
+  ".venv",
+  "**/__pycache__",
+  "**/.mypy_cache",
+  "**/.pytest_cache",
+  "typings/fastapi",
+]
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+testpaths = ["tests"]
+# fail_on_empty = true  # enable when you actually add tests
+
+# ------------------------
+# Hatch build config
+# ------------------------
+
+[tool.hatch.build]
+# ensure non-code assets get included in wheels by default
+include = [
+  "statline/py.typed",
+  "statline/**/*.yaml",
+  "statline/**/*.yml",
+  "statline/**/*.json",
+  "statline/**/*.sql",
+  "statline/data/**/*",
+  "statline/core/adapters/defs/*",
+  "statline/data/migrations/*.sql",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["statline"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "statline",
+  "tests",
+  "README.md",
+  "LICENSE",
+  "pyproject.toml",
+  "statline/py.typed",
+  "TRADEMARKS.md",
+  "CLA.md",
+  "legal/**.md",
+]

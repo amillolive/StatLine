@@ -1,0 +1,98 @@
+# YAML adapter schema template/example
+
+# Key - name your adaper
+# Version - SemVer; useful roadmapping
+# Aliases - Alternative names/lookup
+# Title - Non case sensitve naming option
+key: example_game
+version: 2.2.0
+aliases: [eg, sample]
+title: Example Game
+
+dimensions:
+  # Indirect levers for future implementation and/or filter I/O
+  # eg: offense, defense, as values, side, map as unweighted definitions/buckets
+  map:   { values: [MapA, MapB, MapC] }
+  side:  { values: [Attack, Defense] }
+  role:  { values: [Carry, Support, Flex] }
+  mode:  { values: [Pro, Ranked, Scrim] }
+
+buckets:
+  # Weighting organization (metrics are unweighted, it's why you use buckets);
+  # Great for grouping stats or interpolations together
+  scoring: {}
+  impact: {}
+  utility: {}
+  survival: {}
+  discipline: {} # Weighted separate for punishable stats, like mistakes; see below
+  telem: {} # Useful for metrics used in efficiency DSL but not weighted directly; see below
+
+metrics:
+  # Direct fields (ppg, apg, ast, kill, etc..) (clamped; discipline is inverted so fewer mistakes score higher) 
+  # Clamps usually auto derived from leader and Foor in Batch mode
+  - { key: stat3_count, bucket: utility,    clamp: [0, 50],               source: { field: stat3_count } }
+  - { key: mistakes,    bucket: discipline, clamp: [0, 25], invert: true, source: { field: mistakes }    }
+  # Still invert the bad metric; discipline is just a separate weight lever; the bucket isn't inverted
+  - { key: gp,          bucket: telem,      clamp: [0, 12],               source: { field: gp }          }
+
+# New ratio/derived DSL with field names, clamps, and minimum denominators
+efficiency:
+  # Per-round scoring output
+  - key: stat1_per_round
+    bucket: scoring
+    clamp: [0.00, 2.00]
+    min_den: 5
+    make: "stat1_total"
+    attempt: "rounds_played"
+
+  # Impact success rate
+  - key: stat2_rate
+    bucket: impact
+    clamp: [0.00, 1.00]
+    min_den: 10
+    make: "stat2_numer"
+    attempt: "stat2_denom"
+
+  # Survival quality (good vs total)
+  - key: stat4_quality
+    bucket: survival
+    clamp: [0.00, 1.00]
+    min_den: 5
+    make: "stat4_good"
+    attempt: "stat4_total"
+
+weights:
+  # Separate profiles of weight distribution
+  # Doesn't need to sum to one; scorer evenly redistributes as necessary
+  pri:
+    scoring:    0.30
+    impact:     0.28
+    utility:    0.16
+    survival:   0.16
+    discipline: 0.10
+  mvp:
+    scoring:    0.34
+    impact:     0.30
+    utility:    0.12
+    survival:   0.14
+    discipline: 0.10
+  support:
+    scoring:    0.16
+    impact:     0.18
+    utility:    0.40
+    survival:   0.16
+    discipline: 0.10
+
+penalties:
+  # our discipline bucket(s) is/are self weighted here; you invert the metrics, not the bucket
+  pri:     { discipline: 0.10 }
+  mvp:     { discipline: 0.12 }
+  support: { discipline: 0.08 }
+
+filters:
+# include-only = output whatever passes the filter (eg: >= outputs only >= because else failed)
+# exclude-only = output whatever fails the filter (eg: <= outputs > because it passed <=)
+  gp: { metric: gp, accepts: ["<", ">", "<=", ">=", "=", "!="], values: ["include-only", "exclude-only"] }
+
+sniff:
+  require_any_headers: [stat1_total, rounds_played, stat2_numer, stat2_denom, stat4_good, stat4_total, stat3_count, mistakes]

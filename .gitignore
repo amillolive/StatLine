@@ -1,0 +1,140 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# venvs & caches
+# ─────────────────────────────────────────────────────────────────────────────
+/.venv/
+__pycache__/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+coverage.xml
+pip-wheel-metadata/
+*.py[cod]
+*$py.class
+
+# ─────────────────────────────────────────────────────────────────────────────
+# build outputs
+# ─────────────────────────────────────────────────────────────────────────────
+/dist/
+build/
+*.egg-info/
+.eggs/
+*.whl
+
+# ─────────────────────────────────────────────────────────────────────────────
+# OS/editor
+# ─────────────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ─────────────────────────────────────────────────────────────────────────────
+# lockfiles (library)
+# ─────────────────────────────────────────────────────────────────────────────
+uv.lock
+
+# ─────────────────────────────────────────────────────────────────────────────
+# databases (local dev/runtime)
+# ─────────────────────────────────────────────────────────────────────────────
+*.db
+*.sqlite
+*.sqlite3
+*.duckdb
+*.mdb
+*.accdb
+*.rdb
+*.pdb
+*.realm
+*.logdb
+*.leveldb/
+*.rdb/
+
+# If you keep dbs in a known folder, ignore it too:
+db/
+data/db/
+storage/
+
+# ─────────────────────────────────────────────────────────────────────────────
+# secrets / local config / tokens / api keys
+# ─────────────────────────────────────────────────────────────────────────────
+# Your existing specifics
+/statline/.keys.json
+**/.keys.json
+/statline/secrets/
+pypi.ini
+
+# Generic "secrets" folders anywhere
+**/secrets/
+**/secret/
+**/.secrets/
+**/.secret/
+**/private/
+**/.private/
+
+# Keys / certificates / auth material
+**/*.pem
+**/*.key
+**/*.crt
+**/*.cer
+**/*.p12
+**/*.pfx
+**/*.jks
+**/*.keystore
+**/*.der
+
+# Common env/config files that often contain credentials
+.env
+.env.*
+*.env
+*.dotenv
+config.local.*
+settings.local.*
+*.local.json
+*.local.yaml
+*.local.yml
+*.local.toml
+*.local.ini
+
+# API key / token dumps and common names
+**/*apikey*
+**/*api_key*
+**/*api-key*
+**/*token*
+**/*access_key*
+**/*secret_key*
+**/*private_key*
+**/*credentials*
+**/*creds*
+**/*session*
+**/*cookie*
+
+# Registration / enrollment / device keys (your “reg keys” / enrollment tokens)
+**/*regkey*
+**/*reg_key*
+**/*registration*
+**/*enroll*
+**/*device_key*
+**/*devicekey*
+**/*devkey*
+**/*dev_key*
+
+# JSON/TOML/YAML/INI that are specifically “secrets-ish”
+**/*secrets*.json
+**/*secrets*.toml
+**/*secrets*.yaml
+**/*secrets*.yml
+**/*secrets*.ini
+
+# ─────────────────────────────────────────────────────────────────────────────
+# optional: ignore runtime dumps
+# ─────────────────────────────────────────────────────────────────────────────
+*.pid
+*.lock
+*.tmp
+*.bak
+*.swp
+*.dump
+*.dmp

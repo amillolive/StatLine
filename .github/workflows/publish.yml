@@ -1,0 +1,81 @@
+name: Publish (PyPI)
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Manual publish target"
+        required: true
+        default: "pypi"
+        type: choice
+        options: [pypi]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  build:
+    name: Build sdist & wheel
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v4
+        with:
+          python-version: "3.14"
+
+      - run: uv venv --python 3.14
+      - run: uv pip install build twine
+
+      - name: Build
+        run: uv run python -m build
+
+      - name: Twine check
+        run: uv run python -m twine check dist/*
+
+      - name: Verify tag matches project.version
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          uv run python - <<'PY'
+          import os, sys, pathlib
+          try:
+              import tomllib
+          except Exception:
+              print("Python >=3.11 required for tomllib in this step.", file=sys.stderr)
+              sys.exit(2)
+          tag = os.environ["GITHUB_REF_NAME"]
+          want = tag[1:] if tag.startswith("v") else tag
+          data = tomllib.loads(pathlib.Path("pyproject.toml").read_text(encoding="utf-8"))
+          have = data["project"]["version"]
+          if have != want:
+              print(f"Tag {tag} != pyproject version {have}", file=sys.stderr)
+              sys.exit(1)
+          print(f"Version OK: {have}")
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/*
+
+  publish-pypi:
+    name: Publish to PyPI (OIDC)
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi
+    if: startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'pypi')
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+
+      - name: Publish (PyPI via OIDC)
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist
+          skip-existing: true
+          verbose: true
