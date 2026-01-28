@@ -21,7 +21,7 @@
 
 ## Research & Testing
 
-Security testing requires **written permission**. We support responsible disclosure via **[security@statline.app](mailto:security@statline.app)**.
+Security testing requires **written permission**. We support responsible disclosure via **[support@statline.dev](mailto:support@statline.dev)**.
 
 ## Enforcement
 

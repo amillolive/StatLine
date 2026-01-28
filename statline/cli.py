@@ -67,7 +67,7 @@ except Exception:  # pragma: no cover
 # ── banner & timing defaults ──────────────────────────────────────────────────
 
 STATLINE_DEBUG_TIMING: bool = os.getenv("STATLINE_DEBUG") == "1"
-DEFAULT_SLAPI_URL: str = os.getenv("SLAPI_URL", "http://127.0.0.1:8000").rstrip("/")
+DEFAULT_SLAPI_URL: str = os.getenv("SLAPI_URL", "https://api.statline.dev").rstrip("/")
 
 # Legacy env (v2) — still honored if you talk to an older SLAPI.
 DEFAULT_SLAPI_KEY: Optional[str] = os.getenv("SLAPI_KEY")

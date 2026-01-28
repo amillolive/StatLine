@@ -1,6 +1,6 @@
 # 2) Privacy Policy
 
-**Who we are.** StatLine LLC provides analytics software and APIs (SLAPI). Contact: **[privacy@statline.app](mailto:privacy@statline.app)**.
+**Who we are.** StatLine LLC provides analytics software and APIs (SLAPI). Contact: **[support@statline.dev](mailto:support@statline.dev)**.
 
 ## A. What We Collect
 
@@ -46,7 +46,7 @@ Where data moves outside your region, we use appropriate safeguards (e.g., SCCs 
 
 ## G. Your Rights
 
-Depending on your location, you may have rights to **access, correct, delete, port, or restrict** processing. Submit requests to **[privacy@statline.app](mailto:privacy@statline.app)**. If we process data on behalf of an org, we may redirect your request to that controller.
+Depending on your location, you may have rights to **access, correct, delete, port, or restrict** processing. Submit requests to **[support@statline.dev](mailto:support@statline.dev)**. If we process data on behalf of an org, we may redirect your request to that controller.
 
 ## H. Children
 
@@ -62,7 +62,7 @@ We use essential cookies for login/session and, where applicable, analytics cook
 
 ## K. Data Protection Contact & Complaints
 
-Questions or complaints: **[privacy@statline.app](mailto:privacy@statline.app)**. EEA/UK residents may lodge a complaint with a supervisory authority in their country.
+Questions or complaints: **[support@statline.dev](mailto:support@statline.dev)**. EEA/UK residents may lodge a complaint with a supervisory authority in their country.
 
 ## L. Changes
 

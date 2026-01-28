@@ -23,7 +23,7 @@ By obtaining or using a **REGKEY** or **API Access Token**, installing SDKs, or 
 
 * Keep REGKEYs/tokens confidential. You are responsible for all activity under your credentials.
 * Keys are **non-transferable**; scope may be limited to an org, project, or environment.
-* Suspected compromise: notify **[security@statline.app](mailto:security@statline.app)** immediately.
+* Suspected compromise: notify **[support@statline.dev](mailto:support@statline.dev)** immediately.
 * We may require re-verification, rotate keys, or impose additional controls for risk.
 
 ## 5. License to Use the Service
@@ -68,7 +68,7 @@ Unless covered by a written SLA, the Service is provided **without uptime commit
 
 ## 15. Security; Vulnerability Disclosure
 
-We employ reasonable technical and organizational measures. Report vulnerabilities to **[security@statline.app](mailto:security@statline.app)**; do not publicly disclose without coordination.
+We employ reasonable technical and organizational measures. Report vulnerabilities to **[support@statline.dev](mailto:support@statline.dev)**; do not publicly disclose without coordination.
 
 ## 16. IP; Trademarks; Feedback
 
@@ -96,7 +96,7 @@ TO THE MAXIMUM EXTENT PERMITTED BY LAW: (A) WE ARE NOT LIABLE FOR **INDIRECT, SP
 
 ## 22. Notices
 
-We may provide notices via email, dashboard, or website. Legal notices to Company: **[legal@statline.app](mailto:legal@statline.app)** and our posted mailing address.
+We may provide notices via email, dashboard, or website. Legal notices to Company: **[support@statline.dev](mailto:support@statline.dev)** and our posted mailing address.
 
 ## 23. Miscellaneous
 
