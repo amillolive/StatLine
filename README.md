@@ -31,7 +31,7 @@ At a high level, StatLine provides:
 StatLine v3.0.0 has four intended install variants.
 
 | Variant | Command | Use this when you want |
-| --- | --- |
+| --- | --- | --- |
 | **base** | `pip install statline` | Functional local library and local CLI scoring. |
 | **remote** | `pip install "statline[remote]"` | Base plus API client/auth and the SLAPI serving stack. |
 | **extras** | `pip install "statline[extras]"` | Remote plus user conveniences such as richer terminal/UI and Google Sheets-related helpers. |
