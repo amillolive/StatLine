@@ -55,7 +55,6 @@ uv.lock
 # If you keep dbs in a known folder, ignore it too:
 db/
 data/db/
-storage/
 
 # ─────────────────────────────────────────────────────────────────────────────
 # secrets / local config / tokens / api keys
