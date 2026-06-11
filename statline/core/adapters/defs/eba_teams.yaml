@@ -1,0 +1,310 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# StatLine Adapter Schema (v3.0.0rc3)
+# ─────────────────────────────────────────────────────────────────────────────
+
+key: eba_teams
+version: 1.0.0
+aliases: [eba_teams, eba_power, eba_t, ebat, eba_team]
+title: EBA Teams (real_gp weighted)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Dimensions
+# ─────────────────────────────────────────────────────────────────────────────
+
+dimensions:
+  team:
+    values: []
+    strict: false
+    description: Team name / identifier
+    meta: { display: Team }
+
+  conference:
+    values: [Eastern Conference, Western Conference]
+    strict: true
+    description: Conference identifier
+    meta: { display: Conference }
+
+  streak:
+    values: []
+    strict: false
+    description: Streak label (e.g., w2, l1). Not scored unless you add numeric streak fields.
+    meta: { display: Streak }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Sniff
+# ─────────────────────────────────────────────────────────────────────────────
+
+sniff:
+  require_all_headers:
+    - TEAM
+    - CONFERENCE
+    - GP
+    - WIN
+    - LOSS
+    - PF
+    - PA
+    - DIFF
+    - STREAK
+    - STREAK_SIGN
+    - FFW
+    - FFL
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Filters
+# ─────────────────────────────────────────────────────────────────────────────
+
+filters:
+  conference:
+    type: dimension
+    field: CONFERENCE
+    modes: [include-only, exclude-only]
+    description: Filter by conference.
+    meta: { display: Conference }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Buckets
+# ─────────────────────────────────────────────────────────────────────────────
+
+buckets:
+  wl:
+    title: Record
+    description: Win/loss signal, real_gp reliability-adjusted.
+
+  net:
+    title: Net Rating
+    description: Margin strength, real_gp reliability-adjusted.
+
+  off:
+    title: Offense
+    description: Points-for environment, real_gp reliability-adjusted.
+
+  def:
+    title: Defense
+    description: Points-against environment, real_gp reliability-adjusted.
+
+  telem:
+    title: Telemetry
+    description: Raw inputs and helper signals (not directly “meaning buckets”).
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Metrics
+# ─────────────────────────────────────────────────────────────────────────────
+
+metrics:
+  - key: gp
+    bucket: telem
+    clamp: [0.0, 32.0]
+    source: { field: GP }
+
+  - key: win
+    bucket: telem
+    clamp: [0.0, 32.0]
+    source: { field: WIN }
+
+  - key: loss
+    bucket: telem
+    clamp: [0.0, 32.0]
+    source: { field: LOSS }
+
+  - key: pf
+    bucket: telem
+    clamp: [0.0, 50000.0]
+    source: { field: PF }
+
+  - key: pa
+    bucket: telem
+    clamp: [0.0, 50000.0]
+    source: { field: PA }
+
+  - key: ffw
+    bucket: telem
+    clamp: [0.0, 32.0]
+    source: { field: FFW }
+
+  - key: ffl
+    bucket: telem
+    clamp: [0.0, 32.0]
+    source: { field: FFL }
+
+  - key: ff_total
+    bucket: telem
+    clamp: [0.0, 32.0]
+    source:
+      expr: "ffw + ffl"
+
+  - key: real_gp
+    bucket: telem
+    clamp: [0.0, 32.0]
+    source:
+      expr: "max(0.0, gp - ff_total)"
+
+  - key: diff_raw
+    bucket: telem
+    clamp: [-50000.0, 50000.0]
+    source:
+      expr: "pf - pa"
+
+  - key: rel4
+    bucket: telem
+    clamp: [0.0, 1.0]
+    source:
+      expr: "min(1.0, real_gp / 4.0)"
+
+  - key: real_gp1
+    bucket: telem
+    clamp: [0.0, 1.0]
+    source:
+      expr: "min(1.0, real_gp)"
+
+  - key: no_real
+    bucket: telem
+    clamp: [0.0, 1.0]
+    source:
+      expr: "1.0 - real_gp1"
+
+  - key: rel4_eff
+    bucket: telem
+    clamp: [0.0, 1.0]
+    source:
+      expr: "min(1.0, rel4 + 0.05 * ffw * real_gp1)"
+
+  - key: win_pct
+    bucket: telem
+    clamp: [0.0, 1.0]
+    source:
+      expr: "win / max(1.0, (win + loss))"
+
+  - key: win_pct_rel
+    bucket: wl
+    clamp: [0.0, 1.0]
+    source:
+      expr: "0.5 + (win_pct - 0.5) * rel4_eff - no_real * 0.5"
+
+  - key: pf_pg
+    bucket: telem
+    clamp: [0.0, 1000.0]
+    source:
+      expr: "pf / max(1.0, real_gp)"
+
+  - key: pa_pg
+    bucket: telem
+    clamp: [0.0, 1000.0]
+    source:
+      expr: "pa / max(1.0, real_gp)"
+
+  - key: diff_pg
+    bucket: telem
+    clamp: [-200.0, 200.0]
+    source:
+      expr: "diff_raw / max(1.0, real_gp)"
+
+  - key: off_rtg
+    bucket: off
+    clamp: [70.0, 130.0]
+    source:
+      expr: "100.0 + (pf_pg - 100.0) * rel4_eff - no_real * 30.0"
+
+  - key: def_rtg
+    bucket: def
+    invert: true
+    clamp: [70.0, 130.0]
+    source:
+      expr: "100.0 + (pa_pg - 100.0) * rel4_eff + no_real * 30.0"
+
+  - key: net_rtg
+    bucket: net
+    clamp: [-35.0, 35.0]
+    source:
+      expr: "diff_pg * rel4_eff - no_real * 35.0"
+
+  - key: tempo_pg
+    bucket: telem
+    clamp: [140.0, 260.0]
+    source:
+      expr: "pf_pg + pa_pg"
+
+  - key: streak_signed
+    bucket: telem
+    clamp: [-5.0, 5.0]
+    source:
+      expr: "STREAK * STREAK_SIGN"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Weights
+# ─────────────────────────────────────────────────────────────────────────────
+
+weights:
+  pri:
+    wl:  0.20
+    net: 0.50
+    off: 0.15
+    def: 0.15
+
+  standings:
+    wl:  0.50
+    net: 0.40
+    off: 0.05
+    def: 0.05
+
+  predictive:
+    wl:  0.30
+    net: 0.60
+    off: 0.05
+    def: 0.05
+
+  offense:
+    wl:  0.10
+    net: 0.15
+    off: 0.75
+    def: 0.00
+
+  defense:
+    wl:  0.15
+    net: 0.10
+    off: 0.00
+    def: 0.75
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Score profiles
+# ─────────────────────────────────────────────────────────────────────────────
+
+score_profiles:
+  PRI:
+    kind: affine
+    lo: 55
+    hi: 99
+    weights_profile: pri
+
+  standings:
+    kind: affine
+    lo: 0
+    hi: 100
+    weights_profile: standings
+
+  playoff:
+    kind: affine
+    lo: 0
+    hi: 100
+    weights_profile: predictive
+
+  wildcard:
+    kind: affine
+    lo: -25
+    hi: 25
+    weights_profile: predictive
+
+  offense:
+    kind: window
+    out_lo: 1
+    out_hi: 10
+    pct_lo: 0.00
+    pct_hi: 1.00
+    weights_profile: offense
+
+  defense:
+    kind: window
+    out_lo: 1
+    out_hi: 10
+    pct_lo: 0.00
+    pct_hi: 1.00
+    weights_profile: defense

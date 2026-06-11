@@ -58,5 +58,5 @@ def require_device_only() -> Callable[[Request], Awaitable[Dict[str, Any]]]:
 
 
 # Convenience deps
-require_score = require_any("score")
+require_score = require_any("userbase")
 require_any_scope = require_any("*")

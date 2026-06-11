@@ -1,328 +1,742 @@
-# Awaiting refactor for V3
+# StatLine HOWTO
 
-## Creating a Compliant Adapter (v2.1.0)
-
-> **Mission:** Adapters describe *your game's stats*; the PRI engine normalizes and scores them. Follow this document exactly.
+This guide shows the practical workflows for StatLine v3.0.0: installing the right variant, scoring locally, using SLAPI, writing adapters, and preparing a release.
 
 ---
 
-## 0) Repository Placement
+## 1. Choose the right install variant
 
-```plaintext
-StatLine/
-├── HOWTO.md        ← this file (top level)
-└── statline/
-    └── core/
-        └── adapters/
-            └── defs/
-                └── example.yaml
+### Local user install
+
+Use this when you only need local scoring and the Python library.
+
+```bash
+pip install statline
+```
+
+### Remote/API user install
+
+Use this when you need authenticated SLAPI access or want to run the local API server.
+
+```bash
+pip install "statline[remote]"
+```
+
+### Power-user install
+
+Use this when you want the remote stack plus convenience tooling.
+
+```bash
+pip install "statline[extras]"
+```
+
+### Developer install
+
+Use this from a cloned repository.
+
+```bash
+python -m venv .venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+python -m pip install --upgrade pip
+python -m pip install -e ".[devpack]"
 ```
 
 ---
 
-## 1) Metadata (required)
+## 2. Verify the install
 
-**Purpose:** Identifies and labels the adapter so the PRI engine knows what it represents.
+```bash
+statline --version
+statline --mode local sys status
+statline --mode local adapter list
+```
 
-Keys:
+Use `--mode local` when you want zero network behavior. Use `--mode remote` when a SLAPI server must be reachable and authenticated.
 
-* **`key`** (required): unique ID (kebab or snake case).
-* **`version`** (required): SemVer.
+---
 
-  * **Major**: structure overhauls (buckets/metrics/clamps/DSL changes).
-  * **Minor**: add metrics/buckets or meaningful clamp shifts.
-  * **Patch**: small fixes/tuning.
-* **`aliases`** (optional): alternate names.
-* **`title`** (optional): human‑friendly label.
+## 3. Inspect an adapter before scoring
 
-**Example:**
+Start with the adapter metadata. The bundled demo adapter is named `demo`.
 
-```yaml
-key: example_game
-version: 0.2.0
-aliases: [ex, sample]
-title: Example Game
+```bash
+statline --mode local adapter spec demo
+statline --mode local adapter inputs demo
+statline --mode local adapter metrics demo
+statline --mode local adapter weights demo
+statline --mode local adapter filters demo
+```
+
+Detect adapters from a file:
+
+```bash
+statline --mode local adapter sniff --file statline/data/stats/DEMO/demo.csv
+```
+
+Refresh the local adapter registry after changing YAML files:
+
+```bash
+statline --mode local adapter refresh
 ```
 
 ---
 
-## 2) Dimensions (optional)
+## 4. Score raw rows from CSV
 
-Used for filtering and rollups (e.g., map/role/mode). Values are strict enums.
+From a source checkout:
+
+```bash
+statline --mode local score \
+  --adapter demo \
+  statline/data/stats/DEMO/demo.csv \
+  --fmt table \
+  --limit 10
+```
+
+Include all detected profile columns and client-side percentiles:
+
+```bash
+statline --mode local score \
+  --adapter demo \
+  statline/data/stats/DEMO/demo.csv \
+  --fmt table \
+  --profile all \
+  --percentile
+```
+
+Write JSON:
+
+```bash
+statline --mode local score \
+  --adapter demo \
+  statline/data/stats/DEMO/demo.csv \
+  --fmt json \
+  --pretty \
+  --out results.json
+```
+
+Write CSV:
+
+```bash
+statline --mode local score \
+  --adapter demo \
+  statline/data/stats/DEMO/demo.csv \
+  --fmt csv \
+  --out results.csv
+```
+
+Available output formats for `score`:
+
+| Format | Use |
+| --- | --- |
+| `table` | Human-readable terminal table. |
+| `md` | Markdown table. |
+| `csv` | Spreadsheet-friendly output. |
+| `json` | JSON array. |
+| `jsonl` | One JSON object per line. |
+
+---
+
+## 5. Use custom weights
+
+Use an adapter-defined preset:
+
+```bash
+statline --mode local score \
+  --adapter demo \
+  statline/data/stats/DEMO/demo.csv \
+  --weights-preset pri
+```
+
+Use a YAML weight override file:
 
 ```yaml
-dimensions:
-  map:   { values: [MapA, MapB, MapC] }
-  side:  { values: [Attack, Defense] }
-  role:  { values: [Carry, Support, Flex] }
-  mode:  { values: [Pro, Ranked, Scrim] }
+# weights.yaml
+aefg: 0.30
+tov_eff: 0.15
+two_way: 0.10
+vers: 0.10
+ppg: 0.05
+rpg: 0.05
+stocks: 0.05
+helios: 0.05
+handle: 0.05
+effloor: 0.05
+offball: 0.05
+```
+
+Then run:
+
+```bash
+statline --mode local score \
+  --adapter demo \
+  statline/data/stats/DEMO/demo.csv \
+  --weights weights.yaml
+```
+
+Normalize arbitrary weights:
+
+```bash
+statline --mode local weights normalize aefg=3 tov_eff=2 two_way=1
+```
+
+Resolve weights against an adapter:
+
+```bash
+statline --mode local weights resolve --adapter demo --preset pri
+statline --mode local weights resolve --adapter demo --preset pri --override aefg=0.35
 ```
 
 ---
 
-## 3) Buckets (required)
+## 6. Map raw data without scoring
 
-Group metrics into weighted categories. Names are free‑form but must be consistent across `weights` and `penalties`.
+Mapping is useful when you want to check whether an adapter is reading your columns correctly.
+
+Map one row:
+
+```bash
+statline --mode local map row \
+  --adapter demo \
+  --set name="Example Player" \
+  --set ppg=24.5 \
+  --set apg=6.2 \
+  --set orpg=1.0 \
+  --set drpg=4.0 \
+  --set spg=1.5 \
+  --set bpg=0.7 \
+  --set tov=2.1 \
+  --set fgm=9.2 \
+  --set fga=18.4 \
+  --set win=12 \
+  --set loss=8
+```
+
+Map a file:
+
+```bash
+statline --mode local map batch \
+  --adapter demo \
+  statline/data/stats/DEMO/demo.csv \
+  --fmt json \
+  --out mapped.json
+```
+
+---
+
+## 7. Score already-mapped rows
+
+Use `calc` when your input rows already contain adapter metric keys instead of raw source fields.
+
+Score one mapped row:
+
+```bash
+statline --mode local calc row \
+  --adapter demo \
+  --set ppg=24.5 \
+  --set apg=6.2 \
+  --set spg=1.5 \
+  --set bpg=0.7 \
+  --set tov=2.1 \
+  --set fgm=9.2 \
+  --set fga=18.4 \
+  --set orpg=1.0 \
+  --set drpg=4.0 \
+  --set win=12 \
+  --set loss=8
+```
+
+Score mapped rows from a file:
+
+```bash
+statline --mode local calc batch mapped.json --adapter demo --fmt json
+```
+
+---
+
+## 8. Use StatLine from Python
+
+### List adapters and datasets
+
+```python
+from statline import list_adapters, list_datasets
+
+print(list_adapters())
+print(list_datasets())
+```
+
+### Load and score a bundled dataset
+
+```python
+from statline import load_dataset, score
+
+rows = load_dataset("DEMO/demo", limit=10)
+results = score("demo", rows, mode="batch", weights="pri")
+
+for result in results:
+    print(result["pri"], result["pri_raw"])
+```
+
+### Score a single row
+
+```python
+from statline import score_row
+
+row = {
+    "name": "Example Player",
+    "ppg": 24.5,
+    "apg": 6.2,
+    "orpg": 1.0,
+    "drpg": 4.0,
+    "spg": 1.5,
+    "bpg": 0.7,
+    "tov": 2.1,
+    "fgm": 9.2,
+    "fga": 18.4,
+    "win": 12,
+    "loss": 8,
+}
+
+result = score_row("demo", row, weights="pri")
+print(result)
+```
+
+### Map before scoring
+
+```python
+from statline import map_row, score_row
+
+raw = {
+    "ppg": 24.5,
+    "apg": 6.2,
+    "orpg": 1.0,
+    "drpg": 4.0,
+    "spg": 1.5,
+    "bpg": 0.7,
+    "tov": 2.1,
+    "fgm": 9.2,
+    "fga": 18.4,
+    "win": 12,
+    "loss": 8,
+}
+
+mapped = map_row("demo", raw)
+result = score_row("demo", raw)
+```
+
+---
+
+## 9. Run SLAPI locally
+
+Install the remote variant first:
+
+```bash
+pip install "statline[remote]"
+```
+
+Start the API server:
+
+```bash
+statline --mode local serve --host 127.0.0.1 --port 8000
+```
+
+Start in the background:
+
+```bash
+statline --mode local serve --host 127.0.0.1 --port 8000 --background
+```
+
+Point the CLI at the server:
+
+```bash
+export SLAPI_URL="http://127.0.0.1:8000"
+statline --mode remote sys status
+```
+
+Health check endpoint:
+
+```bash
+curl http://127.0.0.1:8000/v3/health
+```
+
+Interactive docs are available at:
+
+```text
+http://127.0.0.1:8000/docs
+http://127.0.0.1:8000/redoc
+```
+
+---
+
+## 10. Enroll a device and claim an API key
+
+SLAPI v3 protects private endpoints with device proof plus API key authentication. A typical flow is:
+
+```bash
+statline auth device-init
+statline auth enroll --token reg_... --user your-handle --email you@example.com
+```
+
+After an admin approves the enrollment:
+
+```bash
+statline auth apikey-request --owner laptop
+```
+
+After an admin approves the API-key request:
+
+```bash
+statline auth apikey-requests
+statline auth apikey-claim --request-id REQUEST_ID
+statline auth whoami
+```
+
+Useful status commands:
+
+```bash
+statline auth status
+statline auth device
+statline auth apikeys
+statline sys status
+```
+
+Admin and moderator commands require the appropriate scopes.
+
+---
+
+## 11. Build an adapter
+
+Adapters live in:
+
+```text
+statline/core/adapters/defs/<adapter>.yaml
+```
+
+A minimal adapter needs:
+
+- `key`
+- `version`
+- `buckets`
+- `metrics`
+- `weights` or a default uniform PRI profile
+
+Example:
 
 ```yaml
+key: sample_game
+version: 1.0.0
+title: Sample Game
+aliases: [sample]
+
 buckets:
   scoring: {}
-  impact: {}
-  utility: {}
-  survival: {}
+  creation: {}
+  defense: {}
   discipline: {}
+
+metrics:
+  - key: points
+    bucket: scoring
+    clamp: [0, 40]
+    source: { field: points }
+
+  - key: assists
+    bucket: creation
+    clamp: [0, 15]
+    source: { field: assists }
+
+  - key: stocks
+    bucket: defense
+    clamp: [0, 6]
+    source: { expr: "steals + blocks" }
+
+  - key: turnovers
+    bucket: discipline
+    clamp: [0, 8]
+    invert: true
+    source: { field: turnovers }
+
+weights:
+  pri:
+    scoring: 0.40
+    creation: 0.25
+    defense: 0.20
+    discipline: 0.15
+
+score_profiles:
+  PRI:
+    kind: affine
+    weights_profile: pri
+    lo: 55
+    hi: 99
+
+sniff:
+  require_any_headers: [points, assists, steals, blocks, turnovers]
 ```
+
+Then refresh and inspect:
+
+```bash
+statline --mode local adapter refresh
+statline --mode local adapter spec sample_game --full
+statline --mode local adapter inputs sample_game
+```
+
+### Adapter fields
+
+| Field | Required | Purpose |
+| --- | ---: | --- |
+| `key` | Yes | Unique adapter identifier. |
+| `version` | Yes | Adapter SemVer. Results may change across versions. |
+| `aliases` | No | Alternate adapter names. |
+| `title` | No | Human-readable name. |
+| `dimensions` | No | Enumerated fields for grouping/filtering. |
+| `sniff` | No | Header rules for adapter detection. |
+| `filters` | No | Filterable fields and allowed operations. |
+| `buckets` | Yes | Weight categories. |
+| `metrics` | Yes | Raw-to-metric mappings. |
+| `efficiency` | No | Derived ratio/per-X metrics. |
+| `weights` | No | Bucket weight profiles. |
+| `penalties` | No | Profile-specific penalty settings. |
+| `score_profiles` | No | Published scoring profiles such as PRI. |
 
 ---
 
-## 4) Metrics (required)
+## 12. Metric source patterns
 
-Each metric:
-
-* belongs to a bucket,
-* uses realistic `clamp: [min, max]`,
-* optional `invert: true` for penalty metrics (*lower is better*),
-* pulls from `source.field`.
+Direct field:
 
 ```yaml
-metrics:
-  - { key: stat3_count, bucket: utility,    clamp: [0, 50],  source: { field: stat3_count } }
-  - { key: mistakes,    bucket: discipline, clamp: [0, 25], invert: true, source: { field: mistakes } }
+source: { field: points }
 ```
 
-> **Tip:** Keep clamps tight and data‑driven. Wildly wide clamps dilute normalization and downstream PRI.
+Constant:
+
+```yaml
+source: { const: 1.0 }
+```
+
+Expression:
+
+```yaml
+source: { expr: "steals + blocks" }
+```
+
+Expressions are intentionally safe and small. Use arithmetic, parentheses, `min(...)`, `max(...)`, and variable names. Metric order matters: expressions can reference values computed earlier in the adapter.
 
 ---
 
-## 5) Efficiency / Derived Ratios (updated DSL)
+## 13. Transforms and clamps
 
-**Purpose:** Define ratios and derived signals as **make/attempt** pairs.
+Clamp forms:
 
-**New DSL (v2.1.0):** write **field names or expressions** directly (no `raw[...]`). You may also use **numeric constants** for `attempt`.
+```yaml
+clamp: [0, 40]
+clamp: { lo: 0, hi: 40 }
+clamp: "0..40"
+```
 
-* `make`, `attempt` accept:
+Invert a bad metric so lower is better:
 
-  * **field names:** `stat1_total`, `rounds_played`
-  * **expressions:** `min(3*hits, max(2*hits, score - penalties))`
-  * **numeric constants:** `20`
-* `min_den`: minimum denominator required to score (guards divide‑by‑low).
-* `clamp`: post‑compute clamp before normalization.
-* Supported ops: `+ - * /`, parentheses, `min(a,b)`, `max(a,b)`.
+```yaml
+- key: turnovers
+  bucket: discipline
+  clamp: [0, 8]
+  invert: true
+  source: { field: turnovers }
+```
 
-**Examples:**
+Common transform shape:
+
+```yaml
+transform:
+  kind: affine
+  params: { scale: 1.2, offset: 0.3 }
+```
+
+Supported custom transform names include:
+
+```text
+linear, capped_linear, minmax, pct01, softcap, log1p
+```
+
+---
+
+## 14. Efficiency metrics
+
+Efficiency metrics are derived after primary metrics.
 
 ```yaml
 efficiency:
-  # Per‑round scoring output
-  - key: stat1_per_round
+  - key: points_per_attempt
     bucket: scoring
-    clamp: [0.00, 2.00]
+    clamp: [0.5, 2.0]
     min_den: 5
-    make: "stat1_total"
-    attempt: "rounds_played"
-
-  # Impact success rate
-  - key: stat2_rate
-    bucket: impact
-    clamp: [0.00, 1.00]
-    min_den: 10
-    make: "stat2_numer"
-    attempt: "stat2_denom"
-
-  # Survival quality (good / total)
-  - key: stat4_quality
-    bucket: survival
-    clamp: [0.00, 1.00]
-    min_den: 5
-    make: "stat4_good"
-    attempt: "stat4_total"
-
-  # (Optional) Constant attempt — softly scale a raw signal
-  - key: pressure_hint
-    bucket: impact
-    clamp: [0.00, 1.00]
-    min_den: 1
-    make: "entries"
-    attempt: "20"
+    make: "points"
+    attempt: "attempts"
 ```
 
-> **Guardrails:** choose `min_den` high enough to avoid volatile low‑sample noise; clamp tight to expected domain.
+`min_den` prevents tiny denominators from creating misleading rates.
 
 ---
 
-## 6) Mapping (legacy)
+## 15. Filters and dimensions
 
-Legacy mapping isn’t needed when you use `source.field` and the efficiency DSL. Prefer the newer approach.
-
----
-
-## 7) Weights (optional)
-
-Assign bucket importance for different presets. **They don’t need to sum to 1**; the engine normalizes.
+Dimensions describe enumerated context.
 
 ```yaml
-weights:
-  pri:
-    scoring:    0.30
-    impact:     0.28
-    utility:    0.16
-    survival:   0.16
-    discipline: 0.10
-  mvp:
-    scoring:    0.34
-    impact:     0.30
-    utility:    0.12
-    survival:   0.14
-    discipline: 0.10
-  support:
-    scoring:    0.16
-    impact:     0.18
-    utility:    0.40
-    survival:   0.16
-    discipline: 0.10
-```
-
----
-
-## 8) Penalties (optional)
-
-Extra downweight by bucket per preset (applies **after normalization**).
-
-```yaml
-penalties:
-  pri:     { discipline: 0.10 }
-  mvp:     { discipline: 0.12 }
-  support: { discipline: 0.08 }
-```
-
----
-
-## 9) Sniff (optional)
-
-Headers the engine can use to auto‑select your adapter. **Include all fields referenced by `metrics` and `efficiency`.**
-
-```yaml
-sniff:
-  require_any_headers:
-    [stat1_total, rounds_played, stat2_numer, stat2_denom, stat4_good, stat4_total, stat3_count, mistakes]
-```
-
----
-
-## 10) v2.1.0 Features & Compatibility
-
-* **PRI Scale:** fixed **55–99**. Do not assume 0–99.
-* **Percentiles (batch/output):** adapters do not define these; they’re computed by the engine per request/dataset window.
-* **Output toggles:** callers may request `show_weights`, `hide_pri_raw`, per‑metric deltas, etc. Adapters should not rely on these.
-* **Batch filters:** callers may filter by `position`, `games_played`, and adapter‑defined predicates like `{stat, op, value}`.
-* **Versioning:** any breaking schema change → bump **major**.
-
----
-
-## 11) Validation Checklist
-
-* [ ] Every `metric.bucket` exists in `buckets`.
-* [ ] `clamp` ranges are realistic; penalty metrics use `invert: true`.
-* [ ] `efficiency[*].make/attempt` reference real fields or valid expressions; `min_den` is set.
-* [ ] Constant denominators are quoted strings (e.g., `"20"`).
-* [ ] `weights` only reference existing buckets (engine normalizes totals).
-* [ ] `sniff.require_any_headers` includes all raw fields used by `metrics`/`efficiency`.
-* [ ] `version` follows SemVer and reflects material changes.
-
----
-
-## 12) Future Hooks (not yet supported)
-
-* Metric transforms
-* Per‑dimension clamps
-* Per‑metric multipliers
-* Team‑factor modes
-
----
-
-## 13) Minimal Starter Template (updated)
-
-```yaml
-key: example_game
-version: 0.2.0
-aliases: [ex, sample]
-title: Example Game
-
 dimensions:
-  map:   { values: [MapA, MapB, MapC] }
-  side:  { values: [Attack, Defense] }
-  role:  { values: [Carry, Support, Flex] }
-  mode:  { values: [Pro, Ranked, Scrim] }
+  role:
+    values: [Carry, Support, Flex]
+```
 
-buckets:
-  scoring: {}
-  impact: {}
-  utility: {}
-  survival: {}
-  discipline: {}
+Filters describe user-facing filter controls.
 
-metrics:
-  - { key: stat3_count, bucket: utility,    clamp: [0, 50],  source: { field: stat3_count } }
-  - { key: mistakes,    bucket: discipline, clamp: [0, 25], invert: true, source: { field: mistakes } }
+```yaml
+filters:
+  min_games:
+    type: metric
+    field: games_played
+    accepts: [">=", ">"]
+    modes: [include-only]
+    description: Only include rows with enough games played.
+```
 
-efficiency:
-  - key: stat1_per_round
-    bucket: scoring
-    clamp: [0.00, 2.00]
-    min_den: 5
-    make: "stat1_total"
-    attempt: "rounds_played"
+CLI usage:
 
-  - key: stat2_rate
-    bucket: impact
-    clamp: [0.00, 1.00]
-    min_den: 10
-    make: "stat2_numer"
-    attempt: "stat2_denom"
-
-  - key: stat4_quality
-    bucket: survival
-    clamp: [0.00, 1.00]
-    min_den: 5
-    make: "stat4_good"
-    attempt: "stat4_total"
-
-weights:
-  pri:
-    scoring:    0.30
-    impact:     0.28
-    utility:    0.16
-    survival:   0.16
-    discipline: 0.10
-  mvp:
-    scoring:    0.34
-    impact:     0.30
-    utility:    0.12
-    survival:   0.14
-    discipline: 0.10
-  support:
-    scoring:    0.16
-    impact:     0.18
-    utility:    0.40
-    survival:   0.16
-    discipline: 0.10
-
-penalties:
-  pri:     { discipline: 0.10 }
-  mvp:     { discipline: 0.12 }
-  support: { discipline: 0.08 }
-
-sniff:
-  require_any_headers:
-    [stat1_total, rounds_played, stat2_numer, stat2_denom, stat4_good, stat4_total, stat3_count, mistakes]
+```bash
+statline --mode local score \
+  --adapter sample_game \
+  stats.csv \
+  --filter role=Carry \
+  --filter min_games=10
 ```
 
 ---
 
-## 14) Gotchas & Best Practices
+## 16. Validate adapter behavior
 
-* Keep buckets few and meaningful; noisy bucket design destroys interpretability.
-* Prefer **rates** to raw counts; clamp rates in realistic domains.
-* Use **`min_den`** to fight small‑sample volatility.
-* When in doubt, simulate on real match CSVs and check percentile stability.
-* Document your adapter’s required columns in repo docs for users.
+A practical adapter test loop:
+
+```bash
+statline --mode local adapter refresh
+statline --mode local adapter spec sample_game --full
+statline --mode local adapter inputs sample_game
+statline --mode local adapter sniff --file stats.csv
+statline --mode local map batch --adapter sample_game stats.csv --fmt json --out mapped.json
+statline --mode local score --adapter sample_game stats.csv --fmt table --profile all
+```
+
+Enable stricter loader behavior while developing adapters:
+
+```bash
+STATLINE_LOADER_STRICT=1 statline --mode local adapter spec sample_game --full
+```
+
+---
+
+## 17. Development workflow
+
+Install everything:
+
+```bash
+python -m pip install -e ".[devpack]"
+```
+
+Run tests:
+
+```bash
+pytest
+```
+
+Run linting and typing:
+
+```bash
+ruff check statline tests
+mypy statline
+pyright
+```
+
+Build package artifacts:
+
+```bash
+python -m build
+python -m twine check dist/*
+```
+
+Audit dependencies:
+
+```bash
+pip-audit
+```
+
+---
+
+## 18. v3.0.0 release checklist
+
+1. Update package metadata to `3.0.0` in `pyproject.toml`.
+2. Update runtime versions in `statline/__init__.py`, `statline/cli.py`, and `statline/slapi/app.py`.
+3. Update bundled adapter versions where they still say `3.0.0rc3`.
+4. Confirm install variants:
+   - base: `pip install statline`
+   - remote: `pip install "statline[remote]"`
+   - extras: `pip install "statline[extras]"`
+   - devpack: `pip install -e ".[devpack]"`
+5. Run tests, linting, and type checks.
+6. Build artifacts with `python -m build`.
+7. Confirm artifacts do not include local DBs, logs, secrets, `.git`, caches, or bytecode.
+8. Run `twine check dist/*`.
+9. Tag and publish only after version strings and docs agree.
+
+---
+
+## 19. Troubleshooting
+
+### The CLI is trying to reach SLAPI when I only want local scoring
+
+Use local mode:
+
+```bash
+statline --mode local score --adapter demo stats.csv
+```
+
+### `serve` says a dependency is missing
+
+Install the remote stack:
+
+```bash
+pip install "statline[remote]"
+```
+
+Some older runtime error strings may still mention `[api]`; for v3.0.0, the intended extra name is `[remote]`.
+
+### My adapter does not appear
+
+Refresh the registry and inspect errors:
+
+```bash
+statline --mode local adapter refresh
+STATLINE_LOADER_STRICT=1 statline --mode local adapter spec your_adapter --full
+```
+
+### Scores look compressed or inflated
+
+Inspect clamps, score profiles, and the normalization context:
+
+```bash
+statline --mode local adapter spec your_adapter --full
+statline --mode local score --adapter your_adapter stats.csv --caps batch
+statline --mode local score --adapter your_adapter stats.csv --caps clamps
+```
+
+### CSV names are wrong in output
+
+Pass preferred name columns:
+
+```bash
+statline --mode local score \
+  --adapter demo \
+  stats.csv \
+  --name-col player_name \
+  --name-col name
+```

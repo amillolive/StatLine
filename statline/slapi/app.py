@@ -1,12 +1,14 @@
 # statline/slapi/app.py
 from __future__ import annotations
 
+import ast
 from pathlib import Path
 from typing import Annotated, Any, Callable, Dict, List, Mapping, Optional, Sequence, TypeAlias
 
 try:
     from fastapi import FastAPI, HTTPException
     from fastapi.params import Depends
+    from fastapi.responses import JSONResponse
     from fastapi.routing import APIRouter
     from pydantic import BaseModel, ConfigDict
 except ModuleNotFoundError as e:
@@ -20,14 +22,9 @@ from statline.core.adapters import load as _load_adapter
 from statline.core.adapters.loader import load_spec as _load_spec
 from statline.core.adapters.sniff import sniff_adapters as _sniff_adapters
 from statline.core.calculator import safe_map_raw as _safe_map_raw
-from statline.core.introspect import declared_metric_keys as _declared_metric_keys
-from statline.core.introspect import infer_input_keys as _infer_input_keys
-from statline.core.introspect import mapper_keys as _mapper_keys
-from statline.core.introspect import mapper_metric_like_keys as _mapper_metric_like_keys
 
 # IMPORTANT: calc endpoints below expect MAPPED metrics
-from statline.core.scoring import calculate_pri as _calculate_pri_mapped_batch
-from statline.core.scoring import calculate_pri_single_mapped as _calculate_pri_mapped_single
+from statline.core.scoring import calculate_pri as _calculate_pri
 from statline.slapi.adapters import list_discoverable_yaml as _list_yaml
 
 # Auth (device-proof + api key; plus enrollment/admin) — PATH 2 (request/approve/claim)
@@ -59,6 +56,7 @@ from statline.slapi.auth import (
     require_principal,
     revoke_apikey_for_device,
 )
+from statline.slapi.errors import SlapiError, to_http_exception
 
 # Request models
 from statline.slapi.schemas import (
@@ -75,23 +73,167 @@ from statline.slapi.scoring import adapters_available as _adapters_available
 from statline.slapi.scoring import score_batch as _score_batch
 from statline.slapi.scoring import score_row as _score_row
 
+
+def _calculate_pri_mapped_single(
+    row: Mapping[str, Any],
+    adapter: Any,
+    **kwargs: Any,
+) -> Dict[str, Any]:
+    """Score one already-mapped metric row with the canonical v3 scorer."""
+    result = _calculate_pri(dict(row), adapter=adapter, **kwargs)
+    if not isinstance(result, Mapping): # pyright: ignore[reportUnnecessaryIsInstance]
+        raise HTTPException(500, "scorer returned a non-mapping single result")
+    return dict(result)
+
+
+def _calculate_pri_mapped_batch(
+    rows: Sequence[Mapping[str, Any]],
+    adapter: Any,
+    **kwargs: Any,
+) -> List[Dict[str, Any]]:
+    """Score already-mapped metric rows with the canonical v3 scorer."""
+    result = _calculate_pri([dict(r) for r in rows], adapter=adapter, **kwargs)
+    if isinstance(result, Mapping):
+        return [dict(result)]
+    return [dict(r) for r in result]
+
+
+def _sorted_unique(items: Sequence[Any]) -> List[str]:
+    seen: set[str] = set()
+    out: List[str] = []
+    for item in items:
+        text = str(item).strip()
+        if text and text not in seen:
+            seen.add(text)
+            out.append(text)
+    return out
+
+
+def _expr_identifiers(expr: Any) -> List[str]:
+    """Return variable-like identifiers referenced by a safe adapter expression."""
+    try:
+        tree = ast.parse(str(expr), mode="eval")
+    except Exception:
+        return []
+
+    called: set[str] = set()
+    names: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+            called.add(node.func.id)
+        elif isinstance(node, ast.Name):
+            names.add(node.id)
+    return sorted(n for n in names if n not in called)
+
+
+def _declared_metric_keys(adapter: str) -> List[str]:
+    spec = _load_spec(adapter)
+    keys: List[str] = []
+    for metric in getattr(spec, "metrics", []) or []:
+        key = getattr(metric, "key", None)
+        if key:
+            keys.append(str(key))
+    for eff in getattr(spec, "efficiency", []) or []:
+        key = getattr(eff, "key", None)
+        if key:
+            keys.append(str(key))
+    return _sorted_unique(keys)
+
+
+def _mapper_metric_like_keys(adapter: str) -> List[str]:
+    adp = _load_adapter(adapter)
+    keys: List[str] = []
+    for collection_name in ("metrics", "efficiency"):
+        for item in getattr(adp, collection_name, []) or []:
+            key = getattr(item, "key", None)
+            if key:
+                keys.append(str(key))
+    return _sorted_unique(keys)
+
+
+def _infer_input_keys(adapter: str) -> List[str]:
+    spec = _load_spec(adapter)
+    keys: List[str] = []
+    for metric in getattr(spec, "metrics", []) or []:
+        source = getattr(metric, "source", None)
+        field = getattr(source, "field", None) if source is not None else None
+        expr = getattr(source, "expr", None) if source is not None else None
+        if field:
+            keys.append(str(field))
+        elif expr:
+            keys.extend(_expr_identifiers(expr))
+    for dim_key in (getattr(spec, "dimensions", {}) or {}).keys():
+        keys.append(str(dim_key))
+    for flt in (getattr(spec, "filters", {}) or {}).values():
+        field = getattr(flt, "field", None)
+        if field:
+            keys.append(str(field))
+    return _sorted_unique(keys)
+
+
+def _mapper_keys(adapter: str) -> List[str]:
+    return _mapper_metric_like_keys(adapter) or _declared_metric_keys(adapter)
+
+
+def _dimension_options(spec: Any) -> Dict[str, List[str]]:
+    out: Dict[str, List[str]] = {}
+    for key, dim in (getattr(spec, "dimensions", {}) or {}).items():
+        out[str(key)] = _sorted_unique(list(getattr(dim, "values", ()) or ()))
+    return out
+
+
+def _filter_metadata(spec: Any) -> Dict[str, Any]:
+    out: Dict[str, Any] = {}
+    for key, flt in (getattr(spec, "filters", {}) or {}).items():
+        out[str(key)] = {
+            "type": getattr(flt, "type", "metric"),
+            "field": getattr(flt, "field", str(key)),
+            "accepts": list(getattr(flt, "accepts", ()) or ()),
+            "modes": list(getattr(flt, "modes", ()) or ()),
+            "description": getattr(flt, "description", ""),
+        }
+    return out
+
 # =============================================================================
 # Versioning
 # =============================================================================
 
-API_VERSION = "3.0.0"
+API_VERSION = "3.0.0rc3"
 
 # Scope names (expanded/validated in auth.py; app.py only gates)
 SCOPE_USERBASE = "userbase"
 SCOPE_MODERATION = "moderation"
 SCOPE_ADMIN = "admin"
 
+def _json_error_response(exc: Exception) -> JSONResponse:
+    mapped = to_http_exception(exc)
+    if isinstance(mapped, tuple):
+        status, detail = mapped
+    else:
+        status = int(getattr(mapped, "status_code", 500))
+        detail = getattr(mapped, "detail", str(exc) or "Internal Server Error")
+    return JSONResponse(status_code=status, content={"detail": detail})
+
+
+async def _slapi_error_handler(_request: object, exc: Exception) -> JSONResponse:
+    return _json_error_response(exc)
+
+
+async def _file_not_found_handler(_request: object, exc: Exception) -> JSONResponse:
+    return _json_error_response(exc)
+
+
 app: FastAPI = FastAPI(
     title="StatLine API",
     version=API_VERSION,
     docs_url="/docs",
     redoc_url="/redoc",
+    exception_handlers={
+        SlapiError: _slapi_error_handler,
+        FileNotFoundError: _file_not_found_handler,
+    },
 )
+
 
 # Auth dependency for protected endpoints (requires BOTH device proof + api key)
 AuthDep = Annotated[Principal, Depends(require_principal)]
@@ -421,8 +563,8 @@ def list_datasets() -> Dict[str, Any]:
     names: List[str] = []
     try:
         if base.exists():
-            for p in sorted(base.glob("*.csv")):
-                names.append(p.name)
+            for p in sorted(base.rglob("*.csv")):
+                names.append(str(p.relative_to(base)))
     except Exception:
         pass
     return {"datasets": names}
@@ -431,7 +573,7 @@ def list_datasets() -> Dict[str, Any]:
 @api_router.get("/adapters")  # pyright: ignore[reportUnknownMemberType]
 def list_adapters(fast: bool = False) -> Dict[str, List[str]]:
     if fast:
-        return {"adapters": _list_yaml()}
+        return {"adapters": _list_yaml() or list(_list_names())}
 
     try:
         names = _adapters_available() or list(_list_names())
@@ -484,6 +626,39 @@ def adapter_inputs(adapter: str) -> Dict[str, List[str]]:
 def adapter_prompt_keys(adapter: str) -> Dict[str, List[str]]:
     keys = _infer_input_keys(adapter) or _mapper_metric_like_keys(adapter) or _declared_metric_keys(adapter)
     return {"keys": keys}
+
+
+@api_router.get("/adapter/{adapter}/inputs/raw")  # pyright: ignore[reportUnknownMemberType]
+def adapter_raw_inputs(adapter: str) -> Dict[str, List[str]]:
+    return {"keys": _infer_input_keys(adapter)}
+
+
+@api_router.get("/adapter/{adapter}/dimensions")  # pyright: ignore[reportUnknownMemberType]
+def adapter_dimensions(adapter: str) -> Dict[str, Dict[str, List[str]]]:
+    spec = _load_spec(adapter)
+    return {"dimensions": _dimension_options(spec)}
+
+
+@api_router.get("/adapter/{adapter}/filters")  # pyright: ignore[reportUnknownMemberType]
+def adapter_filters(adapter: str) -> Dict[str, Any]:
+    spec = _load_spec(adapter)
+    return {"filters": _filter_metadata(spec), "keys": list(_filter_metadata(spec).keys())}
+
+
+@api_router.get("/adapter/{adapter}/traits")  # pyright: ignore[reportUnknownMemberType]
+def adapter_traits(adapter: str) -> Dict[str, Any]:
+    spec = _load_spec(adapter)
+    return {
+        "key": getattr(spec, "key", adapter),
+        "title": getattr(spec, "title", adapter),
+        "inputs": _infer_input_keys(adapter),
+        "metric_keys": _declared_metric_keys(adapter),
+        "filters": _filter_metadata(spec),
+        "filter_keys": list(_filter_metadata(spec).keys()),
+        "dimensions": _dimension_options(spec),
+        "weights": {str(k): {str(kk): float(vv) for kk, vv in dict(v).items()} for k, v in (getattr(spec, "weights", {}) or {}).items()},
+        "score_profiles": list((getattr(spec, "score_profiles", {}) or {}).keys()),
+    }
 
 
 # =============================================================================
@@ -701,7 +876,7 @@ def adapter_spec(adapter: str) -> Dict[str, Any]:
 
     buckets: List[str] = []
     try:
-        buckets = [str(b.key) for b in getattr(spec, "buckets", {}).values()]  # type: ignore[attr-defined]
+        buckets = list(getattr(spec, "buckets", {}).keys())
     except Exception:
         buckets = []
 
@@ -718,7 +893,11 @@ def adapter_spec(adapter: str) -> Dict[str, Any]:
         "aliases": list(getattr(spec, "aliases", []) or []),
         "buckets": buckets,
         "metrics": metrics,
+        "inputs": _infer_input_keys(adapter),
+        "filters": _filter_metadata(spec),
+        "dimensions": _dimension_options(spec),
         "weights": weights,
+        "score_profiles": list((getattr(spec, "score_profiles", {}) or {}).keys()),
     }
 
 app.include_router(auth_router)

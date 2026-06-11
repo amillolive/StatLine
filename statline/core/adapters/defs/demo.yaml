@@ -1,5 +1,5 @@
 key: demo
-version: 2.2.0
+version: 3.0.0rc3
 aliases: [demo]
 title: StatLine Demo
 
@@ -65,8 +65,8 @@ efficiency:
     bucket: aefg
     clamp: [0.85, 1.45]
     min_den: 3
-    make: "2.0 * (fgm + 0.5*tpm_est) / max(1e-6, fga)"
-    attempt: "fga"
+    make: "2.0 * (fgm + 0.5*tpm_est)"
+    attempt: "max(1e-6, fga)"
 
   - key: eff_usage
     bucket: aefg
@@ -193,7 +193,7 @@ weights:
 
 
 score_profiles:
-  PRI: { kind: affine, lo: 55, hi: 99 }
-  PRI-AF: { kind: window, out_lo: 0, out_hi: 300, pct_lo: 0.00, pct_hi: 1.25 }
-  PRI-AR: { kind: window, out_lo: -25, out_hi: 25, pct_lo: -0.10, pct_hi: 0.9 }
-  PRI-AP: { kind: window, out_lo: -99, out_hi: 33, pct_lo: -0.15, pct_hi: 1.15 }
+  PRI: { kind: affine, lo: 55, hi: 99, weights_profile: pri}
+  PRI-AF: { kind: window, out_lo: 0, out_hi: 300, pct_lo: 0.00, pct_hi: 1.25, weights_profile: pri }
+  PRI-AR: { kind: window, out_lo: -25, out_hi: 25, pct_lo: -0.10, pct_hi: 0.9, weights_profile: pri }
+  PRI-AP: { kind: window, out_lo: -99, out_hi: 33, pct_lo: -0.15, pct_hi: 1.15, weights_profile: pri }

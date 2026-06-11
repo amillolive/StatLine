@@ -93,7 +93,24 @@ penalties:
 filters:
 # include-only = output whatever passes the filter (eg: >= outputs only >= because else failed)
 # exclude-only = output whatever fails the filter (eg: <= outputs > because it passed <=)
-  gp: { metric: gp, accepts: ["<", ">", "<=", ">=", "=", "!="], values: ["include-only", "exclude-only"] }
-
+  gp: { type: metric, field: gp, accepts: ["<", ">", "<=", ">=", "=", "!="], values: ["include-only", "exclude-only"] }
+  attack: { type: dimension, field: attack, accepts: ... } # you get the gist
 sniff:
   require_any_headers: [stat1_total, rounds_played, stat2_numer, stat2_denom, stat4_good, stat4_total, stat3_count, mistakes]
+
+score_profiles:
+  PRI:
+    kind: affine
+    lo: 55
+    hi: 99
+    weights_profile: pri
+  MVP:
+    kind: affine
+    lo: 55
+    hi: 99
+    weights_profile: mvp
+  SUPPORT:
+    kind: affine
+    lo: 55
+    hi: 99
+    weights_profile: support

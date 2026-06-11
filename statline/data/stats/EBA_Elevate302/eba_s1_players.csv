@@ -1,0 +1,121 @@
+PLAYER,TEAM,CONFERENCE,POSITION,GP,PPG,RPG,APG,SPG,BPG,TPG,3PMPG,3PAPG,FGMPG,FGAPG,WIN,LOSS,FFW,FFL,REAL_GP,NO_REAL
+Myles Hawkins,Mexico City Aztecs,Western Conference,GUARD,2,30.8,4.6,6.4,1.7,0.4,2.8,3.0,6.8,13.9,25.0,2,0,0,0,2,0
+Zion Brooks III,Mexico City Aztecs,Western Conference,GUARD,2,21.6,3.0,6.7,1.0,0.1,1.6,2.2,5.6,9.7,20.6,2,0,0,0,2,0
+Andre Horton Jr.,Mexico City Aztecs,Western Conference,WING,2,20.7,6.7,2.6,1.3,0.9,2.5,1.7,5.2,9.5,20.0,2,0,0,0,2,0
+Khalil Reed,Mexico City Aztecs,Western Conference,FORWARD,2,15.2,9.1,2.2,0.8,0.5,1.5,1.1,3.3,7.1,13.5,2,0,0,0,2,0
+Ezra Knight Jr.,Mexico City Aztecs,Western Conference,BIG,2,13.7,8.0,3.3,0.8,2.0,0.8,0.1,0.3,6.8,11.2,2,0,0,0,2,0
+Lorenzo Foster,San Diego Storm,Western Conference,GUARD,2,25.0,4.7,6.8,1.6,0.1,3.2,2.6,6.7,11.2,22.8,2,0,0,0,2,0
+Tavian Booker III,San Diego Storm,Western Conference,GUARD,2,19.8,2.5,7.0,1.8,0.5,2.4,2.1,5.3,8.9,17.4,2,0,0,0,2,0
+Jalen Bennett,San Diego Storm,Western Conference,WING,2,15.4,5.5,4.8,1.4,0.9,2.2,1.1,3.0,7.1,13.8,2,0,0,0,2,0
+Braylon Parker,San Diego Storm,Western Conference,FORWARD,2,12.5,8.3,2.9,0.8,0.5,1.3,0.9,2.7,5.8,11.6,2,0,0,0,2,0
+Hudson Johnson,San Diego Storm,Western Conference,BIG,2,11.8,7.7,2.7,1.0,2.3,1.1,0.3,1.0,5.8,9.9,2,0,0,0,2,0
+Darius Porter,Atlanta Breeze,Eastern Conference,GUARD,2,31.6,4.0,6.1,2.1,0.4,2.6,3.1,7.0,14.3,25.0,2,0,0,0,2,0
+Brandon Morales,Atlanta Breeze,Eastern Conference,GUARD,2,23.9,3.6,7.2,1.7,0.3,2.1,2.8,6.7,10.6,22.1,2,0,0,0,2,0
+Zion Rhodes,Atlanta Breeze,Eastern Conference,WING,2,20.7,4.9,3.6,1.1,0.3,1.3,1.9,5.8,9.4,18.9,2,0,0,0,2,0
+Jett Sanders,Atlanta Breeze,Eastern Conference,FORWARD,2,19.0,6.8,3.4,1.4,1.5,1.0,0.9,2.4,9.0,16.2,2,0,0,0,2,0
+Kylan Vaughn III,Atlanta Breeze,Eastern Conference,BIG,2,13.8,12.4,3.1,0.5,1.2,1.8,0.3,1.0,6.7,11.4,2,0,0,0,2,0
+Sebastian Vargas,Toronto Terror,Eastern Conference,GUARD,2,28.6,3.7,7.3,2.2,0.4,2.5,3.6,9.8,12.5,25.0,2,0,0,0,2,0
+Carlos Banks,Toronto Terror,Eastern Conference,GUARD,2,21.3,2.4,6.6,1.3,0.1,1.8,2.2,5.4,9.5,20.8,2,0,0,0,2,0
+Kareem Horton Jr.,Toronto Terror,Eastern Conference,WING,2,18.4,6.9,3.3,1.1,0.9,2.2,1.5,3.7,8.5,16.1,2,0,0,0,2,0
+Preston Sterling,Toronto Terror,Eastern Conference,FORWARD,2,16.1,8.7,3.9,1.3,0.5,1.7,0.7,2.1,7.7,15.7,2,0,0,0,2,0
+Kamari Clay,Toronto Terror,Eastern Conference,BIG,2,13.6,11.1,2.5,0.6,2.6,1.2,0.5,1.6,6.5,11.2,2,0,0,0,2,0
+Zaire Maddox,Phoenix Power,Western Conference,GUARD,2,28.8,8.0,12.2,4.0,0.0,5.6,3.2,8.4,12.8,26.8,2,0,1,0,1,0
+Easton Jefferson,Phoenix Power,Western Conference,GUARD,2,23.4,8.0,13.0,2.8,0.8,4.4,2.0,5.2,10.8,22.2,2,0,1,0,1,0
+Myles Prescott,Phoenix Power,Western Conference,WING,2,19.4,9.6,6.4,2.8,1.2,3.6,1.8,4.2,8.8,18.2,2,0,1,0,1,0
+Miles Jefferson III,Phoenix Power,Western Conference,FORWARD,2,16.4,11.0,7.6,2.0,2.6,3.0,1.0,3.2,7.6,15.4,2,0,1,0,1,0
+Rashad Hampton III,Phoenix Power,Western Conference,BIG,2,14.0,23.2,3.8,1.4,5.2,1.8,0.2,0.4,7.0,12.4,2,0,1,0,1,0
+Kingston Ellis,Chicago Aces,Eastern Conference,GUARD,2,21.6,7.8,15.8,3.0,0.4,6.6,2.0,5.0,9.8,20.2,2,0,1,0,1,0
+JaeSean Navarro,Chicago Aces,Eastern Conference,GUARD,2,17.8,6.6,8.2,3.0,1.0,6.4,1.6,4.4,8.0,17.8,2,0,1,0,1,0
+Kareem Knight,Chicago Aces,Eastern Conference,WING,2,13.8,10.6,9.6,3.0,1.2,2.6,1.2,3.2,6.2,12.4,2,0,1,0,1,0
+Theo Hughes,Chicago Aces,Eastern Conference,FORWARD,2,12.8,13.0,4.4,1.6,1.2,2.2,0.8,2.4,6.0,11.2,2,0,1,0,1,0
+Marco Prescott III,Chicago Aces,Eastern Conference,BIG,2,11.0,19.0,3.6,1.8,4.2,1.8,0.0,0.0,5.4,9.8,2,0,1,0,1,0
+Kason Reyes,Nashville Anthem,Western Conference,GUARD,2,22.9,3.5,7.7,1.2,0.2,2.3,2.2,6.2,10.3,22.0,1,1,0,0,2,0
+Kingston Winslow,Nashville Anthem,Western Conference,GUARD,2,16.3,3.6,5.2,1.3,0.3,2.3,1.6,4.1,7.3,14.9,1,1,0,0,2,0
+Sincere Clay,Nashville Anthem,Western Conference,WING,2,15.9,6.6,4.3,1.1,0.2,2.2,1.2,3.1,7.3,14.1,1,1,0,0,2,0
+Tristan Miller,Nashville Anthem,Western Conference,FORWARD,2,11.2,6.5,3.6,0.7,0.7,0.9,0.7,2.4,5.2,10.9,1,1,0,0,2,0
+Jordan Wells III,Nashville Anthem,Western Conference,BIG,2,11.2,11.4,2.5,0.5,1.4,1.1,0.1,0.4,5.5,9.7,1,1,0,0,2,0
+DeAndre Hampton Jr.,Sacramento Rage,Western Conference,GUARD,2,31.7,3.6,7.0,1.2,0.4,3.5,2.9,6.4,14.4,25.0,1,1,0,0,2,0
+Khalil Johnson,Sacramento Rage,Western Conference,GUARD,2,26.4,4.2,7.0,0.9,0.4,2.3,2.4,6.7,12.0,24.0,1,1,0,0,2,0
+Noah Bell,Sacramento Rage,Western Conference,WING,2,22.2,6.0,2.6,1.0,0.2,2.0,1.9,4.9,10.2,20.5,1,1,0,0,2,0
+DreSean Dawson,Sacramento Rage,Western Conference,FORWARD,2,17.1,6.2,3.4,0.8,0.5,1.0,0.6,1.5,8.3,16.4,1,1,0,0,2,0
+Hudson Walsh,Sacramento Rage,Western Conference,BIG,2,13.6,11.9,2.5,0.8,2.0,0.9,0.1,0.5,6.7,10.9,1,1,0,0,2,0
+Phoenix Wells,Orlando Supernovas,Eastern Conference,GUARD,2,17.8,4.1,7.1,2.0,0.3,2.6,1.7,4.6,8.1,16.2,1,1,0,0,2,0
+Sterling Gibson,Orlando Supernovas,Eastern Conference,GUARD,2,14.5,3.7,3.3,1.6,0.4,3.0,1.3,3.5,6.6,13.8,1,1,0,0,2,0
+Mateo Grant,Orlando Supernovas,Eastern Conference,WING,2,12.3,5.3,4.3,1.3,0.5,2.1,0.8,2.3,5.8,10.9,1,1,0,0,2,0
+Javion Langston,Orlando Supernovas,Eastern Conference,FORWARD,2,10.4,8.2,2.2,0.8,1.5,1.4,0.4,1.3,5.0,9.1,1,1,0,0,2,0
+DeAndre Griffin,Orlando Supernovas,Eastern Conference,BIG,2,9.5,7.7,1.7,0.7,1.1,1.1,0.2,0.6,4.7,8.6,1,1,0,0,2,0
+Kobe Stewart,Indiana Bandits,Eastern Conference,GUARD,2,24.8,4.0,7.5,1.1,0.2,2.6,2.2,5.5,11.3,24.4,1,1,0,0,2,0
+Denzel Ellis,Indiana Bandits,Eastern Conference,GUARD,2,19.3,3.3,6.4,1.8,0.2,1.7,2.1,5.3,8.6,17.3,1,1,0,0,2,0
+Tavian Bates,Indiana Bandits,Eastern Conference,WING,2,15.8,5.4,5.1,1.6,0.9,1.2,1.1,2.9,7.4,14.1,1,1,0,0,2,0
+Nolan Griffin,Indiana Bandits,Eastern Conference,FORWARD,2,14.2,6.7,1.8,0.7,1.5,0.9,0.9,2.6,6.7,13.4,1,1,0,0,2,0
+Lamar Holland,Indiana Bandits,Eastern Conference,BIG,2,11.4,9.4,2.8,0.5,1.6,0.8,0.4,1.3,5.5,9.7,1,1,0,0,2,0
+Lamar Warren,Las Vegas Thrill,Western Conference,GUARD,2,20.3,4.0,6.4,2.0,0.4,4.0,2.3,5.4,9.0,19.0,1,1,0,0,2,0
+Nico Vaughn III,Las Vegas Thrill,Western Conference,GUARD,2,15.1,2.6,6.0,1.8,0.3,3.0,1.3,3.5,6.9,14.9,1,1,0,0,2,0
+Joaquin Barrett III,Las Vegas Thrill,Western Conference,WING,2,13.4,7.2,4.0,1.0,0.6,1.7,0.9,2.7,6.2,12.8,1,1,0,0,2,0
+Omari Langston,Las Vegas Thrill,Western Conference,FORWARD,2,11.5,8.9,2.1,1.1,0.5,1.0,0.5,1.4,5.5,11.1,1,1,0,0,2,0
+Tyrell Holland,Las Vegas Thrill,Western Conference,BIG,2,10.2,10.7,2.0,0.7,1.0,0.9,0.3,0.8,5.0,8.5,1,1,0,0,2,0
+Sebastian Frazier,Minnesota Huskies,Eastern Conference,GUARD,2,22.8,2.7,5.9,1.3,0.4,3.4,2.8,6.8,10.0,20.5,1,1,0,0,2,0
+Andre Bates,Minnesota Huskies,Eastern Conference,GUARD,2,17.2,2.8,6.1,1.6,0.3,2.4,1.8,4.7,7.7,16.0,1,1,0,0,2,0
+Rylan Rivera,Minnesota Huskies,Eastern Conference,WING,2,14.8,5.4,2.9,1.2,0.3,1.9,0.9,2.6,7.0,13.8,1,1,0,0,2,0
+Tavian Johnson,Minnesota Huskies,Eastern Conference,FORWARD,2,11.1,8.9,2.3,0.8,0.5,0.8,0.6,1.7,5.2,9.5,1,1,0,0,2,0
+Keon Fields,Minnesota Huskies,Eastern Conference,BIG,2,9.6,11.8,2.8,0.6,1.5,1.1,0.1,0.2,4.8,8.8,1,1,0,0,2,0
+Caleb Foster,New York Knights,Eastern Conference,GUARD,2,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1,1,1,1,0,1
+Bryce Hayes,New York Knights,Eastern Conference,GUARD,2,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1,1,1,1,0,1
+Kyree Brooks,New York Knights,Eastern Conference,WING,2,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1,1,1,1,0,1
+Miles Butler III,New York Knights,Eastern Conference,FORWARD,2,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1,1,1,1,0,1
+Sincere Grant,New York Knights,Eastern Conference,BIG,2,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1,1,1,1,0,1
+Elijah Woodson,Charlotte Empire,Eastern Conference,GUARD,2,22.8,8.4,14.4,3.4,0.4,7.4,2.4,6.0,10.2,21.2,1,1,1,0,1,0
+Jamal Rivera,Charlotte Empire,Eastern Conference,GUARD,2,17.6,4.8,13.4,1.8,1.0,5.6,1.6,4.2,8.0,17.6,1,1,1,0,1,0
+Evan Rivera,Charlotte Empire,Eastern Conference,WING,2,13.4,14.0,9.0,2.0,1.0,2.4,1.0,2.8,6.2,12.2,1,1,1,0,1,0
+Cyrus Dawson,Charlotte Empire,Eastern Conference,FORWARD,2,11.2,10.8,6.8,1.2,2.6,1.6,0.6,1.8,5.2,10.4,1,1,1,0,1,0
+Evan Campos,Charlotte Empire,Eastern Conference,BIG,2,11.0,20.4,2.4,1.4,5.4,2.2,0.4,1.2,5.4,10.0,1,1,1,0,1,0
+Lorenzo Jefferson Jr.,Houston Hustle,Western Conference,GUARD,2,21.7,2.3,7.8,1.8,0.2,3.4,2.2,5.3,9.7,19.7,1,1,0,0,2,0
+Kendrick Richardson,Houston Hustle,Western Conference,GUARD,2,18.1,3.0,7.0,1.1,0.1,2.5,2.0,5.2,8.0,17.0,1,1,0,0,2,0
+Kyree Parker,Houston Hustle,Western Conference,WING,2,15.6,5.2,4.8,0.9,0.7,2.3,1.2,3.7,7.2,15.4,1,1,0,0,2,0
+Javion Reyes,Houston Hustle,Western Conference,FORWARD,2,13.2,9.6,3.7,0.6,1.2,1.9,1.0,3.1,6.1,11.7,1,1,0,0,2,0
+Hayden Gibson,Houston Hustle,Western Conference,BIG,2,9.9,12.5,3.2,0.7,2.0,1.8,0.2,0.5,4.9,8.1,1,1,0,0,2,0
+Tomas Frazier,Washington Volt,Western Conference,GUARD,2,22.7,2.7,7.0,1.4,0.1,3.0,2.7,7.0,10.0,21.2,1,1,0,0,2,0
+Cristian King Jr.,Washington Volt,Western Conference,GUARD,2,17.2,2.9,6.0,1.2,0.3,1.8,2.1,5.1,7.6,16.5,1,1,0,0,2,0
+Darius Sterling,Washington Volt,Western Conference,WING,2,13.8,5.6,2.2,1.5,0.7,1.9,1.0,2.5,6.4,13.0,1,1,0,0,2,0
+Ramon Miller,Washington Volt,Western Conference,FORWARD,2,13.0,5.7,2.9,0.7,0.8,1.2,0.4,1.2,6.3,12.3,1,1,0,0,2,0
+DreSean Reyes,Washington Volt,Western Conference,BIG,2,11.3,10.6,1.9,0.9,2.7,1.6,0.2,0.6,5.6,9.6,1,1,0,0,2,0
+Tobias Bell,Oregon Skyhawks,Western Conference,GUARD,2,24.8,2.7,7.3,1.5,0.3,3.9,2.5,6.3,11.2,23.4,1,1,0,0,2,0
+Nico Miller,Oregon Skyhawks,Western Conference,GUARD,2,18.8,4.4,6.9,1.4,0.2,2.1,2.2,5.6,8.3,18.0,1,1,0,0,2,0
+Sebastian Rhodes,Oregon Skyhawks,Western Conference,WING,2,17.1,4.2,2.6,1.3,0.7,1.8,1.7,4.4,7.7,14.7,1,1,0,0,2,0
+Armani Miller Jr.,Oregon Skyhawks,Western Conference,FORWARD,2,14.0,7.2,3.3,1.0,0.6,1.5,1.0,2.6,6.5,13.2,1,1,0,0,2,0
+Silas White,Oregon Skyhawks,Western Conference,BIG,2,12.8,11.2,2.2,0.8,2.7,1.7,0.1,0.3,6.4,11.7,1,1,0,0,2,0
+Tyrese Richardson,Detroit Bullets,Eastern Conference,GUARD,2,22.6,3.5,7.4,1.3,0.2,2.5,2.4,6.6,10.1,21.4,1,1,0,0,2,0
+Kingston Hayes,Detroit Bullets,Eastern Conference,GUARD,2,16.9,4.5,7.0,1.6,0.1,1.7,1.8,4.5,7.5,16.3,1,1,0,0,2,0
+Lamar Reyes,Detroit Bullets,Eastern Conference,WING,2,14.3,5.3,4.6,1.4,0.9,2.3,1.2,2.9,6.6,13.8,1,1,0,0,2,0
+Kareem Carter,Detroit Bullets,Eastern Conference,FORWARD,2,11.7,9.6,2.9,0.7,0.6,1.7,0.8,2.6,5.4,11.5,1,1,0,0,2,0
+Tavon Rhodes,Detroit Bullets,Eastern Conference,BIG,2,11.5,11.5,2.8,1.0,1.3,0.8,0.3,1.0,5.6,9.1,1,1,0,0,2,0
+Armani Warren,Baltimore Nighthawks,Eastern Conference,GUARD,2,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0,2,0,2,0,1
+Denzel Winslow Jr.,Baltimore Nighthawks,Eastern Conference,GUARD,2,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0,2,0,2,0,1
+Isaiah Parker,Baltimore Nighthawks,Eastern Conference,WING,2,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0,2,0,2,0,1
+Denzel Mason,Baltimore Nighthawks,Eastern Conference,FORWARD,2,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0,2,0,2,0,1
+Denzel Pierce,Baltimore Nighthawks,Eastern Conference,BIG,2,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0,2,0,2,0,1
+Rafael Warren,Philadelphia Glory,Eastern Conference,GUARD,2,22.4,5.4,11.4,2.4,0.8,7.4,2.4,6.2,10.0,21.2,0,2,0,1,1,0
+Rafael Ellis,Philadelphia Glory,Eastern Conference,GUARD,2,16.6,5.8,9.6,2.0,1.0,6.0,1.6,4.6,7.4,15.6,0,2,0,1,1,0
+Armani Marshall,Philadelphia Glory,Eastern Conference,WING,2,15.6,14.6,8.4,1.4,1.4,3.4,1.2,3.8,7.2,15.4,0,2,0,1,1,0
+Cassius Mason,Philadelphia Glory,Eastern Conference,FORWARD,2,11.4,15.4,4.8,1.2,3.0,3.0,0.6,1.4,5.4,10.8,0,2,0,1,1,0
+Tavon Lawson,Philadelphia Glory,Eastern Conference,BIG,2,10.0,13.8,3.0,1.0,5.0,1.4,0.4,0.8,4.8,8.8,0,2,0,1,1,0
+Mateo Carver,Arizona Panthers,Western Conference,GUARD,2,13.8,2.0,6.1,1.4,0.3,2.7,1.6,4.2,6.1,13.1,0,2,0,0,2,0
+Tariq Ellis,Arizona Panthers,Western Conference,GUARD,2,11.4,2.6,4.9,0.9,0.4,2.0,1.1,2.8,5.2,10.3,0,2,0,0,2,0
+Adrian Dawson,Arizona Panthers,Western Conference,WING,2,9.4,5.0,4.9,0.7,0.8,1.2,0.6,1.6,4.4,8.7,0,2,0,0,2,0
+Jeremiah Jordan,Arizona Panthers,Western Conference,FORWARD,2,8.3,5.8,3.0,1.0,1.0,0.9,0.5,1.4,3.9,8.2,0,2,0,0,2,0
+Damien Fields,Arizona Panthers,Western Conference,BIG,2,6.6,7.5,1.6,1.1,1.8,0.8,0.1,0.2,3.3,6.0,0,2,0,0,2,0
+Camren Chambers,Portland Vipers,Western Conference,GUARD,2,19.2,2.4,7.0,1.2,0.4,2.5,2.1,5.3,8.6,18.2,0,2,0,0,2,0
+Justice Cross III,Portland Vipers,Western Conference,GUARD,2,16.3,4.9,4.1,1.3,0.3,2.5,1.3,3.7,7.5,14.9,0,2,0,0,2,0
+Donovan Walsh,Portland Vipers,Western Conference,WING,2,15.0,6.9,4.1,1.4,0.7,1.6,1.5,3.9,6.8,13.2,0,2,0,0,2,0
+Tobias Wright,Portland Vipers,Western Conference,FORWARD,2,11.9,7.8,2.9,0.7,1.4,1.6,0.6,1.9,5.6,11.1,0,2,0,0,2,0
+Bennett Mercer,Portland Vipers,Western Conference,BIG,2,9.6,8.3,2.4,1.1,2.2,1.6,0.2,0.6,4.7,9.0,0,2,0,0,2,0
+Mateo Hawkins,Miami Beach Kings,Eastern Conference,GUARD,2,16.6,2.5,7.5,1.1,0.0,3.5,1.7,4.6,7.4,15.3,0,2,0,0,2,0
+Alonzo Fletcher,Miami Beach Kings,Eastern Conference,GUARD,2,14.4,4.6,3.7,1.1,0.5,3.0,1.7,4.9,6.4,14.1,0,2,0,0,2,0
+Theo Santiago,Miami Beach Kings,Eastern Conference,WING,2,12.6,4.3,4.7,1.6,0.4,1.3,1.2,3.7,5.7,12.3,0,2,0,0,2,0
+Santos Alvarez,Miami Beach Kings,Eastern Conference,FORWARD,2,8.8,8.1,1.7,1.0,1.2,1.5,0.4,1.2,4.2,7.8,0,2,0,0,2,0
+Adrian Mendoza,Miami Beach Kings,Eastern Conference,BIG,2,9.1,9.3,2.4,0.7,2.3,1.6,0.1,0.4,4.5,8.6,0,2,0,0,2,0
+Jordan Bates,Seattle Reign,Western Conference,GUARD,2,21.0,3.1,8.7,2.0,0.1,2.6,2.5,6.0,9.3,20.1,0,2,0,0,2,0
+Sterling Price,Seattle Reign,Western Conference,GUARD,2,15.4,3.8,3.8,0.8,0.5,2.7,1.8,5.0,6.8,15.3,0,2,0,0,2,0
+Theo Warren,Seattle Reign,Western Conference,WING,2,13.9,7.2,4.4,0.8,0.3,1.6,1.3,3.4,6.3,13.5,0,2,0,0,2,0
+Malik Woodson,Seattle Reign,Western Conference,FORWARD,2,11.4,5.5,2.1,0.6,1.1,0.9,0.4,1.4,5.5,9.9,0,2,0,0,2,0
+Devin Fletcher,Seattle Reign,Western Conference,BIG,2,8.8,11.6,3.2,0.7,1.4,1.2,0.1,0.2,4.4,7.3,0,2,0,0,2,0

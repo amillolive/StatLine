@@ -104,7 +104,7 @@ def _default_data_dir() -> Path:
 
     # Prefer project-local data dir when running from source
     project_root = _default_project_root()
-    return (project_root / ".statline").resolve()
+    return (project_root / ".db").resolve()
 
 
 PROJECT_ROOT: Path = _default_project_root()

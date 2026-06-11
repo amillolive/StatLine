@@ -1,0 +1,99 @@
+# StatLine Adapter Schema — PUBLIC REVIEW (NON-FUNCTIONAL)
+
+key: eba_players
+
+dimensions:
+  player: { values: [] }
+  team: { values: [] }
+  conference: { values: [] }
+  position: { values: [] }
+  games_played: { values: [] }
+
+filters:
+  games_played:
+    type: dimension
+    field: games_played
+    modes: [include-only, exclude-only]
+
+buckets:
+  aefg: {}
+  effloor: {}
+  tov_eff: {}
+  stocks: {}
+  vers: {}
+  helios: {}
+  two_way: {}
+  offball: {}
+  wl: {}
+  spg_sig: {}
+  bpg_sig: {}
+  handle: {}
+  telem: {}
+
+metrics:
+  - { key: gp, bucket: telem, source: { field: gp } }
+  - { key: ppg, bucket: telem, source: { field: ppg } }
+  - { key: rpg, bucket: telem, source: { field: rpg } }
+  - { key: apg, bucket: telem, source: { field: apg } }
+  - { key: spg, bucket: telem, source: { field: spg } }
+  - { key: bpg, bucket: telem, source: { field: bpg } }
+  - { key: tov, bucket: tov_eff, source: { field: tpg } }
+  - { key: fgm, bucket: telem, source: { field: fgmpg } }
+  - { key: fga, bucket: telem, source: { field: fgapg } }
+  - { key: tpm, bucket: telem, source: { field: "3pmpg" } }
+  - { key: tpa, bucket: telem, source: { field: "3papg" } }
+  - { key: win, bucket: telem, source: { field: win } }
+  - { key: loss, bucket: telem, source: { field: loss } }
+  - { key: orpg, bucket: telem }
+  - { key: drpg, bucket: telem }
+
+efficiency:
+  - { key: spg_sig, bucket: spg_sig }
+  - { key: bpg_sig, bucket: bpg_sig }
+  - { key: pps_fg, bucket: aefg }
+  - { key: eff_usage, bucket: aefg }
+  - { key: net_pos_ppp, bucket: aefg }
+  - { key: pps_gap, bucket: effloor }
+  - { key: vol_gap, bucket: effloor }
+  - { key: shot_diet_gap, bucket: effloor }
+  - { key: stocks_boost, bucket: stocks }
+  - { key: scoreless_impact, bucket: offball }
+  - { key: vers_score, bucket: vers }
+  - { key: handle_load, bucket: handle }
+  - { key: helios_score, bucket: helios }
+  - { key: tov_scaled, bucket: tov_eff }
+  - { key: ast_to_credit, bucket: tov_eff }
+  - { key: ast_to_bonus, bucket: tov_eff }
+  - { key: two_way_score, bucket: two_way }
+  - { key: wl_share, bucket: wl }
+
+weights:
+  pri:
+    aefg: 0.28
+    tov_eff: 0.17
+    effloor: 0.07
+    two_way: 0.075
+    helios: 0.05
+    vers: 0.09
+    offball: 0.06
+    handle: 0.07
+    stocks: 0.06
+    spg_sig: 0.02
+    bpg_sig: 0.03
+
+  pri_alt:
+    aefg: 0.24
+    tov_eff: 0.22
+    effloor: 0.08
+    two_way: 0.07
+    helios: 0.09
+    vers: 0.08
+    offball: 0.09
+    handle: 0.07
+    stocks: 0.03
+    spg_sig: 0.02
+    bpg_sig: 0.03
+
+score_profiles:
+  PRI: { kind: affine, lo: 55, hi: 99, weights_profile: pri }
+  PRI-ALT: { kind: affine, lo: 55, hi: 99, weights_profile: pri_alt }

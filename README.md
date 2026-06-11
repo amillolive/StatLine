@@ -1,238 +1,315 @@
 # StatLine
 
-**StatLine — Advanced weighted player scoring and analytics, with modular tools for awards, performance evaluation, and real-time integrations.**
+**StatLine** is an adapter-driven player scoring and analytics toolkit for turning raw stat rows into weighted, explainable ratings.
 
-“StatLine” is a trademark of StatLine LLC (*in formation*), registration pending.
-Source code is licensed under the GNU Affero General Public License v3 (see `LICENSE`).
-Brand, name, and logo are **not** covered by the AGPL (see `TRADEMARK_POLICY.md`).
+It can run completely local for simple scoring workflows, or against **SLAPI**, the optional StatLine API layer for authenticated remote scoring, adapter inspection, and multi-client deployments.
 
----
-
-## What is StatLine?
-
-StatLine is an **adapter‑driven analytics framework** with an optional **remote API (SLAPI)**. StatLine..
-
-* normalizes raw game stats,
-* computes per‑metric scores,
-* aggregates into buckets and applies weight presets (e.g., **pri**, **mvp**, role weights),
-* exposes a clean **CLI** ~~and **Python library API**~~,
-* ~~optionally ingests **Google Sheets** and caches mapped rows~~,
-* integrates with **SLAPI** for secure, multi‑client deployments,
-* and (new) stabilizes **PRI** to an adapter defined normalized set of ranges and percentiles (see below).
-
-Supported Python: **3.10 – 3.14** (CI: Linux, macOS, Windows)
+> Release target: **v3.0.0**  
+> Python: **3.10 through 3.14**  
+> License: **AGPL-3.0-or-later**, with separate trademark restrictions for the StatLine name and branding.
 
 ---
 
-## What’s new (v3.0.0)
+## What StatLine does
 
-* **Keys & Auth:** Access is gated between local and SLAPI. CLI explains further on authorization procedure.
-* **PRI normalization:** output scales are adapter defined for clearer tiers and saner UX.
-* **Adapters:** tightened demo adapter + docs; versioned schemas.
-* **Percentiles:** now available as defined in adapter schematics
-* **Roadmap (ships in v3.1.0):**
+StatLine takes raw rows like CSV box-score data, maps those rows through an adapter, scores the mapped metrics, then returns profile scores such as **PRI** and adapter-defined variants.
 
-  * Batch processing **filters** (by position, games played, and adapter‑defined stat predicates [BACKEND COMPLETE])
-  * **Output toggles** (e.g., show weights, hide `pri_raw`, include per‑metric deltas [BACKEND COMPLETE])
+At a high level, StatLine provides:
+
+- **Adapter-based scoring** for different games, leagues, datasets, or stat schemas.
+- **Local scoring** through the Python package and `statline` CLI.
+- **Remote/API scoring** through SLAPI when installed with the remote stack.
+- **Weighted score profiles**, including PRI-style outputs and adapter-defined variants.
+- **Batch scoring**, row scoring, mapping-only commands, and already-mapped calculation commands.
+- **Adapter inspection tools** for inputs, metrics, dimensions, filters, weights, and sniffing.
+- **Typed public Python API** for bots, dashboards, notebooks, and application code.
 
 ---
 
 ## Install
 
-Base install:
+StatLine v3.0.0 has four intended install variants.
+
+| Variant | Command | Use this when you want |
+| --- | --- |
+| **base** | `pip install statline` | Functional local library and local CLI scoring. |
+| **remote** | `pip install "statline[remote]"` | Base plus API client/auth and the SLAPI serving stack. |
+| **extras** | `pip install "statline[extras]"` | Remote plus user conveniences such as richer terminal/UI and Google Sheets-related helpers. |
+| **devpack** | `pip install -e ".[devpack]"` | Everything needed for development, testing, typing, docs, packaging, and release checks. |
+
+For a source checkout:
 
 ```bash
-pip install statline
-```
-
-With extras:
-
-```bash
-# Google Sheets ingestion
-pip install "statline[sheets]"
-
-# Developer tools (linters, types, tests)
-pip install -e ".[dev]"
+python -m venv .venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+python -m pip install --upgrade pip
+python -m pip install -e ".[devpack]"
 ```
 
 ---
 
-## CLI Basics
+## Quick start: local CLI
 
-The console script is `statline` (also callable via `python -m statline.cli`).
+Local mode avoids all network probing and uses the installed StatLine core directly.
+
+```bash
+statline --mode local adapter list
+statline --mode local adapter inputs demo
+statline --mode local adapter weights demo
+```
+
+Score the bundled demo CSV from a source checkout:
+
+```bash
+statline --mode local score \
+  --adapter demo \
+  statline/data/stats/DEMO/demo.csv \
+  --fmt table \
+  --profile all \
+  --percentile \
+  --limit 10
+```
+
+Write JSON instead:
+
+```bash
+statline --mode local score \
+  --adapter demo \
+  statline/data/stats/DEMO/demo.csv \
+  --fmt json \
+  --pretty \
+  --out results.json
+```
+
+---
+
+## Quick start: Python API
+
+```python
+from statline import list_adapters, load_dataset, score
+
+print(list_adapters())
+
+rows = load_dataset("DEMO/demo", limit=10)
+results = score("demo", rows, mode="batch", weights="pri")
+
+for row in results[:3]:
+    print(row["pri"], row["pri_raw"], row.get("scores", {}))
+```
+
+For one row:
+
+```python
+from statline import score_row
+
+player = {
+    "name": "Example Player",
+    "ppg": 24.5,
+    "apg": 6.2,
+    "orpg": 1.0,
+    "drpg": 4.0,
+    "spg": 1.5,
+    "bpg": 0.7,
+    "tov": 2.1,
+    "fgm": 9.2,
+    "fga": 18.4,
+    "win": 12,
+    "loss": 8,
+}
+
+result = score_row("demo", player, weights="pri")
+print(result["pri"])
+```
+
+---
+
+## CLI overview
+
+The main command is:
 
 ```bash
 statline --help
-python -m statline.cli --help
 ```
 
-The CLI `--help` command will guide you through authorization (contact the repository maintainer for a key).
+Useful global options:
+
+| Option | Meaning |
+| --- | --- |
+| `--mode auto` | Probe SLAPI; use remote when reachable and authenticated, otherwise local where supported. |
+| `--mode local` | Force offline local scoring and skip SLAPI entirely. |
+| `--mode remote` | Require SLAPI to be reachable and authenticated. |
+| `--url URL` | Set the SLAPI base URL. Also supported through `SLAPI_URL`. |
+| `--timing / --no-timing` | Show or hide timing summaries. |
+| `--version` | Print the CLI version. |
+
+Primary user commands:
+
+| Command | Purpose |
+| --- | --- |
+| `statline adapter list` | List adapters. |
+| `statline adapter spec <adapter>` | Show adapter metadata/spec details. |
+| `statline adapter inputs <adapter>` | Show raw input keys expected by an adapter. |
+| `statline adapter metrics <adapter>` | Show mapped metric keys. |
+| `statline adapter weights <adapter>` | Show available weight profiles. |
+| `statline adapter filters <adapter>` | Show adapter-declared filters. |
+| `statline adapter sniff --file stats.csv` | Detect matching adapters from headers. |
+| `statline map row` / `map batch` | Map raw rows without scoring. |
+| `statline calc row` / `calc batch` | Score already-mapped metric rows. |
+| `statline score` | Map and score raw CSV/YAML/JSON rows. |
+| `statline interactive` | Guided CLI scoring flow. |
+| `statline serve` | Start SLAPI locally. Requires the remote stack. |
+| `statline auth ...` | Device enrollment and API key workflows. |
+| `statline sys status` | Runtime, auth, path, and logging status. |
 
 ---
 
-## Remote API (SLAPI)
+## Scoring concepts
 
-Use SLAPI for remote/scaled workflows. SLAPI validates **REGKEY** or **API Access Token** on every request. **Revocation** invalidates both. Requires validation from a project maintainer. (access not public *yet*)
+### Adapter
+
+An adapter is a YAML contract that explains how to turn raw fields into StatLine metrics. It defines:
+
+- metadata such as `key`, `version`, `aliases`, and `title`,
+- raw-to-metric mappings,
+- derived efficiency metrics,
+- buckets,
+- weight profiles,
+- penalties,
+- score profiles,
+- optional dimensions and filters,
+- optional sniffing rules for adapter detection.
+
+### Metric
+
+A metric is a numeric signal used by the scoring engine. Metrics can be direct fields, constants, or safe expressions over previous values.
+
+### Bucket
+
+A bucket groups metrics for weighting. A PRI profile does not usually weight every metric one by one; it weights the buckets.
+
+### Weight profile
+
+A weight profile defines how strongly each bucket contributes. The default profile is usually `pri`, but adapters can expose more.
+
+### Score profile
+
+A score profile controls how the normalized raw score becomes a published score. StatLine supports affine profiles and windowed profiles.
+
+### PRI and `pri_raw`
+
+`pri_raw` is the normalized raw score. `pri` is the adapter/profile-rendered score. Some adapters also expose additional profile scores such as `pri_af`, `pri_ar`, or `pri_ap`.
 
 ---
 
-## Input Formats
+## Input formats
 
-StatLine reads **CSV** or **YAML**. Columns/keys must match adapter expectations.
+The CLI reads CSV, YAML, JSON-like YAML, and stdin CSV for commands that accept file input.
 
-### CSV
-
-* First row is the header.
-* Each subsequent row is an entity (player).
-* Provide raw fields your adapter maps (e.g., `pts, ast, fgm, fga, tov`).
+CSV example:
 
 ```csv
-display_name,team,pts,ast,orpg,drpg,stl,blk,fgm,fga,tov
-JordanRed,RED,27.3,4.8,1.2,3.6,1.9,0.7,10.2,22.1,2.1
+name,ppg,apg,orpg,drpg,spg,bpg,tov,fgm,fga,win,loss
+Example Player,24.5,6.2,1.0,4.0,1.5,0.7,2.1,9.2,18.4,12,8
 ```
 
-### Example adapter (YAML)
-
-Adapters define schema for raw inputs, buckets, weights, and derived metrics. Place in `statline/core/adapters/defs/`.
+YAML example:
 
 ```yaml
-# Key - name your adaper
-# Version - SemVer; useful roadmapping
-# Aliases - Alternative names/lookup
-# Title - Non case sensitve naming option
-key: example_game
-version: 3.1.0
-aliases: [eg, sample]
-title: Example Game
-
-dimensions:
-  # Indirect levers for future implementation and/or filter I/O
-  # eg: offense, defense, as values, side, map as unweighted definitions/buckets
-  map:   { values: [MapA, MapB, MapC] }
-  side:  { values: [Attack, Defense] }
-  role:  { values: [Carry, Support, Flex] }
-  mode:  { values: [Pro, Ranked, Scrim] }
-
-buckets:
-  # Weighting organization (metrics are unweighted, it's why you use buckets);
-  # Great for grouping stats or interpolations together
-  scoring: {}
-  impact: {}
-  utility: {}
-  survival: {}
-  discipline: {} # Weighted separate for punishable stats, like mistakes; see below
-  telem: {} # Useful for metrics used in efficiency DSL but not weighted directly; see below
-
-metrics:
-  # Direct fields (ppg, apg, ast, kill, etc..) (clamped; discipline is inverted so fewer mistakes score higher) 
-  # Clamps usually auto derived from leader and Foor in Batch mode
-  - { key: stat3_count, bucket: utility,    clamp: [0, 50],               source: { field: stat3_count } }
-  - { key: mistakes,    bucket: discipline, clamp: [0, 25], invert: true, source: { field: mistakes }    }
-  # Still invert the bad metric; discipline is just a separate weight lever; the bucket isn't inverted
-  - { key: gp,          bucket: telem,      clamp: [0, 12],               source: { field: gp }          }
-
-# New ratio/derived DSL with field names, clamps, and minimum denominators
-efficiency:
-  # Per-round scoring output
-  - key: stat1_per_round
-    bucket: scoring
-    clamp: [0.00, 2.00]
-    min_den: 5
-    make: "stat1_total"
-    attempt: "rounds_played"
-
-  # Impact success rate
-  - key: stat2_rate
-    bucket: impact
-    clamp: [0.00, 1.00]
-    min_den: 10
-    make: "stat2_numer"
-    attempt: "stat2_denom"
-
-  # Survival quality (good vs total)
-  - key: stat4_quality
-    bucket: survival
-    clamp: [0.00, 1.00]
-    min_den: 5
-    make: "stat4_good"
-    attempt: "stat4_total"
-
-weights:
-  # Separate profiles of weight distribution
-  # Doesn't need to sum to one; scorer evenly redistributes as necessary
-  pri:
-    scoring:    0.30
-    impact:     0.28
-    utility:    0.16
-    survival:   0.16
-    discipline: 0.10
-  mvp:
-    scoring:    0.34
-    impact:     0.30
-    utility:    0.12
-    survival:   0.14
-    discipline: 0.10
-  support:
-    scoring:    0.16
-    impact:     0.18
-    utility:    0.40
-    survival:   0.16
-    discipline: 0.10
-
-penalties:
-  # our discipline bucket(s) is/are self weighted here; 
-  # acts as a downweight after normalization (eg: pri says discipline matters 8% less under support)
-  pri:     { discipline: 0.10 }
-  mvp:     { discipline: 0.12 }
-  support: { discipline: 0.08 }
-
-filters:
-# include-only = output whatever passes the filter (eg: >= outputs only >= because else failed)
-# exclude-only = output whatever fails the filter (eg: <= outputs > because it passed <=)
-  gp: { metric: gp, accepts: ["<", ">", "<=", ">=", "=", "!="], values: ["include-only", "exclude-only"] }
-
-sniff:
-# helps auto-select
-  require_any_headers: [stat1_total, rounds_played, stat2_numer, stat2_denom, stat4_good, stat4_total, stat3_count, mistakes]
+- name: Example Player
+  ppg: 24.5
+  apg: 6.2
+  orpg: 1.0
+  drpg: 4.0
+  spg: 1.5
+  bpg: 0.7
+  tov: 2.1
+  fgm: 9.2
+  fga: 18.4
+  win: 12
+  loss: 8
 ```
 
-See `HOWTO.md` for adapter authoring.
+---
+
+## Remote/API mode
+
+Install the remote variant:
+
+```bash
+pip install "statline[remote]"
+```
+
+Start SLAPI locally:
+
+```bash
+statline --mode local serve --host 127.0.0.1 --port 8000
+```
+
+Or use the `slapi` console entry point:
+
+```bash
+SLAPI_HOST=127.0.0.1 SLAPI_PORT=8000 slapi
+```
+
+Then point clients at it:
+
+```bash
+export SLAPI_URL="http://127.0.0.1:8000"
+statline --mode remote sys status
+```
+
+SLAPI supports protected auth flows. Normal remote use requires both device enrollment and an API key. Administrative and moderation commands require the matching scopes.
+
+Common auth flow:
+
+```bash
+statline auth device-init
+statline auth enroll --token reg_... --user your-handle --email you@example.com
+statline auth apikey-request --owner your-name
+statline auth apikey-claim --request-id REQUEST_ID
+statline auth whoami
+```
+
+The exact approval steps depend on the SLAPI administrator.
 
 ---
 
-## Versioning & Stability
+## Development
 
-* **Adapters:** semantic (`MAJOR.MINOR.PATCH`). Breaking schema changes → new **MAJOR** (suggested to match with repository release version).
-* **PRI scale:** now adapter defined.
-* **SLAPI:** deprecations target **≥60 days** notice unless security requires faster action. (Whoops! V2 is now deprecated, so much for 60 days!)
+Install the development pack:
 
----
+```bash
+python -m pip install -e ".[devpack]"
+```
 
-## Security & Legal
+Run checks:
 
-* **Revocation:** We may revoke keys for AUP violations; revocation invalidates both REGKEY and any derived API tokens immediately.
-* **ToS / Privacy / AUP:** see `/legal` links below.
-* **Trademark:** "StatLine" and associated logos are trademarks; see `TRADEMARKS.md`.
-
-**Links:**
-
-* Terms of Service — `/legal/tos`
-* Privacy Policy — `/legal/privacy`
-* Acceptable Use Policy — `/legal/aup`
-* Contributor License Agreement — `CLA.md`
-* License — `LICENSE`
-* Trademark Policy — `TRADEMARKS.md`
+```bash
+pytest
+ruff check statline tests
+mypy statline
+pyright
+```
 
 ---
 
-## Quick FAQ
+## Legal
 
-**Is the CLI required?** Currently, yes. You can score locally without API access.
+StatLine source code is licensed under the **GNU Affero General Public License v3 or later**. The StatLine name, marks, and logos are not granted by the source license.
 
-**Can I use my own game?** Yes—write an adapter; any game with a box score + valid datasheet can work.
+See:
 
-**Do I need env vars?** No. A maintainer should assist you should you require gated access.
+- `LICENSE`
+- `TRADEMARK_POLICY.md`
+- `CLA.md`
+- `legal/tos.md`
+- `legal/privacypolicy.md`
+- `legal/aup.md`
 
-**How are percentiles computed?** Per dataset/sample window defined in the request or adapter context (v3.0.0 feature).
+---
 
-**Discord support?** We aim to make a central Discord server soon for ongoing development of our Discord app. As of current, no.
+## Repository
+
+- Homepage: `https://statline.dev`
+- Repository: `https://github.com/amillolive/StatLine`
+- Issues: `https://github.com/amillolive/StatLine/issues`

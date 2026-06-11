@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "statline"
-version = "3.0.0rc2"
+version = "3.0.0rc3"
 description = "StatLine — weighted player scoring, efficiency modeling, CLI + adapter tooling"
 readme = "README.md"
 requires-python = ">=3.10,<3.15"
@@ -37,17 +37,23 @@ dependencies = [
   "pydantic>=2.0,<3.0",
   "httpx>=0.27",
   "cryptography>=46.0",
+  "rich>=13.0",
+  "textual>=8.0,<9.0",
 ]
 
 [project.optional-dependencies]
 # Google Sheets ingestion
 sheets = ["gspread>=6.0.0", "google-auth>=2.0.0"]
 
+# Docs
+docs = [
+  "mkdocs-material",
+  "mkdocstrings[python]",
+]
+
 # Extra CLI conveniences / types
 cli = [
-  "httpx>=0.27",
   "types-requests; python_version<'3.15'",
-  "rich>=13.0",
 ]
 
 # SLAPI (serve the API). Kept optional to avoid forcing FastAPI on core users.
@@ -75,7 +81,7 @@ statline = "statline.cli:main"
 Homepage  = "https://statline.dev"
 Repository = "https://github.com/amillolive/StatLine"
 Issues    = "https://github.com/amillolive/StatLine/issues"
-Legal  = "https://github.com/amillolive/StatLine/"
+Legal  = "https://github.com/amillolive/StatLine/tree/main/legal"
 
 # ------------------------
 # Tooling
@@ -111,7 +117,7 @@ exclude = [
   "**/__pycache__",
   "**/.mypy_cache",
   "**/.pytest_cache",
-  "typings/fastapi",
+  "typings/fastapi", "**/node_modules", "**/.*",
 ]
 
 [tool.pytest.ini_options]

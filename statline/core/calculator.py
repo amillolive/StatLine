@@ -15,46 +15,31 @@ from typing import (
     cast,
 )
 
-from statline.utils.timing import StageTimes  # optional: pass in for timing breakdowns
+from statline.utils.timing import StageTimes
 
 from .scoring import calculate_pri
+from .scoring import passes_raw_filters as _passes_raw_filters
 
 WeightsArg = Optional[Union[str, Dict[str, float]]]
 OutputArg = Optional[Dict[str, Any]]
 
 
-# ──────────────────────────────────────────────────────────────────────────────
-# Adapter surface we rely on (compiled YAML adapters compatible)
-# ──────────────────────────────────────────────────────────────────────────────
-
 class AdapterProto(Protocol):
-    """
-    Minimal surface used by the calculator.
+    """Minimal adapter surface used by the raw-row calculator."""
 
-    IMPORTANT:
-    - Compiled YAML adapters expose `.key` (not `KEY`)
-    - They always expose `map_raw(...)`
-    - `map_raw_to_metrics(...)` may exist for legacy adapters, so we probe for it at runtime
-    """
     @property
     def key(self) -> str: ...
 
-    # Some adapters expose `metrics` (iterable of objects with a `key` attr)
     @property
     def metrics(self) -> Sequence[Any] | Any: ...
 
-    # Required mapping entrypoint for compiled adapters
     def map_raw(self, raw: Mapping[str, Any]) -> Mapping[str, Any]: ...
 
 
-# ──────────────────────────────────────────────────────────────────────────────
-# Mapping helpers
-# ──────────────────────────────────────────────────────────────────────────────
-
 def _sanitize_numeric_metrics(raw_metrics: Mapping[str, Any]) -> Dict[str, Any]:
     """
-    Coerce string numbers (including '1,23') to float; blank → 0.0.
-    Leave non-numeric fields as-is (adapter can ignore them).
+    Coerce string numbers, including comma decimals, to float; blank strings to 0.0.
+    Non-numeric fields are preserved for adapter dimensions/filters.
     """
     numeric_metrics: Dict[str, Any] = {}
     for k, v in raw_metrics.items():
@@ -67,7 +52,6 @@ def _sanitize_numeric_metrics(raw_metrics: Mapping[str, Any]) -> Dict[str, Any]:
                 numeric_metrics[k] = float(s.replace(",", "."))
                 continue
             except ValueError:
-                # keep original; adapter may treat as non-numeric
                 pass
         numeric_metrics[k] = v
     return numeric_metrics
@@ -75,8 +59,8 @@ def _sanitize_numeric_metrics(raw_metrics: Mapping[str, Any]) -> Dict[str, Any]:
 
 def _get_mapper(adapter: AdapterProto) -> Callable[[Mapping[str, Any]], Mapping[str, Any]]:
     """
-    Return adapter's mapping function.
-    Prefers map_raw_to_metrics if present (legacy), otherwise uses map_raw (compiled adapters).
+    Return the adapter's mapping function.
+    Prefer legacy map_raw_to_metrics when present; otherwise use compiled-adapter map_raw.
     """
     fn = getattr(adapter, "map_raw_to_metrics", None)
     if callable(fn):
@@ -91,8 +75,7 @@ def _get_mapper(adapter: AdapterProto) -> Callable[[Mapping[str, Any]], Mapping[
 
 def safe_map_raw(adapter: AdapterProto, raw_metrics: Mapping[str, Any]) -> Dict[str, Any]:
     """
-    Map a row through the adapter with numeric sanitization.
-    Raises adapter errors transparently, but prints helpful details for SyntaxError.
+    Map a raw row through the adapter after tolerant numeric sanitization.
     """
     mapper = _get_mapper(adapter)
     numeric_metrics = _sanitize_numeric_metrics(raw_metrics)
@@ -100,7 +83,6 @@ def safe_map_raw(adapter: AdapterProto, raw_metrics: Mapping[str, Any]) -> Dict[
         mapped_any = mapper(numeric_metrics)
         mapped = dict(mapped_any)
 
-        # Optional per-adapter sanity
         sanity = getattr(adapter, "sanity", None)
         if callable(sanity):
             sanity(mapped)
@@ -108,7 +90,6 @@ def safe_map_raw(adapter: AdapterProto, raw_metrics: Mapping[str, Any]) -> Dict[
         return mapped
 
     except SyntaxError as se:
-        # Provide richer context for adapter expression issues
         print("\n=== Mapping Syntax Error ===")
         print(f"Error: {se}")
         print("Raw metrics (sanitized):", numeric_metrics)
@@ -119,49 +100,46 @@ def safe_map_raw(adapter: AdapterProto, raw_metrics: Mapping[str, Any]) -> Dict[
         raise
 
 
-# ──────────────────────────────────────────────────────────────────────────────
-# Pure call/response scoring (no CLI, no I/O)
-# ──────────────────────────────────────────────────────────────────────────────
-
 def score_rows_from_raw(
     raw_rows: Iterable[Mapping[str, Any]],
     adapter: AdapterProto,
     *,
-    # NOTE: bucket → weight (adapter buckets), not per-metric.
-    # Keep this for v2.0 compatibility:
     weights_override: Optional[Dict[str, float]] = None,
-
-    # v2.1-friendly inputs (pass-through to core scoring):
-    weights: WeightsArg = None,                          # preset name (e.g. "pri") OR bucket->weight dict
+    weights: WeightsArg = None,
     penalties_override: Optional[Dict[str, float]] = None,
     output: OutputArg = None,
-
     context: Optional[Dict[str, Dict[str, float]]] = None,
     caps_override: Optional[Dict[str, float]] = None,
     timing: Optional[StageTimes] = None,
+    filters: Optional[Dict[str, Any]] = None,
 ) -> List[Dict[str, Any]]:
     """
-    Convenience: sanitize → adapter.map_raw* → calculate_pri, for a batch.
-
-    - All precedence (caps, weights, efficiency, clamps, penalties) is adapter/spec driven.
+    Convenience API: raw rows -> adapter mapping -> canonical PRI scoring.
     """
+    raw_list: List[Mapping[str, Any]] = list(raw_rows)
+    if filters:
+        raw_list = [r for r in raw_list if _passes_raw_filters(r, filters, adapter=adapter)]
+
     if timing:
         with timing.stage("map_raw"):
-            mapped_rows: List[Dict[str, Any]] = [safe_map_raw(adapter, r) for r in raw_rows]
+            mapped_rows: List[Dict[str, Any]] = [safe_map_raw(adapter, r) for r in raw_list]
     else:
-        mapped_rows = [safe_map_raw(adapter, r) for r in raw_rows]
+        mapped_rows = [safe_map_raw(adapter, r) for r in raw_list]
 
-    return calculate_pri(
-        mapped_rows,
-        adapter=adapter,
-        weights_override=weights_override,
-        weights=weights,
-        penalties_override=penalties_override,
-        output=output,
-        context=context,
-        caps_override=caps_override,
-        _timing=timing,
-    )
+    return cast(
+        List[Dict[str, Any]],
+        calculate_pri(
+            mapped_rows,
+            adapter=adapter,
+            weights_override=weights_override,
+            weights=weights,
+            penalties_override=penalties_override,
+            output=output,
+            context=context,
+            caps_override=caps_override,
+            timing=timing,
+        ),
+    ) # pyright: ignore[reportUnnecessaryCast]
 
 
 def score_row_from_raw(
@@ -175,6 +153,7 @@ def score_row_from_raw(
     context: Optional[Dict[str, Dict[str, float]]] = None,
     caps_override: Optional[Dict[str, float]] = None,
     timing: Optional[StageTimes] = None,
+    filters: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Single-row convenience wrapper."""
     rows = score_rows_from_raw(
@@ -187,7 +166,10 @@ def score_row_from_raw(
         context=context,
         caps_override=caps_override,
         timing=timing,
+        filters=filters,
     )
+    if not rows:
+        raise ValueError("row did not match filters; no score was produced")
     return rows[0]
 
 

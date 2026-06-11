@@ -41,18 +41,29 @@ def sniff_adapters(headers: Iterable[str]) -> List[str]:
             # Sniff hooks must never be allowed to break adapter selection
             pass
 
-        # (2) YAML metadata sniff
+        # (2) YAML metadata sniff.  In v3 this is a typed SniffSpec dataclass,
+        # but keep dict support for older/custom adapters.
         sniff_meta = getattr(adp, "sniff", None)
-        if isinstance(sniff_meta, dict):
-            req_any = sniff_meta.get("require_any_headers") # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
-            if isinstance(req_any, (list, tuple, set)):
-                need = {str(x).strip().lower() for x in req_any if str(x).strip()} # pyright: ignore[reportUnknownVariableType, reportUnknownArgumentType]
-                if need and (need & hset):
-                    k = adp.key
-                    lk = k.lower()
-                    if lk not in seen:
-                        seen.add(lk)
-                        out.append(k)
+
+        def _sniff_values(name: str) -> list[object]:
+            if isinstance(sniff_meta, dict):
+                val = sniff_meta.get(name) # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+            else:
+                val = getattr(sniff_meta, name, None)
+            if isinstance(val, (list, tuple, set)):
+                return list(val) # pyright: ignore[reportUnknownArgumentType]
+            if isinstance(val, str):
+                return [val]
+            return []
+
+        any_need = {str(x).strip().lower() for x in _sniff_values("require_any_headers") if str(x).strip()}
+        all_need = {str(x).strip().lower() for x in _sniff_values("require_all_headers") if str(x).strip()}
+        if (any_need and (any_need & hset)) or (all_need and all_need.issubset(hset)):
+            k = adp.key
+            lk = k.lower()
+            if lk not in seen:
+                seen.add(lk)
+                out.append(k)
 
     return out
 

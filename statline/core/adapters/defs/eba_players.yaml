@@ -1,0 +1,424 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# StatLine Adapter Schema (v3.0.0rc3)
+# ─────────────────────────────────────────────────────────────────────────────
+
+key: eba_players
+version: 1.0.0
+aliases: [eba_players, eba_player, eba, ebap, eba_p]
+title: EBA/Elevate302 Players
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Dimensions
+# ─────────────────────────────────────────────────────────────────────────────
+
+dimensions:
+  PLAYER:
+    values: []
+    strict: false
+    description: Player name / handle
+    meta: { display: Player }
+
+  TEAM:
+    values: []
+    strict: false
+    description: Team identifier
+    meta: { display: Team }
+
+  CONFERENCE:
+    values: [Frontier Conference, Eastern Conference, Western Conference]
+    strict: true
+    description: Conference identifier
+    meta: { display: Conference }
+
+  POSITION:
+    values: [GUARD, WING, FORWARD, BIG]
+    strict: true
+    description: Player position
+    meta: { display: Position }
+
+  LEAGUE:
+    values: [EBA, Elevate302]
+    strict: true
+    description: League identifier
+    meta: { display: League }
+  
+  GP:
+    values: []
+    strict: false
+    description: Games played for filtering
+    meta: { display: GamesPlayed }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Sniff
+# ─────────────────────────────────────────────────────────────────────────────
+
+sniff:
+  require_all_headers:
+    - PLAYER
+    - TEAM
+    - CONFERENCE
+    - POSITION
+    - GP
+    - PPG
+    - RPG
+    - APG
+    - SPG
+    - BPG
+    - TPG
+    - "3PMPG"
+    - "3PAPG"
+    - FGMPG
+    - FGAPG
+    - WIN
+    - LOSS
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Buckets
+# ─────────────────────────────────────────────────────────────────────────────
+
+buckets:
+  aefg:
+    title: Shooting Efficiency
+    description: efg/pps-style efficiency signals and usage efficiency.
+
+  effloor:
+    title: Efficiency Floor
+    description: Penalties for below-floor efficiency and low volume.
+
+  tov_eff:
+    title: Turnovers
+    description: Ball security and playmaking-to-turnover signals.
+
+  stocks:
+    title: Stocks
+    description: Defensive event “stocks” (steals + blocks composite).
+
+  vers:
+    title: Versatility
+    description: Multi-skill blend across scoring, rebounding, and playmaking.
+
+  helios:
+    title: Helios
+    description: Star load / primary-creator composite.
+
+  two_way:
+    title: Two-Way
+    description: Balance of offense and defense signals.
+
+  offball:
+    title: Off-Ball Impact
+    description: Non-scoring impact via passing + rebound activity.
+
+  wl:
+    title: Win-Loss
+    description: Win share proxy from team record.
+
+  spg_sig:
+    title: Steal Signature
+    description: Steal signal shaping channel.
+
+  bpg_sig:
+    title: Block Signature
+    description: Block signal shaping channel.
+
+  handle:
+    title: Handle
+    description: Ball-handling / creation load proxy.
+
+  telem:
+    title: Telemetry
+    description: Catch-all routing bucket for tracked/reused metrics (weight must be 0).
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Metrics
+# ─────────────────────────────────────────────────────────────────────────────
+
+metrics:
+  - key: gp
+    bucket: telem
+    clamp: [1.0, 16.0]
+    source: { field: GP }
+
+  - key: ppg
+    bucket: telem
+    clamp: [12.0, 32.0]
+    source: { field: PPG }
+
+  - key: rpg
+    bucket: telem
+    clamp: [2.0, 14.0]
+    source: { field: RPG }
+
+  - key: apg
+    bucket: telem
+    clamp: [1.5, 9.0]
+    source: { field: APG }
+
+  - key: spg
+    bucket: telem
+    clamp: [0.5, 2.2]
+    source: { field: SPG }
+
+  - key: bpg
+    bucket: telem
+    clamp: [0.2, 3.0]
+    source: { field: BPG }
+
+  - key: tov
+    bucket: tov_eff
+    invert: true
+    clamp: [1.0, 3.5]
+    source: { field: TPG }
+
+  - key: fgm
+    bucket: telem
+    clamp: [4.0, 15.0]
+    source: { field: FGMPG }
+
+  - key: fga
+    bucket: telem
+    clamp: [8.0, 25.0]
+    source: { field: FGAPG }
+
+  - key: tpm
+    bucket: telem
+    clamp: [0.0, 8.0]
+    source: { field: "3PMPG" }
+
+  - key: tpa
+    bucket: telem
+    clamp: [0.0, 14.0]
+    source: { field: "3PAPG" }
+
+  - key: win
+    bucket: telem
+    clamp: [0.0, 16.0]
+    source: { field: WIN }
+
+  - key: loss
+    bucket: telem
+    clamp: [0.0, 16.0]
+    source: { field: LOSS }
+
+  - key: orpg
+    bucket: telem
+    clamp: [0.5, 5.0]
+    source: { expr: "0.35 * rpg" }
+
+  - key: drpg
+    bucket: telem
+    clamp: [1.5, 10.0]
+    source: { expr: "0.65 * rpg" }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Efficiency
+# ─────────────────────────────────────────────────────────────────────────────
+
+efficiency:
+  - key: spg_sig
+    bucket: spg_sig
+    clamp: [0.40, 1.80]
+    min_den: 1
+    make: "spg"
+    attempt: "1.2"
+
+  - key: bpg_sig
+    bucket: bpg_sig
+    clamp: [0.10, 1.10]
+    min_den: 1
+    make: "(min(bpg, 2.0) + 0.25*max(0, bpg-2.0)) / max(0.85, 1.0 + 0.06*drpg)"
+    attempt: "2.2"
+
+  - key: pps_fg
+    bucket: aefg
+    clamp: [0.85, 1.45]
+    min_den: 3
+    make: "2.0 * (fgm + 0.5*tpm)"
+    attempt: "max(1e-6, fga)"
+
+  - key: eff_usage
+    bucket: aefg
+    clamp: [0.70, 1.55]
+    min_den: 1
+    make: "pps_fg * fga"
+    attempt: "22"
+
+  - key: net_pos_ppp
+    bucket: aefg
+    clamp: [0.85, 1.25]
+    min_den: 3
+    make: "ppg - 1.1*tov"
+    attempt: "fga + 0.5*apg"
+
+  - key: pps_gap
+    bucket: effloor
+    invert: true
+    clamp: [0.0, 0.60]
+    min_den: 1
+    make: >
+      no_real * 1.20
+      + real_gp1 * (
+        max(0, 1.08 - pps_fg)
+        + 0.50*max(0, pps_fg - 1.35)
+      )
+    attempt: "1"
+
+  - key: vol_gap
+    bucket: effloor
+    invert: true
+    clamp: [0.0, 2.0]
+    min_den: 1
+    make: "max(0, 13 - ppg)"
+    attempt: "1"
+
+  - key: shot_diet_gap
+    bucket: effloor
+    invert: true
+    clamp: [0.0, 0.60]
+    min_den: 1
+    make: >
+      no_real * 0.60
+      + real_gp1
+        * max(0, (tpa/max(1e-6,fga)) - 0.70)
+        * max(0, 1.28 - ((fga - tpa))) / 1.28
+        * max(0, pps_fg - 1.22)
+        * min(1, 10/max(1e-6,fga))
+    attempt: "1"
+
+  - key: stocks_boost
+    bucket: stocks
+    clamp: [0.30, 1.50]
+    min_den: 1
+    make: "spg + 1.05*min(bpg, 2.0) + 0.35*max(0, bpg - 2.0)"
+    attempt: "3.2"
+
+  - key: scoreless_impact
+    bucket: offball
+    clamp: [0.30, 1.00]
+    min_den: 1
+    make: "(0.55*min(1, apg/10) + 0.45*min(1, (1.3*orpg+0.7*drpg)/10))"
+    attempt: "1.0"
+
+  - key: vers_score
+    bucket: vers
+    clamp: [0.20, 1.00]
+    min_den: 1
+    make: "(0.65*((min(1, ppg/24) + min(1, (1.6*orpg+drpg)/10) + min(1, apg/10))/3)) + (0.45*((min(1, ppg/24)*min(1, (1.6*orpg+drpg)/10) + min(1, ppg/24)*min(1, apg/10) + min(1, (1.6*orpg+drpg)/10)*min(1, apg/10))/3))"
+    attempt: "1.18"
+
+  - key: handle_load
+    bucket: handle
+    clamp: [0.40, 1.10]
+    min_den: 1
+    make: "apg / max(1.0, 0.6*fga + tov)"
+    attempt: "1"
+
+  - key: helios_score
+    bucket: helios
+    clamp: [0.35, 0.90]
+    min_den: 1
+    make: "ppg + 0.9*apg - 0.4*tov"
+    attempt: "38"
+
+  - key: tov_scaled
+    bucket: tov_eff
+    clamp: [0.40, 0.95]
+    min_den: 1
+    make: "1 - (tov / max(3, 0.80*(fga + 0.7*apg)))"
+    attempt: "1"
+
+  - key: ast_to_credit
+    bucket: tov_eff
+    clamp: [0.70, 2.50]
+    min_den: 1
+    make: "apg"
+    attempt: "max(1.0, tov)"
+
+  - key: ast_to_bonus
+    bucket: tov_eff
+    clamp: [0.00, 0.08]
+    min_den: 1
+    make: "max(0, (apg / max(1.0, tov)) - 2.0)"
+    attempt: "6.0"
+
+  - key: two_way_score
+    bucket: two_way
+    clamp: [0.10, 0.80]
+    min_den: 1
+    make: "min(2, (2 * ((ppg+0.9*apg)/42) * ((0.7*spg+0.4*bpg)/2.5)) / max(0.0001, ((ppg+0.9*apg)/42) + ((0.7*spg+0.4*bpg)/2.5))))"
+    attempt: "1"
+
+  - key: wl_share
+    bucket: wl
+    clamp: [0.0, 1.0]
+    min_den: 0.5
+    make: "win"
+    attempt: "win + loss"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Weights
+# ─────────────────────────────────────────────────────────────────────────────
+
+weights:
+  pri:
+    aefg:     0.28
+    tov_eff:  0.17
+    effloor:  0.07
+    two_way:  0.07
+    helios:   0.06
+    vers:     0.10
+    offball:  0.08
+    handle:   0.06
+    stocks:   0.06
+    spg_sig:  0.02
+    bpg_sig:  0.03
+    wl:       0.0
+    telem:    0.0
+
+  pri_alt:
+    aefg:     0.24
+    tov_eff:  0.22
+    effloor:  0.08
+    two_way:  0.07
+    helios:   0.09
+    vers:     0.08
+    offball:  0.05
+    handle:   0.07
+    stocks:   0.05
+    spg_sig:  0.02
+    bpg_sig:  0.03
+    wl:       0.0
+    telem:    0.0
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Score profiles
+# ─────────────────────────────────────────────────────────────────────────────
+
+score_profiles:
+  PRI:
+    kind: affine
+    lo: 32
+    hi: 125
+    weights_profile: pri
+
+  PRI-ALT:
+    kind: affine
+    lo: 55
+    hi: 99
+    weights_profile: pri_alt
+
+  PRI-W:
+    kind: window
+    out_lo: 55
+    out_hi: 99
+    pct_lo: 0.0
+    pct_hi: 1.0
+    weights_profile: pri
+
+  PRI-W-ALT:
+    kind: window
+    out_lo: 40
+    out_hi: 99
+    pct_lo: 0.0
+    pct_hi: 1.0
+    weights_profile: pri_alt

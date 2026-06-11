@@ -6,8 +6,8 @@ from threading import RLock
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Union, cast
 
 from statline.core.adapters import load_adapter as _load_adapter
-from statline.core.scoring import calculate_pri_batch as _core_pri_batch
-from statline.core.scoring import calculate_pri_single as _core_pri_single
+from statline.core.calculator import score_row_from_raw as _core_score_row_from_raw
+from statline.core.calculator import score_rows_from_raw as _core_score_rows_from_raw
 from statline.slapi.errors import BadRequest, NotFound
 from statline.utils.timing import StageTimes  # optional: callers may pass in
 
@@ -99,9 +99,9 @@ def score_row(req: ScoreRowRequest, *, timing: Optional[StageTimes] = None) -> S
     adp = _get_adapter(req.adapter)
 
     try:
-        res = _core_pri_single(
-            adapter=adp,
-            row=req.row,
+        res = _core_score_row_from_raw(
+            req.row,
+            adp,
             weights=req.weights,
             output=req.output,
             filters=req.filters,
@@ -117,8 +117,7 @@ def score_row(req: ScoreRowRequest, *, timing: Optional[StageTimes] = None) -> S
         # Let truly unexpected exceptions bubble; app can map to 500.
         raise
 
-    # PRIResult -> dict
-    return {"pri": res.pri, **dict(res.details)}
+    return dict(res)
 
 
 def score_batch(req: ScoreBatchRequest, *, timing: Optional[StageTimes] = None) -> ScoreBatchResponse:
@@ -126,9 +125,9 @@ def score_batch(req: ScoreBatchRequest, *, timing: Optional[StageTimes] = None) 
     adp = _get_adapter(req.adapter)
 
     try:
-        res_list = _core_pri_batch(
-            adapter=adp,
-            rows=rows_checked,
+        res_list = _core_score_rows_from_raw(
+            rows_checked,
+            adp,
             weights=req.weights,
             output=req.output,
             filters=req.filters,
@@ -142,7 +141,7 @@ def score_batch(req: ScoreBatchRequest, *, timing: Optional[StageTimes] = None) 
     except Exception:
         raise
 
-    return [{"pri": r.pri, **dict(r.details)} for r in res_list]
+    return [dict(r) for r in res_list]
 
 
 def adapters_available() -> List[str]:
