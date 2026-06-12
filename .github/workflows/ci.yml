@@ -1,4 +1,4 @@
-name: CI
+name: 
 
 on:
   push:
@@ -62,7 +62,6 @@ jobs:
   mypy:
     name: Mypy
     runs-on: ubuntu-latest
-    continue-on-error: true
     timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
@@ -78,8 +77,27 @@ jobs:
       - name: Install devpack
         run: uv pip install -e ".[devpack]"
 
-      - name: Type check
-        run: uv run python -m mypy .
+      - name: Mypy core
+        run: uv run --no-sync python -m mypy --config-file mypy-core.ini .
+
+      - name: Mypy nice
+        id: mypy_nice
+        continue-on-error: true
+        run: uv run --no-sync python -m mypy --config-file mypy-nice.ini .
+
+      - name: Warn if mypy nice failed
+        if: steps.mypy_nice.outcome == 'failure'
+        run: |
+          echo "::warning title=Mypy nice failed::Mypy core passed, but mypy nice found strict typing cleanup issues."
+          {
+            echo "## Mypy Nice Advisory"
+            echo ""
+            echo "Mypy core passed."
+            echo ""
+            echo "Mypy nice found strict typing cleanup issues, but those are currently non-blocking."
+            echo ""
+            echo "Common causes include redundant casts, unused ignores, missing annotations, Any leakage, or missing generic type arguments."
+          } >> "$GITHUB_STEP_SUMMARY"
 
   tests:
     name: Tests (${{ matrix.os }} / py${{ matrix.python }})
