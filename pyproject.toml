@@ -4,15 +4,23 @@ build-backend = "hatchling.build"
 
 [project]
 name = "statline"
-version = "3.0.0rc3"
+version = "3.0.0"
 description = "StatLine — weighted player scoring, efficiency modeling, CLI + adapter tooling"
 readme = "README.md"
 requires-python = ">=3.10,<3.15"
 license = { file = "LICENSE" }
 authors = [{ name = "StatLine LLC" }]
 keywords = [
-  "statline", "pri", "adapters", "analytics", "esports", "basketball",
-  "mvp", "efg", "google-sheets", "cli"
+  "statline",
+  "pri",
+  "adapters",
+  "analytics",
+  "esports",
+  "basketball",
+  "mvp",
+  "efg",
+  "cli",
+  "slapi",
 ]
 classifiers = [
   "Programming Language :: Python :: 3",
@@ -29,59 +37,81 @@ classifiers = [
   "Environment :: Console",
 ]
 
-# Core runtime deps for local scoring + CLI
+# Variant 1: base
+# pip install statline
+# Local library + local CLI scoring. httpx stays here because statline.cli imports
+# an HTTP backend at import time; move that import behind remote-only commands if you
+# want a stricter no-network-deps base later.
 dependencies = [
-  "typer>=0.12",
-  "pyyaml>=6",
+  "typer>=0.12,<1.0",
+  "click>=8.1,<9.0",
+  "pyyaml>=6.0,<7.0",
+  "httpx>=0.27,<1.0",
   'typing-extensions>=4.7; python_version<"3.15"',
-  "pydantic>=2.0,<3.0",
-  "httpx>=0.27",
-  "cryptography>=46.0",
-  "rich>=13.0",
-  "textual>=8.0,<9.0",
 ]
 
 [project.optional-dependencies]
-# Google Sheets ingestion
-sheets = ["gspread>=6.0.0", "google-auth>=2.0.0"]
-
-# Docs
-docs = [
-  "mkdocs-material",
-  "mkdocstrings[python]",
-]
-
-# Extra CLI conveniences / types
-cli = [
-  "types-requests; python_version<'3.15'",
-]
-
-# SLAPI (serve the API). Kept optional to avoid forcing FastAPI on core users.
-api = [
+# Variant 2: remote
+# pip install "statline[remote]"
+# API client/auth + local SLAPI serving stack.
+remote = [
+  "cryptography>=42.0,<47.0",
+  "pydantic>=2.6,<3.0",
   "fastapi>=0.110,<1.0",
-  "uvicorn[standard]>=0.30",
+  "uvicorn[standard]>=0.30,<1.0",
 ]
 
-dev = [
-  "pytest>=8.1",
-  "pytest-cov>=4.1",
-  "ruff>=0.5",
-  "mypy>=1.11",
-  "coverage>=7.5",
-  "hypothesis>=6.100",
-  "types-PyYAML",
-  "types-requests",
+# Variant 3: extras
+# pip install "statline[extras]"
+# Power-user install: remote stack plus UI/data conveniences.
+extras = [
+  "cryptography>=42.0,<47.0",
+  "pydantic>=2.6,<3.0",
+  "fastapi>=0.110,<1.0",
+  "uvicorn[standard]>=0.30,<1.0",
+  "rich>=13.0,<15.0",
+  "textual>=8.0,<9.0",
+  "gspread>=6.0,<7.0",
+  "google-auth>=2.0,<3.0",
+]
+
+# Variant 4: devpack
+# pip install -e ".[devpack]"
+# Everything needed for development, testing, typing, docs, packaging, and release checks.
+devpack = [
+  "cryptography>=42.0,<47.0",
+  "pydantic>=2.6,<3.0",
+  "fastapi>=0.110,<1.0",
+  "uvicorn[standard]>=0.30,<1.0",
+  "rich>=13.0,<15.0",
+  "textual>=8.0,<9.0",
+  "gspread>=6.0,<7.0",
+  "google-auth>=2.0,<3.0",
+  "pytest>=8.1,<9.0",
+  "pytest-cov>=4.1,<7.0",
+  "coverage[toml]>=7.5,<8.0",
+  "hypothesis>=6.100,<7.0",
+  "ruff>=0.5,<1.0",
+  "mypy>=1.11,<2.0",
+  "pyright>=1.1.370,<2.0",
+  "types-PyYAML>=6.0.12",
+  "types-requests>=2.32",
+  "mkdocs-material>=9.5,<10.0",
+  "mkdocstrings[python]>=0.25,<1.0",
+  "build>=1.2,<2.0",
+  "twine>=5.0,<7.0",
+  "pip-audit>=2.7,<3.0",
 ]
 
 [project.scripts]
-slapi = "statline.slapi.__main__:main"
 statline = "statline.cli:main"
+slapi = "statline.slapi.__main__:main"
 
 [project.urls]
-Homepage  = "https://statline.dev"
+Homepage = "https://statline.dev"
 Repository = "https://github.com/amillolive/StatLine"
-Issues    = "https://github.com/amillolive/StatLine/issues"
-Legal  = "https://github.com/amillolive/StatLine/tree/main/legal"
+Issues = "https://github.com/amillolive/StatLine/issues"
+Legal = "https://github.com/amillolive/StatLine/tree/main/legal"
 
 # ------------------------
 # Tooling
@@ -89,12 +119,14 @@ Legal  = "https://github.com/amillolive/StatLine/tree/main/legal"
 
 [tool.ruff]
 line-length = 100
-target-version = "py314"
-extend-select = ["I"]
+target-version = "py310"
 src = ["statline", "tests"]
 
+[tool.ruff.lint]
+extend-select = ["I"]
+
 [tool.mypy]
-python_version = "3.14"
+python_version = "3.10"
 strict = true
 ignore_missing_imports = true
 pretty = true
@@ -105,7 +137,7 @@ plugins = ["pydantic.mypy"]
 mypy_path = ["typings"]
 
 [[tool.mypy.overrides]]
-module = ["fastapi.*", "uvicorn.*"]
+module = ["fastapi.*", "uvicorn.*", "starlette.*"]
 ignore_missing_imports = true
 
 [tool.pyright]
@@ -117,29 +149,54 @@ exclude = [
   "**/__pycache__",
   "**/.mypy_cache",
   "**/.pytest_cache",
-  "typings/fastapi", "**/node_modules", "**/.*",
+  "typings/fastapi",
+  "**/node_modules",
+  "**/.*",
 ]
 
 [tool.pytest.ini_options]
 addopts = "-ra"
 testpaths = ["tests"]
-# fail_on_empty = true  # enable when you actually add tests
+
+[tool.coverage.run]
+branch = true
+source = ["statline"]
+omit = [
+  "*/__pycache__/*",
+  "*/tests/*",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
 
 # ------------------------
 # Hatch build config
 # ------------------------
 
 [tool.hatch.build]
-# ensure non-code assets get included in wheels by default
 include = [
+  "statline/**/*.py",
+  "statline/**/*.pyi",
   "statline/py.typed",
   "statline/**/*.yaml",
   "statline/**/*.yml",
   "statline/**/*.json",
-  "statline/**/*.sql",
-  "statline/data/**/*",
-  "statline/core/adapters/defs/*",
-  "statline/data/migrations/*.sql",
+  "statline/core/adapters/defs/*.yaml",
+  "statline/data/stats/**/*.csv",
+  "statline/slapi/storage/migrations/*.sql",
+]
+exclude = [
+  ".db/**",
+  ".git/**",
+  ".github/**",
+  ".mypy_cache/**",
+  ".pytest_cache/**",
+  ".ruff_cache/**",
+  "**/__pycache__/**",
+  "**/*.py[cod]",
+  "statline/log/**",
+  "statline/secrets/**",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -147,13 +204,35 @@ packages = ["statline"]
 
 [tool.hatch.build.targets.sdist]
 include = [
-  "statline",
-  "tests",
-  "README.md",
-  "LICENSE",
-  "pyproject.toml",
+  "statline/**/*.py",
+  "statline/**/*.pyi",
   "statline/py.typed",
-  "TRADEMARKS.md",
+  "statline/**/*.yaml",
+  "statline/**/*.yml",
+  "statline/**/*.json",
+  "statline/core/adapters/defs/*.yaml",
+  "statline/data/stats/**/*.csv",
+  "statline/slapi/storage/migrations/*.sql",
+  "tests/**/*.py",
+  "scripts/**/*.py",
+  "README.md",
+  "HOWTO.md",
+  "LICENSE",
   "CLA.md",
-  "legal/**.md",
+  "TRADEMARK_POLICY.md",
+  "legal/**/*.md",
+  "mypy.ini",
+  "pyproject.toml",
+]
+exclude = [
+  ".db/**",
+  ".git/**",
+  ".github/**",
+  ".mypy_cache/**",
+  ".pytest_cache/**",
+  ".ruff_cache/**",
+  "**/__pycache__/**",
+  "**/*.py[cod]",
+  "statline/log/**",
+  "statline/secrets/**",
 ]

@@ -5,6 +5,7 @@ on:
     branches: ["main"]
   pull_request:
     types: ["opened", "synchronize", "reopened"]
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -23,7 +24,11 @@ env:
   CI: "1"
   ORION_TOKEN: "TEST_TOKEN"
   STATLINE_ENV: "test"
+  STATLINE_MODE: "local"
+  STATLINE_DEBUG: "0"
+  STATLINE_LOADER_STRICT: "1"
   SKIP_LIVE_SHEETS: "1"
+  SLAPI_URL: "http://127.0.0.1:8000"
 
 defaults:
   run:
@@ -31,58 +36,49 @@ defaults:
 
 jobs:
   ruff:
-    name: Ruff (lint)
+    name: Ruff
     runs-on: ubuntu-latest
     timeout-minutes: 7
     steps:
       - uses: actions/checkout@v4
+
       - uses: astral-sh/setup-uv@v4
         with:
           python-version: "3.14"
-      - run: uv venv --python 3.14
+          enable-cache: true
 
-      - name: Restore ruff cache
-        uses: actions/cache@v4
-        with:
-          path: .ruff_cache
-          key: ruff-${{ runner.os }}-${{ hashFiles('pyproject.toml', '.ruff.toml', 'ruff.toml') }}
+      - name: Create venv
+        run: uv venv --python 3.14
 
       - name: Install ruff
-        run: uv pip install ruff
+        run: uv pip install "ruff>=0.5,<1.0"
 
-      - name: Ensure ruff cache dir exists
-        run: mkdir -p .ruff_cache
+      - name: Ruff format check
+        run: uv run ruff format --check .
 
-      - name: Ruff autofix + annotate (non-blocking)
-        run: |
-          uv run ruff check . --fix --unsafe-fixes --output-format=github --exit-zero
-          uv run ruff format .
+      - name: Ruff lint
+        run: uv run ruff check . --output-format=github
 
   mypy:
-    name: Mypy (type check on 3.14)
+    name: Mypy
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
+
       - uses: astral-sh/setup-uv@v4
         with:
           python-version: "3.14"
-      - run: uv venv --python 3.14
+          enable-cache: true
 
-      - name: Restore mypy cache
-        uses: actions/cache@v4
-        with:
-          path: .mypy_cache
-          key: mypy-${{ runner.os }}-${{ hashFiles('pyproject.toml', '**/*.py') }}
+      - name: Create venv
+        run: uv venv --python 3.14
 
-      - name: Install (dev)
-        run: uv pip install -e ".[dev]"
+      - name: Install devpack
+        run: uv pip install -e ".[devpack]"
 
-      - name: Ensure mypy cache dir exists
-        run: mkdir -p .mypy_cache
-
-      - name: Type check (strict)
-        run: uv run python -m mypy --strict --ignore-missing-imports .
+      - name: Type check
+        run: uv run python -m mypy .
 
   tests:
     name: Tests (${{ matrix.os }} / py${{ matrix.python }})
@@ -93,52 +89,40 @@ jobs:
       matrix:
         os: ["ubuntu-latest", "macos-latest", "windows-latest"]
         python: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+
     steps:
       - uses: actions/checkout@v4
 
       - uses: astral-sh/setup-uv@v4
         with:
           python-version: ${{ matrix.python }}
+          enable-cache: true
 
       - name: Create venv
         run: uv venv --python ${{ matrix.python }}
 
-      - name: Restore uv cache (Linux/macOS)
-        if: runner.os != 'Windows'
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/uv
-          key: uv-${{ runner.os }}-py${{ matrix.python }}-${{ hashFiles('pyproject.toml') }}
-
-      - name: Restore uv cache (Windows)
-        if: runner.os == 'Windows'
-        uses: actions/cache@v4
-        with:
-          path: ${{ runner.temp }}\uv\cache
-          key: uv-${{ runner.os }}-py${{ matrix.python }}-${{ hashFiles('pyproject.toml') }}
-
-      - name: Install
-        run: uv pip install -e ".[dev,sheets]" pytest pytest-cov
+      - name: Install dev/test dependencies
+        run: uv pip install -e ".[devpack]"
 
       - name: Prepare test results dir
         run: mkdir -p test-results
 
-      - name: Run tests (skip if none)
-        shell: bash
+      - name: Run tests
         run: |
-          shopt -s nullglob
-          files=(tests/test_*.py tests/*/test_*.py)
+          shopt -s nullglob globstar
+          files=(tests/test_*.py tests/**/test_*.py)
           if [ ${#files[@]} -eq 0 ]; then
-            echo "No tests detected, skipping pytest."
+            echo "No tests detected."
             echo '<?xml version="1.0" ?><testsuite></testsuite>' > test-results/junit.xml
             echo '<?xml version="1.0" ?><coverage></coverage>' > coverage.xml
             exit 0
           fi
+
           uv run pytest -ra \
             --maxfail=1 \
             --durations=10 \
             --cov=statline \
-            --cov-report=xml \
+            --cov-report=xml:coverage.xml \
             --junitxml=test-results/junit.xml
 
       - name: Upload test results
@@ -162,20 +146,30 @@ jobs:
           output: both
 
   build:
-    name: Build (Ubuntu)
+    name: Build
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [ruff, mypy, tests]
     steps:
       - uses: actions/checkout@v4
+
       - uses: astral-sh/setup-uv@v4
         with:
           python-version: "3.14"
+          enable-cache: true
+
       - name: Create venv
         run: uv venv --python 3.14
-      - run: uv pip install build
+
+      - name: Install build backend
+        run: uv pip install "build>=1.2,<2.0" "twine>=5.0,<7.0"
+
       - name: Build sdist & wheel
         run: uv run python -m build
+
+      - name: Twine check
+        run: uv run python -m twine check dist/*
+
       - name: Upload dist
         uses: actions/upload-artifact@v4
         with:
@@ -183,22 +177,23 @@ jobs:
           path: dist/*
 
   smoke:
-    name: Base install & CLI smoke (${{ matrix.os }})
+    name: Wheel smoke (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 10
+    timeout-minutes: 12
     needs: [build]
-    env:
-      SLAPI_URL: "http://127.0.0.1:8000" # if nothing is listening, we skip scoring
-      STATLINE_DEBUG: "0"
     strategy:
       fail-fast: false
       matrix:
         os: ["ubuntu-latest", "macos-latest", "windows-latest"]
+
     steps:
       - uses: actions/checkout@v4
+
       - uses: astral-sh/setup-uv@v4
         with:
           python-version: "3.14"
+          enable-cache: true
+
       - name: Create venv
         run: uv venv --python 3.14
 
@@ -208,55 +203,49 @@ jobs:
           name: dist-ubuntu
           path: dist
 
-      - name: Install wheel (base, no extras)
+      - name: Install wheel (base)
         run: uv pip install dist/*.whl
 
       - name: Import package
-        run: uv run python -c "import importlib; importlib.import_module('statline'); print('Import OK')"
+        run: uv run python -c "import statline; print('Import OK', statline.__version__)"
 
       - name: CLI help (module entry point)
-        run: uv run python -m statline.cli --help
+        run: uv run python -m statline.cli --mode local --help
 
-      - name: CLI help (console script if present)
-        shell: bash
+      - name: CLI help (console script)
+        run: uv run statline --mode local --help
+
+      - name: Public API smoke
         run: |
-          set -e
-          CMD="$(uv run python -c "import shutil; print(shutil.which('statline') or '')")"
-          if [ -n "$CMD" ]; then
-            uv run statline --help
-          else
-            echo "Console script not found in venv; module path already validated."
-          fi
+          uv run python - <<'PY'
+          from statline import list_adapters, list_datasets, load_adapter, load_dataset, score_row
 
-      - name: Adapters should exist
+          adapters = list_adapters()
+          assert adapters, "No adapters discovered"
+          assert "demo" in adapters, f"demo adapter missing; got {adapters!r}"
+
+          datasets = list_datasets()
+          assert "DEMO/demo.csv" in datasets, f"demo dataset missing; got {datasets!r}"
+
+          adapter = load_adapter("demo")
+          row = load_dataset("demo", limit=1)[0]
+          result = score_row(adapter, row)
+
+          assert isinstance(result["pri"], int), result
+          assert "scores" in result, result
+          print("Smoke OK:", adapter.key, result["pri"])
+          PY
+
+      - name: Adapter registry smoke
         run: |
-          uv run python -c "from statline.core.adapters import list_names as L; n=L(); assert isinstance(n, list) and n, 'No adapters discovered'; print('Adapters:', n)"
+          uv run python - <<'PY'
+          from statline.core.adapters import list_names, load
 
-      - name: "CLI smoke: score packaged example (both forms)"
-        shell: bash
-        run: |
-          set -e
-          EXAMPLE="$(uv run python -c "from importlib.resources import files; p=files('statline.data')/'example.yaml'; print(str(p) if p.is_file() else '')")"
-          if [ -z "$EXAMPLE" ]; then
-            echo "No packaged example.yaml; skipping."
-            exit 0
-          fi
-
-          # Consider SLAPI "up" if we get any HTTP response (not just 200)
-          code="$(curl -sS --max-time 2 -o /dev/null -w '%{http_code}' "$SLAPI_URL" || true)"
-          if [ "$code" != "000" ]; then
-            echo "SLAPI responded with HTTP $code at $SLAPI_URL"
-            echo "Scoring (module): $EXAMPLE"
-            uv run python -m statline.cli score --adapter rbw5 "$EXAMPLE"
-
-            CMD="$(uv run python -c "import shutil; print(shutil.which('statline') or '')")"
-            if [ -n "$CMD" ]; then
-              echo "Scoring (console script): $EXAMPLE"
-              uv run statline score --adapter rbw5 "$EXAMPLE"
-            else
-              echo "Console script not found; module path already validated."
-            fi
-          else
-            echo "SLAPI not reachable at $SLAPI_URL; skipping scoring smoke."
-          fi
-          
+          names = list_names()
+          assert names, "No adapters discovered"
+          for name in names:
+              adapter = load(name)
+              assert adapter.key
+              assert adapter.score_profiles, f"{adapter.key} has no score profiles"
+          print("Adapters OK:", ", ".join(names))
+          PY

@@ -12,23 +12,65 @@ on:
         type: choice
         options: [pypi]
 
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
 permissions:
   contents: read
   id-token: write
+
+env:
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  PIP_NO_PYTHON_VERSION_WARNING: "1"
+  PYTHONUNBUFFERED: "1"
+  PYTHONIOENCODING: "utf-8"
+  PYTHONUTF8: "1"
+  TZ: "UTC"
+
+defaults:
+  run:
+    shell: bash
 
 jobs:
   build:
     name: Build sdist & wheel
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
       - uses: astral-sh/setup-uv@v4
         with:
           python-version: "3.14"
+          enable-cache: true
 
-      - run: uv venv --python 3.14
-      - run: uv pip install build twine
+      - name: Create venv
+        run: uv venv --python 3.14
+
+      - name: Install release tools
+        run: uv pip install "build>=1.2,<2.0" "twine>=5.0,<7.0"
+
+      - name: Verify tag matches project.version
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          uv run python - <<'PY'
+          import os
+          import pathlib
+          import sys
+          import tomllib
+
+          tag = os.environ["GITHUB_REF_NAME"]
+          wanted = tag[1:] if tag.startswith("v") else tag
+          data = tomllib.loads(pathlib.Path("pyproject.toml").read_text(encoding="utf-8"))
+          found = data["project"]["version"]
+
+          if found != wanted:
+              print(f"Tag {tag!r} does not match pyproject version {found!r}.", file=sys.stderr)
+              sys.exit(1)
+
+          print(f"Version OK: {found}")
+          PY
 
       - name: Build
         run: uv run python -m build
@@ -36,36 +78,20 @@ jobs:
       - name: Twine check
         run: uv run python -m twine check dist/*
 
-      - name: Verify tag matches project.version
-        if: startsWith(github.ref, 'refs/tags/')
-        run: |
-          uv run python - <<'PY'
-          import os, sys, pathlib
-          try:
-              import tomllib
-          except Exception:
-              print("Python >=3.11 required for tomllib in this step.", file=sys.stderr)
-              sys.exit(2)
-          tag = os.environ["GITHUB_REF_NAME"]
-          want = tag[1:] if tag.startswith("v") else tag
-          data = tomllib.loads(pathlib.Path("pyproject.toml").read_text(encoding="utf-8"))
-          have = data["project"]["version"]
-          if have != want:
-              print(f"Tag {tag} != pyproject version {have}", file=sys.stderr)
-              sys.exit(1)
-          print(f"Version OK: {have}")
-          PY
-
-      - uses: actions/upload-artifact@v4
+      - name: Upload dist
+        uses: actions/upload-artifact@v4
         with:
           name: dist
           path: dist/*
+          if-no-files-found: error
 
   publish-pypi:
     name: Publish to PyPI (OIDC)
     needs: build
     runs-on: ubuntu-latest
-    environment: pypi
+    timeout-minutes: 10
+    environment:
+      name: pypi
     if: startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'pypi')
     steps:
       - uses: actions/download-artifact@v4
@@ -73,7 +99,7 @@ jobs:
           name: dist
           path: dist
 
-      - name: Publish (PyPI via OIDC)
+      - name: Publish
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist
