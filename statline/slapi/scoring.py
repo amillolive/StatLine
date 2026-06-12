@@ -120,7 +120,9 @@ def score_row(req: ScoreRowRequest, *, timing: Optional[StageTimes] = None) -> S
     return dict(res)
 
 
-def score_batch(req: ScoreBatchRequest, *, timing: Optional[StageTimes] = None) -> ScoreBatchResponse:
+def score_batch(
+    req: ScoreBatchRequest, *, timing: Optional[StageTimes] = None
+) -> ScoreBatchResponse:
     rows_checked = _ensure_rows(req.rows)
     adp = _get_adapter(req.adapter)
 
@@ -151,12 +153,13 @@ def adapters_available() -> List[str]:
     """
     try:
         from statline.core.adapters import list_names as _list_names  # runtime import
+
         names = _list_names()
-        if isinstance(names, (list, tuple, set)): # pyright: ignore[reportUnnecessaryIsInstance]
+        if isinstance(names, (list, tuple, set)):  # pyright: ignore[reportUnnecessaryIsInstance]
             return [str(n) for n in cast(Iterable[Any], names)]
-        if isinstance(names, dict): # pyright: ignore[reportUnnecessaryIsInstance]
+        if isinstance(names, dict):  # pyright: ignore[reportUnnecessaryIsInstance]
             return [str(k) for k in cast(Mapping[Any, Any], names).keys()]
-        if isinstance(names, str): # pyright: ignore[reportUnnecessaryIsInstance]
+        if isinstance(names, str):  # pyright: ignore[reportUnnecessaryIsInstance]
             return [names]
         if hasattr(names, "__iter__"):
             return [str(n) for n in cast(Iterable[Any], names)]

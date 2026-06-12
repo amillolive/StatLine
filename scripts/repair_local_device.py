@@ -25,15 +25,16 @@ if not db.exists():
 con = sqlite3.connect(str(db))
 con.row_factory = sqlite3.Row
 
+
 def table_names() -> list[str]:
-    rows = con.execute(
-        "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
-    ).fetchall()
+    rows = con.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").fetchall()
     return [str(r["name"]) for r in rows]
+
 
 def columns(table: str) -> list[str]:
     rows = con.execute(f"PRAGMA table_info({table})").fetchall()
     return [str(r["name"]) for r in rows]
+
 
 print("\nTables:")
 for t in table_names():

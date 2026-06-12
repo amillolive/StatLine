@@ -10,7 +10,9 @@ from typing import Literal, Optional, TypeAlias, Union, cast
 # ──────────────────────────────────────────────────────────────────────────────
 
 JSONScalar: TypeAlias = Union[str, int, float, bool, None]
-JSONValue: TypeAlias = Union[JSONScalar, list["JSONValue"], dict[str, "JSONValue"]]  # ok for IO/boundaries
+JSONValue: TypeAlias = Union[
+    JSONScalar, list["JSONValue"], dict[str, "JSONValue"]
+]  # ok for IO/boundaries
 
 # Tool-friendly metadata values (NON-RECURSIVE: avoids Pylance "partially unknown")
 MetaScalar: TypeAlias = JSONScalar
@@ -32,6 +34,7 @@ def _meta_dict() -> dict[str, MetaValue]:
 # ──────────────────────────────────────────────────────────────────────────────
 # Metadata sections: fully typed
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 @dataclass(frozen=True, slots=True)
 class DimensionSpec:
@@ -157,6 +160,7 @@ class ScoreProfileSpec:
 # Adapter spec (fully typed, no Any)
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 def _dict_str__dim() -> dict[str, DimensionSpec]:
     return {}
 
@@ -193,6 +197,7 @@ class AdapterSpec:
     ✅ Everything typed (dataclasses + Literals where it matters)
     ✅ Meta is shallow (MetaValue) to keep tool + editor inference clean
     """
+
     key: str
     version: str
     aliases: tuple[str, ...] = ()
@@ -209,12 +214,15 @@ class AdapterSpec:
     weights: dict[str, dict[str, float]] = dc_field(default_factory=_dict_str__weights)
     penalties: dict[str, dict[str, float]] = dc_field(default_factory=_dict_str__weights)
     efficiency: list[EffSpec] = dc_field(default_factory=_list_eff)
-    score_profiles: dict[str, ScoreProfileSpec] = dc_field(default_factory=_dict_str__score_profiles)
+    score_profiles: dict[str, ScoreProfileSpec] = dc_field(
+        default_factory=_dict_str__score_profiles
+    )
 
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Validation (fast + opinionated)
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 @dataclass(frozen=True, slots=True)
 class ValidationIssue:
@@ -232,9 +240,7 @@ class AdapterValidationError(ValueError):
     def _format(self) -> str:
         lines = [f"Adapter '{self.adapter_name}' failed validation:"]
         for it in self.issues:
-            lines.append(
-                f" - {it.path}: {it.message}" + (f" (hint: {it.hint})" if it.hint else "")
-            )
+            lines.append(f" - {it.path}: {it.message}" + (f" (hint: {it.hint})" if it.hint else ""))
         return "\n".join(lines)
 
 

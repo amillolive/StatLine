@@ -63,7 +63,7 @@ def _param_choices(param: click.Parameter) -> tuple[str, ...]:
     click_type = getattr(param, "type", None)
 
     if isinstance(click_type, click.Choice):
-        return tuple(str(choice) for choice in click_type.choices) # pyright: ignore[reportUnknownVariableType, reportUnknownMemberType, reportUnknownArgumentType]
+        return tuple(str(choice) for choice in click_type.choices)  # pyright: ignore[reportUnknownVariableType, reportUnknownMemberType, reportUnknownArgumentType]
 
     return ()
 

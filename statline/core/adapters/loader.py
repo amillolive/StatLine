@@ -129,10 +129,13 @@ _FILTER_OP: dict[str, FilterOp] = {
     "<=": "<=",
     ">=": ">=",
     "==": "==",
-    "=": "==",   # alias → canonical
+    "=": "==",  # alias → canonical
     "!=": "!=",
 }
-_FILTER_MODE: dict[str, FilterMode] = {"include-only": "include-only", "exclude-only": "exclude-only"}
+_FILTER_MODE: dict[str, FilterMode] = {
+    "include-only": "include-only",
+    "exclude-only": "exclude-only",
+}
 _SOURCE_KIND: dict[str, SourceKind] = {"field": "field", "expr": "expr", "const": "const"}
 _TRANSFORM_KIND: dict[str, TransformKind] = {
     "expr": "expr",
@@ -148,6 +151,7 @@ _SCORE_KIND: dict[str, ScoreKind] = {"affine": "affine", "window": "window"}
 # ──────────────────────────────────────────────────────────────────────────────
 # YAML boundary normalizers (reduce “Unknown” at the boundary)
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 def _as_str_dict(obj: object, *, ctx: str) -> dict[str, object]:
     """Normalize a YAML mapping into dict[str, object]."""
@@ -263,10 +267,7 @@ def _read_yaml_for(name: str) -> dict[str, object]:
 
     unknown = set(data.keys()).difference(_ALLOWED_TOP_KEYS)
     if unknown:
-        msg = (
-            f"Unknown top-level key(s) in adapter '{name}' ({p}): "
-            f"{', '.join(sorted(unknown))}"
-        )
+        msg = f"Unknown top-level key(s) in adapter '{name}' ({p}): {', '.join(sorted(unknown))}"
         if _STRICT:
             raise KeyError(msg)
         _warn(msg + " — ignoring.")
@@ -323,13 +324,14 @@ def _as_clamp(v: object) -> Optional[Clamp]:
         _warn(f"Clamp string malformed: '{v}' — ignoring clamp")
         return None
 
-    _warn(f"Unsupported clamp type {type(v).__name__} — ignoring clamp") # pyright: ignore[reportUnknownArgumentType]
+    _warn(f"Unsupported clamp type {type(v).__name__} — ignoring clamp")  # pyright: ignore[reportUnknownArgumentType]
     return None
 
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Coercers for typed dataclasses
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 def _coerce_buckets(v: object, name: str) -> dict[str, BucketSpec]:
     vm = _as_str_dict(v, ctx=f"Adapter '{name}': 'buckets'")
@@ -349,10 +351,14 @@ def _coerce_buckets(v: object, name: str) -> dict[str, BucketSpec]:
             out[bk] = BucketSpec()
             continue
 
-        bvm = _as_str_dict(cast(Mapping[object, object], bv), ctx=f"Adapter '{name}': bucket '{bk}'")
+        bvm = _as_str_dict(
+            cast(Mapping[object, object], bv), ctx=f"Adapter '{name}': bucket '{bk}'"
+        )
         unknown = set(bvm.keys()).difference(_ALLOWED_BUCKET_KEYS)
         if unknown:
-            msg = f"Adapter '{name}': bucket '{bk}' has unknown key(s): {', '.join(sorted(unknown))}"
+            msg = (
+                f"Adapter '{name}': bucket '{bk}' has unknown key(s): {', '.join(sorted(unknown))}"
+            )
             if _STRICT:
                 raise KeyError(msg)
             _warn(msg + " — ignoring.")
@@ -395,7 +401,9 @@ def _coerce_dimensions(v: object, name: str) -> dict[str, DimensionSpec]:
             _warn(msg + " — ignoring.")
             continue
 
-        dvm = _as_str_dict(cast(Mapping[object, object], dv), ctx=f"Adapter '{name}': dimension '{dk}'")
+        dvm = _as_str_dict(
+            cast(Mapping[object, object], dv), ctx=f"Adapter '{name}': dimension '{dk}'"
+        )
         unknown = set(dvm.keys()).difference(_ALLOWED_DIM_KEYS)
         if unknown:
             msg = f"Adapter '{name}': dimension '{dk}' has unknown key(s): {', '.join(sorted(unknown))}"
@@ -457,8 +465,16 @@ def _coerce_sniff(v: object, name: str) -> SniffSpec:
     any_headers = vm.get("require_any_headers")
     all_headers = vm.get("require_all_headers")
 
-    ra = _as_str_tuple(cast(object, any_headers)) if isinstance(any_headers, (list, tuple, str)) else ()
-    rl = _as_str_tuple(cast(object, all_headers)) if isinstance(all_headers, (list, tuple, str)) else ()
+    ra = (
+        _as_str_tuple(cast(object, any_headers))
+        if isinstance(any_headers, (list, tuple, str))
+        else ()
+    )
+    rl = (
+        _as_str_tuple(cast(object, all_headers))
+        if isinstance(all_headers, (list, tuple, str))
+        else ()
+    )
 
     return SniffSpec(
         require_any_headers=ra,
@@ -481,10 +497,14 @@ def _coerce_filters(v: object, name: str) -> dict[str, FilterSpec]:
             _warn(msg + " — ignoring.")
             continue
 
-        fvm = _as_str_dict(cast(Mapping[object, object], fv), ctx=f"Adapter '{name}': filter '{fk}'")
+        fvm = _as_str_dict(
+            cast(Mapping[object, object], fv), ctx=f"Adapter '{name}': filter '{fk}'"
+        )
         unknown = set(fvm.keys()).difference(_ALLOWED_FILTER_KEYS)
         if unknown:
-            msg = f"Adapter '{name}': filter '{fk}' has unknown key(s): {', '.join(sorted(unknown))}"
+            msg = (
+                f"Adapter '{name}': filter '{fk}' has unknown key(s): {', '.join(sorted(unknown))}"
+            )
             if _STRICT:
                 raise KeyError(msg)
             _warn(msg + " — ignoring.")
@@ -568,7 +588,9 @@ def _coerce_source(v: object, *, ctx: str) -> SourceSpec:
             kind=kind,
             field=str(m.get("field")) if m.get("field") is not None else None,
             expr=str(m.get("expr")) if m.get("expr") is not None else None,
-            const=_finite_float(m.get("const"), default=0.0) if m.get("const") is not None else None,
+            const=_finite_float(m.get("const"), default=0.0)
+            if m.get("const") is not None
+            else None,
         )
 
     has_field = "field" in m
@@ -606,7 +628,9 @@ def _coerce_transform(v: object, *, ctx: str) -> Optional[TransformSpec]:
         params["name"] = str(m.get("name", ""))
         params_obj = m.get("params")
         if isinstance(params_obj, Mapping):
-            pm = _as_str_dict(cast(Mapping[object, object], params_obj), ctx=f"{ctx}: transform.params")
+            pm = _as_str_dict(
+                cast(Mapping[object, object], params_obj), ctx=f"{ctx}: transform.params"
+            )
             for kk, vv in pm.items():
                 mv = _coerce_meta_value(vv, ctx=f"{ctx}: transform.params.{kk}")
                 if mv is not None:
@@ -673,7 +697,9 @@ def _coerce_score_profiles(v: object, name: str) -> dict[str, ScoreProfileSpec]:
             _warn(msg + " — ignoring.")
             continue
 
-        pvm = _as_str_dict(cast(Mapping[object, object], pv), ctx=f"Adapter '{name}': score profile '{pk}'")
+        pvm = _as_str_dict(
+            cast(Mapping[object, object], pv), ctx=f"Adapter '{name}': score profile '{pk}'"
+        )
         unknown = set(pvm.keys()).difference(_ALLOWED_SCORE_PROFILE_KEYS)
         if unknown:
             msg = f"Adapter '{name}': score profile '{pk}' has unknown key(s): {', '.join(sorted(unknown))}"
@@ -784,7 +810,9 @@ def load_spec(name: str) -> AdapterSpec:
     for i, m_item in enumerate(metrics_items):
         if not isinstance(m_item, Mapping):
             raise TypeError(f"Adapter '{name}': metrics[{i}] must be a mapping")
-        m = _as_str_dict(cast(Mapping[object, object], m_item), ctx=f"Adapter '{name}': metrics[{i}]")
+        m = _as_str_dict(
+            cast(Mapping[object, object], m_item), ctx=f"Adapter '{name}': metrics[{i}]"
+        )
 
         unknown = set(m.keys()).difference(_ALLOWED_METRIC_KEYS)
         if unknown:
@@ -833,20 +861,26 @@ def load_spec(name: str) -> AdapterSpec:
                 clamp=_as_clamp(m.get("clamp")),
                 invert=bool(m.get("invert", False)),
                 source=src,
-                transform=_coerce_transform(m.get("transform"), ctx=f"Adapter '{name}': metric '{mkey}'"),
+                transform=_coerce_transform(
+                    m.get("transform"), ctx=f"Adapter '{name}': metric '{mkey}'"
+                ),
             )
         )
 
     # Efficiency (unknown keys check; strict unknown bucket)
     eff_any = data.get("efficiency")
-    eff_items = _as_obj_list(eff_any, ctx=f"Adapter '{name}': 'efficiency'") if eff_any is not None else []
+    eff_items = (
+        _as_obj_list(eff_any, ctx=f"Adapter '{name}': 'efficiency'") if eff_any is not None else []
+    )
     eff_list: list[EffSpec] = []
     seen_eff: set[str] = set()
 
     for i, e_item in enumerate(eff_items):
         if not isinstance(e_item, Mapping):
             raise TypeError(f"Adapter '{name}': efficiency[{i}] must be a mapping")
-        e = _as_str_dict(cast(Mapping[object, object], e_item), ctx=f"Adapter '{name}': efficiency[{i}]")
+        e = _as_str_dict(
+            cast(Mapping[object, object], e_item), ctx=f"Adapter '{name}': efficiency[{i}]"
+        )
 
         unknown = set(e.keys()).difference(_ALLOWED_EFF_KEYS)
         if unknown:
@@ -890,7 +924,9 @@ def load_spec(name: str) -> AdapterSpec:
                 min_den=_finite_float(e.get("min_den", 1.0), default=1.0),
                 clamp=_as_clamp(e.get("clamp")),
                 invert=bool(e.get("invert", False)),
-                transform=_coerce_transform(e.get("transform"), ctx=f"Adapter '{name}': efficiency '{ekey}'"),
+                transform=_coerce_transform(
+                    e.get("transform"), ctx=f"Adapter '{name}': efficiency '{ekey}'"
+                ),
             )
         )
 

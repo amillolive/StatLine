@@ -20,9 +20,10 @@ def main() -> None:
         "statline.slapi.app:app",
         host=host,
         port=port,
-        reload=False,      # keep False on servers
-        workers=1          # gunicorn handles workers in production; CLI should stay simple
+        reload=False,  # keep False on servers
+        workers=1,  # gunicorn handles workers in production; CLI should stay simple
     )
+
 
 if __name__ == "__main__":
     main()

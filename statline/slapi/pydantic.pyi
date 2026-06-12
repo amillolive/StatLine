@@ -6,7 +6,6 @@ class BaseModel:
     model_config: ClassVar[Dict[str, Any]]
     __root__: Any
 
-
 T_co = TypeVar("T_co", covariant=True)
 
 def Field(*args: Any, **kwargs: Any) -> Any: ...

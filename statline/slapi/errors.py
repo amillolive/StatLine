@@ -13,9 +13,11 @@ if TYPE_CHECKING:
 # Base error types
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 @dataclass
 class SlapiError(Exception):
     """Base class for SLAPI errors."""
+
     message: str
     detail: Optional[object] = None
 

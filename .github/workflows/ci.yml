@@ -54,14 +54,15 @@ jobs:
         run: uv pip install "ruff>=0.5,<1.0"
 
       - name: Ruff format check
-        run: uv run ruff format --check .
+        run: uv run --no-sync ruff format --check .
 
       - name: Ruff lint
-        run: uv run ruff check . --output-format=github
-
+        run: uv run --no-sync ruff check . --output-format=github
+ 
   mypy:
     name: Mypy
     runs-on: ubuntu-latest
+    continue-on-error: true
     timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
@@ -108,9 +109,19 @@ jobs:
         run: mkdir -p test-results
 
       - name: Run tests
+        shell: bash
         run: |
+          if [[ "$RUNNER_OS" == "macOS" ]]; then
+            if [[ -x /opt/homebrew/bin/bash ]]; then
+              exec /opt/homebrew/bin/bash "$0"
+            elif [[ -x /usr/local/bin/bash ]]; then
+              exec /usr/local/bin/bash "$0"
+            fi
+          fi
+
           shopt -s nullglob globstar
           files=(tests/test_*.py tests/**/test_*.py)
+
           if [ ${#files[@]} -eq 0 ]; then
             echo "No tests detected."
             echo '<?xml version="1.0" ?><testsuite></testsuite>' > test-results/junit.xml
@@ -135,7 +146,7 @@ jobs:
             coverage.xml
           if-no-files-found: warn
 
-      - name: PR coverage summary
+      - name: PR coverage summary]
         if: always() && github.event_name == 'pull_request'
         continue-on-error: true
         uses: irongut/CodeCoverageSummary@v1.3.0

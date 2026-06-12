@@ -169,6 +169,7 @@ def _score_from_profile(
 
     return _affine01(raw01, 55.0, 99.0)
 
+
 def _midrank_percentiles(values: List[float]) -> List[float]:
     """
     Midrank percentile in [0..100], stable with ties.
@@ -421,7 +422,9 @@ def _parse_filter_payload(payload: Any, *, default_metric: str) -> Tuple[List[Di
     return preds, mode
 
 
-def _passes_predicates(row: Mapping[str, Any], preds: Sequence[Mapping[str, Any]], *, mode: str) -> bool:
+def _passes_predicates(
+    row: Mapping[str, Any], preds: Sequence[Mapping[str, Any]], *, mode: str
+) -> bool:
     """
     Generic predicate evaluator:
       - numeric ops compare floats when possible
@@ -436,7 +439,9 @@ def _passes_predicates(row: Mapping[str, Any], preds: Sequence[Mapping[str, Any]
         wants_numeric = op in ("<", "<=", ">", ">=")
         if not wants_numeric:
             # heuristic: if either side is numeric-ish, still try numeric
-            if isinstance(b_any, (int, float)) or (isinstance(b_any, str) and _NUM_RE.match(b_any.strip() or "")):
+            if isinstance(b_any, (int, float)) or (
+                isinstance(b_any, str) and _NUM_RE.match(b_any.strip() or "")
+            ):
                 wants_numeric = True
 
         if wants_numeric:
@@ -520,7 +525,9 @@ def _passes_declared_adapter_filters_typed(
         # Validate mode if schema declares allowed modes
         allowed_modes = set(spec.modes or ())
         if allowed_modes and mode not in allowed_modes:
-            raise ValueError(f"Filter '{fkey}' mode '{mode}' not in allowed modes={sorted(allowed_modes)}")
+            raise ValueError(
+                f"Filter '{fkey}' mode '{mode}' not in allowed modes={sorted(allowed_modes)}"
+            )
 
         # Validate ops if schema declares accepted ops
         accepts = set(spec.accepts or ())
@@ -531,7 +538,9 @@ def _passes_declared_adapter_filters_typed(
                     op = "=="
                     p["op"] = op
                 if op and op not in accepts:
-                    raise ValueError(f"Filter '{fkey}' uses op '{op}' not in accepts={sorted(accepts)}")
+                    raise ValueError(
+                        f"Filter '{fkey}' uses op '{op}' not in accepts={sorted(accepts)}"
+                    )
 
         if not _passes_predicates(row, preds, mode=mode):
             return False
@@ -544,7 +553,9 @@ def _passes_declared_adapter_filters_typed(
 # ──────────────────────────────────────────────────────────────────────────────
 
 
-def _passes_dimension_filters(raw: Mapping[str, Any], filters: Optional[Dict[str, Any]], adapter: Any) -> bool:
+def _passes_dimension_filters(
+    raw: Mapping[str, Any], filters: Optional[Dict[str, Any]], adapter: Any
+) -> bool:
     """
     Legacy convenience:
       - filters["dimensions"] = {"map": "MapA", ...}
@@ -559,7 +570,9 @@ def _passes_dimension_filters(raw: Mapping[str, Any], filters: Optional[Dict[str
         return True
 
     dim_filters_any = filters.get("dimensions")
-    dim_filters: Dict[str, Any] = dict(dim_filters_any) if isinstance(dim_filters_any, Mapping) else {}  # pyright: ignore[reportUnknownArgumentType]
+    dim_filters: Dict[str, Any] = (
+        dict(dim_filters_any) if isinstance(dim_filters_any, Mapping) else {}
+    )  # pyright: ignore[reportUnknownArgumentType]
 
     # also accept dimension keys at the top-level
     for dk in dims_any.keys():  # pyright: ignore[reportUnknownVariableType]
@@ -612,7 +625,13 @@ def passes_raw_filters(  # pyright: ignore[reportUnusedFunction]
             adapter,
             filters,
             kind="dimension",
-            reserved_filter_keys=("dimensions", "stat_where", "stat_where_mode", "position", "games_played_gte"),
+            reserved_filter_keys=(
+                "dimensions",
+                "stat_where",
+                "stat_where_mode",
+                "position",
+                "games_played_gte",
+            ),
         ):
             return False
 
@@ -693,7 +712,7 @@ def calculate_pri(
         mapped_rows: List[Dict[str, Any]] = [dict(row)]
         is_single = True
     else:
-        rows = cast(Iterable[Mapping[str, Any]], rows_or_row) # pyright: ignore[reportUnnecessaryCast]
+        rows = cast(Iterable[Mapping[str, Any]], rows_or_row)  # pyright: ignore[reportUnnecessaryCast]
         mapped_rows = [dict(r) for r in rows]
         is_single = False
 
@@ -735,7 +754,7 @@ def _calculate_pri_batch_mapped(
     """
     T = _timing
 
-    with (T.stage("spec") if T else nullcontext()):
+    with T.stage("spec") if T else nullcontext():
         metrics_spec = getattr(adapter, "metrics", []) or []
 
         metric_keys: List[str] = []
@@ -764,7 +783,7 @@ def _calculate_pri_batch_mapped(
 
         rows_used = mapped_rows
 
-    with (T.stage("caps") if T else nullcontext()):
+    with T.stage("caps") if T else nullcontext():
         if caps_override:
             ctx: Dict[str, Dict[str, float]] = {}
             for k, cap in caps_override.items():
@@ -801,20 +820,30 @@ def _calculate_pri_batch_mapped(
             for k in metric_keys:
                 xs = vals[k]
                 if not xs:
-                    ctx[k] = {"leader": 0.0, "floor": 1.0} if invert_map.get(k, False) else {"leader": 1.0, "floor": 0.0}
+                    ctx[k] = (
+                        {"leader": 0.0, "floor": 1.0}
+                        if invert_map.get(k, False)
+                        else {"leader": 1.0, "floor": 0.0}
+                    )
                     continue
                 lo = min(xs)
                 hi = max(xs)
-                ctx[k] = {"leader": lo, "floor": hi} if invert_map.get(k, False) else {"leader": hi, "floor": lo}
+                ctx[k] = (
+                    {"leader": lo, "floor": hi}
+                    if invert_map.get(k, False)
+                    else {"leader": hi, "floor": lo}
+                )
 
-    with (T.stage("ctx_used") if T else nullcontext()):
-        context_used = {k: {"leader": _ctx_get(ctx, k)[0], "floor": _ctx_get(ctx, k)[1]} for k in metric_keys}
+    with T.stage("ctx_used") if T else nullcontext():
+        context_used = {
+            k: {"leader": _ctx_get(ctx, k)[0], "floor": _ctx_get(ctx, k)[1]} for k in metric_keys
+        }
 
     # ──────────────────────────────────────────────────────────────────────────
     # Score profiles (typed) + weights alignment
     # ──────────────────────────────────────────────────────────────────────────
 
-    with (T.stage("profiles") if T else nullcontext()):
+    with T.stage("profiles") if T else nullcontext():
         profiles_in = getattr(adapter, "score_profiles", None) or {}  # pyright: ignore[reportUnknownVariableType]
         profiles: Dict[str, ScoreProfileSpec] = {}
         profile_order: List[str] = []
@@ -832,12 +861,16 @@ def _calculate_pri_batch_mapped(
         # Choose primary profile:
         # 1) Explicit PRI if present
         # 2) Otherwise first declared (stable order)
-        primary_name = "PRI" if "PRI" in profiles else (profile_order[0] if profile_order else next(iter(profiles)))
+        primary_name = (
+            "PRI"
+            if "PRI" in profiles
+            else (profile_order[0] if profile_order else next(iter(profiles)))
+        )
 
         primary_profile = profiles[primary_name]
         primary_default_preset = str(primary_profile.weights_profile or "pri").strip() or "pri"
 
-    with (T.stage("weights") if T else nullcontext()):
+    with T.stage("weights") if T else nullcontext():
         # Primary profile weights resolution
         pri_bucket_weights, pri_preset_used = _resolve_bucket_weights(
             adapter,
@@ -882,7 +915,7 @@ def _calculate_pri_batch_mapped(
             unit_w_by_profile[name] = normalize_weights(pm)
             preset_used_by_profile[name] = used
 
-    with (T.stage("score_rows") if T else nullcontext()):
+    with T.stage("score_rows") if T else nullcontext():
         buckets_def = getattr(adapter, "buckets", {}) or {}
         bucket_keys = list(buckets_def.keys())
 

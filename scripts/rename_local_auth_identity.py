@@ -34,14 +34,13 @@ TARGET_CURRENT_AUTH = True
 
 # ── INTERNALS ────────────────────────────────────────────────────────────────
 
+
 def qident(name: str) -> str:
     return '"' + name.replace('"', '""') + '"'
 
 
 def table_names(con: sqlite3.Connection) -> list[str]:
-    rows = con.execute(
-        "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
-    ).fetchall()
+    rows = con.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").fetchall()
     return [str(row[0]) for row in rows]
 
 
@@ -63,11 +62,7 @@ def update_exact(
     if old == new:
         return 0
 
-    sql = (
-        f"UPDATE {qident(table)} "
-        f"SET {qident(column)} = ? "
-        f"WHERE {qident(column)} = ?"
-    )
+    sql = f"UPDATE {qident(table)} SET {qident(column)} = ? WHERE {qident(column)} = ?"
 
     params: tuple[object, ...] = (new, old)
 

@@ -28,8 +28,10 @@ def _default_data_dir() -> Path:
         base = Path(xdg).expanduser() if xdg else Path.home() / ".local" / "share"
         return base / "statline"
 
+
 _DEFAULT_DIR = _default_data_dir()
 _DEFAULT_DB = _DEFAULT_DIR / "statline.db"
+
 
 def get_db_path() -> Path | str:
     env = os.getenv("STATLINE_DB")
@@ -44,6 +46,7 @@ def get_db_path() -> Path | str:
 def _ensure_parent(path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
 
+
 def _apply_pragmas(conn: sqlite3.Connection, *, read_only: bool, timeout_s: float) -> None:
     conn.execute("PRAGMA foreign_keys = ON")
     conn.execute(f"PRAGMA busy_timeout = {int(timeout_s * 1000)}")
@@ -56,9 +59,11 @@ def _apply_pragmas(conn: sqlite3.Connection, *, read_only: bool, timeout_s: floa
         conn.execute("PRAGMA synchronous = NORMAL")
         conn.execute(f"PRAGMA journal_size_limit = {32 * 1024 * 1024}")  # 33554432 bytes
 
+
 def _is_special_path(s: str) -> bool:
     """True for SQLite specials we shouldn't Path-ify."""
     return s == ":memory:" or s.startswith("file:")
+
 
 def connect(
     path: Path | str | None = None,
@@ -148,6 +153,7 @@ def connect(
     _apply_pragmas(conn, read_only=read_only, timeout_s=timeout)
     return conn
 
+
 @contextmanager
 def get_conn(
     path: Path | str | None = None,
@@ -163,6 +169,7 @@ def get_conn(
     finally:
         conn.close()
 
+
 @contextmanager
 def transaction(conn: sqlite3.Connection, name: Optional[str] = None) -> Iterator[None]:
     sp = name or f"sp_{id(conn)}_{os.getpid()}"
@@ -174,5 +181,6 @@ def transaction(conn: sqlite3.Connection, name: Optional[str] = None) -> Iterato
         conn.execute(f"ROLLBACK TO SAVEPOINT {sp}")
         conn.execute(f"RELEASE SAVEPOINT {sp}")
         raise
+
 
 __all__ = ["connect", "get_conn", "get_db_path", "transaction"]

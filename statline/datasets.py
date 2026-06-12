@@ -8,6 +8,7 @@ This module is intentionally small and dependency-light so external consumers ca
 Dataset names resolve flexibly against ``statline/data/stats`` while still allowing
 an explicit filesystem path for user-provided CSV files.
 """
+
 from __future__ import annotations
 
 import csv
@@ -35,7 +36,7 @@ def list_datasets(*, root: Optional[PathLike] = None) -> List[str]:
     base = Path(root) if root is not None else _DATASET_ROOT
     if not base.exists():
         return []
-    return sorted(str(p.relative_to(base)) for p in base.rglob("*.csv") if p.is_file())
+    return sorted(p.relative_to(base).as_posix() for p in base.rglob("*.csv") if p.is_file())
 
 
 def _candidate_dataset_paths(name: str, *, root: Optional[PathLike] = None) -> List[Path]:

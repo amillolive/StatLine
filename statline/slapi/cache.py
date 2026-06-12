@@ -17,6 +17,7 @@ from .storage.sqlite import get_conn
 #     guild_config(guild_id TEXT PRIMARY KEY, last_sync_ts INTEGER)
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 @dataclass(frozen=True)
 class ScopeConfig:
     scope: str
@@ -135,6 +136,7 @@ def _coerce_sync(fn: Callable[..., Any]) -> SyncFunc:
             return int(result if result is not None else 0)
         except Exception:
             return -1
+
     return runner
 
 
@@ -174,6 +176,7 @@ DEFAULT_SHEETS_TTL_SEC = 24 * 60 * 60
 # ──────────────────────────────────────────────────────────────────────────────
 # Freshness / TTL
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 def _stale_since(last_sync_ts: Optional[int], ttl_sec: int) -> bool:
     if not last_sync_ts:
@@ -231,6 +234,7 @@ def refresh_all_scopes(
 #   Legacy support (read-only):
 #     entities(guild_id, …) and metrics(guild_id, …)
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 def get_entities_for_scope(scope: str) -> List[Dict[str, Any]]:
     """
@@ -311,31 +315,46 @@ def get_distinct_metric_keys(scope: str) -> List[str]:
 #   Keep these briefly to ease migration; callers should switch to scope- APIs.
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 # Config / freshness
 def get_guild_config(guild_id: str) -> Optional[ScopeConfig]:  # DEPRECATED
     return get_scope_config(guild_id)
 
+
 def update_guild_config(guild_id: str, *, last_sync_ts: Optional[int]) -> None:  # DEPRECATED
     update_scope_config(guild_id, last_sync_ts=last_sync_ts)
+
 
 def iterate_guilds() -> Iterable[str]:  # DEPRECATED
     return iterate_scopes()
 
-def should_sync_guild(guild_id: str, *, ttl_sec: int = DEFAULT_SHEETS_TTL_SEC) -> bool:  # DEPRECATED
+
+def should_sync_guild(
+    guild_id: str, *, ttl_sec: int = DEFAULT_SHEETS_TTL_SEC
+) -> bool:  # DEPRECATED
     return should_sync_scope(guild_id, ttl_sec=ttl_sec)
 
-def sync_guild_if_stale(guild_id: str, *, ttl_sec: int = DEFAULT_SHEETS_TTL_SEC, force: bool = False) -> int:  # DEPRECATED
+
+def sync_guild_if_stale(
+    guild_id: str, *, ttl_sec: int = DEFAULT_SHEETS_TTL_SEC, force: bool = False
+) -> int:  # DEPRECATED
     return sync_scope_if_stale(guild_id, ttl_sec=ttl_sec, force=force)
 
-def refresh_all_guilds(*, ttl_sec: int = DEFAULT_SHEETS_TTL_SEC, force: bool = False) -> Dict[str, int]:  # DEPRECATED
+
+def refresh_all_guilds(
+    *, ttl_sec: int = DEFAULT_SHEETS_TTL_SEC, force: bool = False
+) -> Dict[str, int]:  # DEPRECATED
     return refresh_all_scopes(ttl_sec=ttl_sec, force=force)
+
 
 # Reads
 def get_entities_for_guild(guild_id: str) -> List[Dict[str, Any]]:  # DEPRECATED
     return get_entities_for_scope(guild_id)
 
+
 def get_metrics_for_guild(guild_id: str) -> List[Dict[str, Any]]:  # DEPRECATED
     return get_metrics_for_scope(guild_id)
+
 
 def get_distinct_metric_keys_for_guild(guild_id: str) -> List[str]:  # DEPRECATED
     return get_distinct_metric_keys(guild_id)

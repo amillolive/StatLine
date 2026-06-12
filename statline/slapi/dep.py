@@ -23,6 +23,7 @@ def require_any(*scopes: str) -> Callable[[Request], Awaitable[Principal]]:
       - Produces a Principal
       - Enforces at least one of the provided scopes (or '*')
     """
+
     async def dep(request: Request) -> Principal:
         try:
             principal = await require_principal(request)
@@ -48,6 +49,7 @@ def require_device_only() -> Callable[[Request], Awaitable[Dict[str, Any]]]:
 
     NOTE: This does NOT check an api_ token.
     """
+
     async def dep(request: Request) -> Dict[str, Any]:
         try:
             return await require_device(request)

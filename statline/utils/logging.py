@@ -12,6 +12,7 @@ from typing import Optional, TextIO
 # Example:
 #   STATLINE_LOG_LEVEL=DEBUG python -m statline
 
+
 def _parse_level(value: str | None) -> int:
     if not value:
         return logging.INFO

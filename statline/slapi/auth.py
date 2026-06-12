@@ -724,9 +724,9 @@ def admin_approve_enrollment(
                 row["device_pub_b64"],
                 now,
                 now,
-                cast(Optional[str], meta.get("hostname")), # pyright: ignore[reportUnknownMemberType]
-                cast(Optional[str], meta.get("os")), # pyright: ignore[reportUnknownMemberType]
-                cast(Optional[str], meta.get("cli_version")), # pyright: ignore[reportUnknownMemberType]
+                cast(Optional[str], meta.get("hostname")),  # pyright: ignore[reportUnknownMemberType]
+                cast(Optional[str], meta.get("os")),  # pyright: ignore[reportUnknownMemberType]
+                cast(Optional[str], meta.get("cli_version")),  # pyright: ignore[reportUnknownMemberType]
                 None,
             ),
         )
@@ -745,7 +745,9 @@ def admin_deny_enrollment(
 ) -> bool:
     conn = _connect()
     try:
-        row = conn.execute("SELECT status FROM enrollments WHERE request_id = ?", (request_id,)).fetchone()
+        row = conn.execute(
+            "SELECT status FROM enrollments WHERE request_id = ?", (request_id,)
+        ).fetchone()
         if row is None or row["status"] != "PENDING":
             return False
         conn.execute(
@@ -765,7 +767,9 @@ def admin_deny_enrollment(
 def admin_revoke_device(device_id: str, note: Optional[str] = None) -> bool:
     conn = _connect()
     try:
-        row = conn.execute("SELECT device_id FROM devices WHERE device_id = ?", (device_id,)).fetchone()
+        row = conn.execute(
+            "SELECT device_id FROM devices WHERE device_id = ?", (device_id,)
+        ).fetchone()
         if row is None:
             return False
         conn.execute(
@@ -825,7 +829,6 @@ def create_api_key_for_device(
         # req must be subset of *expanded* device scopes
         if not req_scopes.issubset(device_scopes):
             raise HTTPException(HTTP_403_FORBIDDEN, "Requested scopes exceed device approval")
-
 
         token = _new_apikey()
         prefix8 = token[4:12]
@@ -913,7 +916,9 @@ def admin_list_apikeys(org: Optional[str] = None) -> List[Dict[str, Any]]:
 def admin_set_apikey_access(prefix8: str, value: bool) -> bool:
     conn = _connect()
     try:
-        cur = conn.execute("UPDATE apikeys SET access = ? WHERE prefix8 = ?", (1 if value else 0, prefix8[:8]))
+        cur = conn.execute(
+            "UPDATE apikeys SET access = ? WHERE prefix8 = ?", (1 if value else 0, prefix8[:8])
+        )
         conn.commit()
         return cur.rowcount > 0
     finally:
@@ -968,7 +973,12 @@ async def require_device(request: Request) -> Dict[str, Any]:
     sig_b64 = str(request.headers.get(HDR_SIGNATURE, "")).strip()
 
     if not device_id or not ts_s or not nonce or not sig_b64:
-        _audit(event="auth.device.missing_headers", ok=False, request=request, detail="missing device proof headers")
+        _audit(
+            event="auth.device.missing_headers",
+            ok=False,
+            request=request,
+            detail="missing device proof headers",
+        )
         raise HTTPException(HTTP_401_UNAUTHORIZED, "Missing device proof headers")
 
     try:
@@ -979,7 +989,12 @@ async def require_device(request: Request) -> Dict[str, Any]:
 
     now = int(time.time())
     if abs(now - ts) > SIG_SKEW_SECONDS:
-        _audit(event="auth.device.timestamp_skew", ok=False, request=request, detail=f"skew={abs(now-ts)}")
+        _audit(
+            event="auth.device.timestamp_skew",
+            ok=False,
+            request=request,
+            detail=f"skew={abs(now - ts)}",
+        )
         raise HTTPException(HTTP_401_UNAUTHORIZED, "Device timestamp out of range")
 
     try:
@@ -987,7 +1002,12 @@ async def require_device(request: Request) -> Dict[str, Any]:
         if len(sig) != 64:
             raise ValueError("bad sig len")
     except Exception:
-        _audit(event="auth.device.bad_signature_encoding", ok=False, request=request, detail="bad signature b64")
+        _audit(
+            event="auth.device.bad_signature_encoding",
+            ok=False,
+            request=request,
+            detail="bad signature b64",
+        )
         raise HTTPException(HTTP_401_UNAUTHORIZED, "Invalid device signature encoding")
 
     body = await request.body()
@@ -1011,14 +1031,24 @@ async def require_device(request: Request) -> Dict[str, Any]:
         ).fetchone()
 
         if row is None:
-            _audit(event="auth.device.unknown", ok=False, request=request, device_id=device_id, detail="unknown device")
+            _audit(
+                event="auth.device.unknown",
+                ok=False,
+                request=request,
+                device_id=device_id,
+                detail="unknown device",
+            )
             raise HTTPException(HTTP_403_FORBIDDEN, "Unknown device")
 
         status = cast(str, row["status"])
         last_seen_at = float(row["last_seen_at"] or 0.0)
 
         # Auto-unenroll on inactivity (applies only if previously seen)
-        if status == "ACTIVE" and last_seen_at > 0 and (time.time() - last_seen_at) > INACTIVE_UNENROLL_SECONDS:
+        if (
+            status == "ACTIVE"
+            and last_seen_at > 0
+            and (time.time() - last_seen_at) > INACTIVE_UNENROLL_SECONDS
+        ):
             conn.execute(
                 """
                 UPDATE devices
@@ -1106,7 +1136,9 @@ async def require_device(request: Request) -> Dict[str, Any]:
         conn.close()
 
 
-def require_api_key(request: Request, *, expect_org: Optional[str] = None, expect_device_id: Optional[str] = None) -> Dict[str, Any]:
+def require_api_key(
+    request: Request, *, expect_org: Optional[str] = None, expect_device_id: Optional[str] = None
+) -> Dict[str, Any]:
     """
     Validate Authorization: Bearer api_xxx against the keystore.
     Optionally enforce org/device binding.
@@ -1136,21 +1168,45 @@ def require_api_key(request: Request, *, expect_org: Optional[str] = None, expec
         ).fetchone()
 
         if row is None:
-            _audit(event="auth.api.unknown_prefix", ok=False, request=request, api_prefix=prefix8, detail="unknown prefix")
+            _audit(
+                event="auth.api.unknown_prefix",
+                ok=False,
+                request=request,
+                api_prefix=prefix8,
+                detail="unknown prefix",
+            )
             raise HTTPException(HTTP_401_UNAUTHORIZED, "Invalid credentials")
 
         if not hmac.compare_digest(cast(str, row["key_hash"]), key_hash):
-            _audit(event="auth.api.hash_mismatch", ok=False, request=request, api_prefix=prefix8, detail="hash mismatch")
+            _audit(
+                event="auth.api.hash_mismatch",
+                ok=False,
+                request=request,
+                api_prefix=prefix8,
+                detail="hash mismatch",
+            )
             raise HTTPException(HTTP_401_UNAUTHORIZED, "Invalid credentials")
 
         if not bool(row["access"]):
-            _audit(event="auth.api.disabled", ok=False, request=request, api_prefix=prefix8, detail="disabled")
+            _audit(
+                event="auth.api.disabled",
+                ok=False,
+                request=request,
+                api_prefix=prefix8,
+                detail="disabled",
+            )
             raise HTTPException(HTTP_403_FORBIDDEN, "API key disabled")
 
         now = time.time()
         exp = row["expires_at"]
         if exp is not None and now > float(exp):
-            _audit(event="auth.api.expired", ok=False, request=request, api_prefix=prefix8, detail="expired")
+            _audit(
+                event="auth.api.expired",
+                ok=False,
+                request=request,
+                api_prefix=prefix8,
+                detail="expired",
+            )
             raise HTTPException(HTTP_403_FORBIDDEN, "API key expired")
 
         if expect_org is not None and cast(str, row["org"]) != expect_org:
@@ -1205,7 +1261,6 @@ async def require_principal(request: Request) -> Principal:
     raw_scopes = validate_scopes(raw_scopes)
     scopes = expand_scopes(raw_scopes)
 
-
     return Principal(
         org=str(a["org"]),
         subject=str(a["owner"]),
@@ -1214,15 +1269,18 @@ async def require_principal(request: Request) -> Principal:
         scopes=scopes,
     )
 
+
 def need(scope: str, p: Principal) -> None:
     if scope == "*" or scope in p.scopes:
         return
     raise HTTPException(HTTP_403_FORBIDDEN, "insufficient scope")
 
+
 def need_any(scopes: list[str], p: Principal) -> None:
     if any(s in p.scopes for s in scopes):
         return
     raise HTTPException(HTTP_403_FORBIDDEN, "insufficient scope")
+
 
 def need_all(scopes: list[str], p: Principal) -> None:
     if all(s in p.scopes for s in scopes):
@@ -1343,7 +1401,9 @@ def create_apikey_request(
         conn.close()
 
 
-def admin_list_apikey_requests(status: str = "PENDING", org: Optional[str] = None) -> List[Dict[str, Any]]:
+def admin_list_apikey_requests(
+    status: str = "PENDING", org: Optional[str] = None
+) -> List[Dict[str, Any]]:
     conn = _connect()
     try:
         if org:
@@ -1386,7 +1446,9 @@ def admin_list_apikey_requests(status: str = "PENDING", org: Optional[str] = Non
                     "decided_at": r["decided_at"],
                     "decided_by": r["decided_by"],
                     "decision_note": r["decision_note"],
-                    "approved_scopes": json.loads(r["approved_scopes_json"]) if r["approved_scopes_json"] else None,
+                    "approved_scopes": json.loads(r["approved_scopes_json"])
+                    if r["approved_scopes_json"]
+                    else None,
                     "claimed_at": r["claimed_at"],
                     "api_prefix": r["api_prefix"],
                 }
@@ -1417,7 +1479,9 @@ def admin_approve_apikey_request(
             return False
 
         device_id = cast(str, r["device_id"])
-        d = conn.execute("SELECT scopes_json, status FROM devices WHERE device_id = ?", (device_id,)).fetchone()
+        d = conn.execute(
+            "SELECT scopes_json, status FROM devices WHERE device_id = ?", (device_id,)
+        ).fetchone()
         if d is None or d["status"] != "ACTIVE":
             return False
 
@@ -1432,7 +1496,6 @@ def admin_approve_apikey_request(
 
         if not approved.issubset(requested) or not approved.issubset(device_scopes):
             return False
-
 
         now = time.time()
         conn.execute(
@@ -1461,7 +1524,9 @@ def admin_deny_apikey_request(
 ) -> bool:
     conn = _connect()
     try:
-        r = conn.execute("SELECT status FROM apikey_requests WHERE request_id = ?", (request_id,)).fetchone()
+        r = conn.execute(
+            "SELECT status FROM apikey_requests WHERE request_id = ?", (request_id,)
+        ).fetchone()
         if r is None or r["status"] != "PENDING":
             return False
         conn.execute(
@@ -1507,7 +1572,9 @@ def list_apikey_requests_for_device(device_id: str) -> List[Dict[str, Any]]:
                     "decided_at": r["decided_at"],
                     "decided_by": r["decided_by"],
                     "decision_note": r["decision_note"],
-                    "approved_scopes": json.loads(r["approved_scopes_json"]) if r["approved_scopes_json"] else None,
+                    "approved_scopes": json.loads(r["approved_scopes_json"])
+                    if r["approved_scopes_json"]
+                    else None,
                     "claimed_at": r["claimed_at"],
                     "api_prefix": r["api_prefix"],
                 }
@@ -1562,7 +1629,6 @@ def claim_apikey_request(*, request_id: str, device_id: str) -> Tuple[str, Dict[
 
         if not req_scopes.issubset(device_scopes):
             raise HTTPException(HTTP_403_FORBIDDEN, "Approved scopes exceed device approval")
-
 
         ttl_days = r["ttl_days"]
         ttl = int(ttl_days) if ttl_days is not None else 30

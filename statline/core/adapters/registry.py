@@ -33,9 +33,7 @@ def _discover() -> None:
         for alias in comp.aliases:
             ak = alias.lower()
             if ak in found and found[ak] is not comp:
-                raise ValueError(
-                    f"Alias '{alias}' from {comp.key} collides with another adapter"
-                )
+                raise ValueError(f"Alias '{alias}' from {comp.key} collides with another adapter")
             found[ak] = comp
 
     _CACHE.clear()
@@ -59,9 +57,7 @@ def load(name: str) -> CompiledAdapter:
     try:
         return _CACHE[key]
     except KeyError:
-        raise ValueError(
-            f"Unknown adapter '{name}'. Available: {', '.join(list_names())}"
-        )
+        raise ValueError(f"Unknown adapter '{name}'. Available: {', '.join(list_names())}")
 
 
 def refresh() -> None:

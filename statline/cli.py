@@ -104,12 +104,16 @@ app.add_typer(sys_app, name="sys")
 
 _BANNER_LINE: str = f"=== {CLI_NAME} v{CLI_VERSION} — Adapter-Driven Scoring ==="
 _BANNER_REGEX = re.compile(r"^===\s*StatLine\b.*===\s*$")
+
+
 def _print_banner() -> None:
     fg: Any = getattr(typer.colors, "CYAN", None)
     typer.secho(_BANNER_LINE, fg=fg, bold=True)
 
+
 def emit(s: str) -> None:
     print(s, end="" if s.endswith("\n") else "\n")
+
 
 def _normalize_ip(ip: Any) -> str:
     if not ip:
@@ -127,6 +131,7 @@ def _normalize_ip(ip: Any) -> str:
             s = host
 
     return s
+
 
 def _collapse_audit_rows(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     out: List[Dict[str, Any]] = []
@@ -146,7 +151,11 @@ def _collapse_audit_rows(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
                 and r.get("subject") == nxt.get("subject")
                 and r.get("ip") == nxt.get("ip")
             )
-            if same_triplet and r.get("event") == "auth.device.ok" and nxt.get("event") == "auth.api.ok":
+            if (
+                same_triplet
+                and r.get("event") == "auth.device.ok"
+                and nxt.get("event") == "auth.api.ok"
+            ):
                 merged = dict(nxt)  # keep api_prefix etc.
                 merged["event"] = "auth.ok"
                 # keep device_id if present on either
@@ -165,6 +174,7 @@ def _collapse_audit_rows(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         i += 1
 
     return out
+
 
 def ensure_banner() -> None:
     ctx = click.get_current_context(silent=True)
@@ -240,6 +250,7 @@ BUG_NOTES: Path = LOG_DIR / "bug-notes.log"
 SLAPI_PID_FILE: Path = LOG_DIR / "slapi.pid"
 SLAPI_OUT_LOG: Path = LOG_DIR / "slapi.out.log"
 SLAPI_ERR_LOG: Path = LOG_DIR / "slapi.err.log"
+
 
 def _log_note(path: Path, line: str) -> None:
     try:
@@ -320,7 +331,6 @@ def _write_text(p: Path, s: str) -> None:
     p.write_text(s, encoding="utf-8")
 
 
-
 def _describe_device() -> str:
     try:
         did = (_read_text(DEVICEID_PATH) or "").strip()
@@ -342,6 +352,7 @@ def _describe_auth_state() -> str:
 
 
 # ── base64url helpers ─────────────────────────────────────────────────────────
+
 
 def _b64url(data: bytes) -> str:
     return base64.urlsafe_b64encode(data).decode("ascii").rstrip("=")
@@ -385,11 +396,12 @@ def _read_device_id() -> str:
 def _read_apikey() -> str:
     s = (_read_text(APIKEY_PATH) or "").strip()
     if not s:
-        raise typer.BadParameter(f"Missing APIKEY at {APIKEY_PATH}. Run: statline auth apikey-request")
+        raise typer.BadParameter(
+            f"Missing APIKEY at {APIKEY_PATH}. Run: statline auth apikey-request"
+        )
     if not s.startswith("api_"):
         raise typer.BadParameter(f"{APIKEY_PATH} doesn’t look like an api_ token.")
     return s
-
 
 
 def _load_ed25519_private() -> Any:
@@ -404,7 +416,9 @@ def _load_ed25519_private() -> Any:
         ) from e
 
     if not DEVICEKEY_PATH.exists():
-        raise typer.BadParameter(f"Missing DEVICEKEY at {DEVICEKEY_PATH}. Run: statline auth device-init")
+        raise typer.BadParameter(
+            f"Missing DEVICEKEY at {DEVICEKEY_PATH}. Run: statline auth device-init"
+        )
 
     key_bytes = DEVICEKEY_PATH.read_bytes()
     try:
@@ -451,7 +465,9 @@ def _device_pub_b64_from_priv(priv: Any) -> str:
     from cryptography.hazmat.primitives import serialization
 
     pub = priv.public_key()
-    raw = pub.public_bytes(encoding=serialization.Encoding.Raw, format=serialization.PublicFormat.Raw)
+    raw = pub.public_bytes(
+        encoding=serialization.Encoding.Raw, format=serialization.PublicFormat.Raw
+    )
     return _b64url(raw)
 
 
@@ -521,6 +537,7 @@ def _headers(
         h.update(extra)
     return h
 
+
 @dataclass
 class SLAPIHttpError(Exception):
     status_code: int
@@ -544,9 +561,9 @@ def _pretty_detail(detail: Any) -> str:
     """
     try:
         if isinstance(detail, dict) and "detail" in detail:
-            d = detail["detail"] # pyright: ignore[reportUnknownVariableType]
+            d = detail["detail"]  # pyright: ignore[reportUnknownVariableType]
         else:
-            d = detail # pyright: ignore[reportUnknownVariableType]
+            d = detail  # pyright: ignore[reportUnknownVariableType]
 
         if isinstance(d, str):
             return d.strip()
@@ -554,33 +571,35 @@ def _pretty_detail(detail: Any) -> str:
         if isinstance(d, list):
             # Pydantic validation errors often arrive as list[dict]
             parts: List[str] = []
-            for it in d: # pyright: ignore[reportUnknownVariableType]
+            for it in d:  # pyright: ignore[reportUnknownVariableType]
                 if isinstance(it, dict):
-                    loc = it.get("loc") # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
-                    msg = it.get("msg") # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
-                    typ = it.get("type") # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+                    loc = it.get("loc")  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+                    msg = it.get("msg")  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+                    typ = it.get("type")  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
                     loc_s = ""
                     if isinstance(loc, (list, tuple)):
-                        loc_s = ".".join(str(x) for x in loc if str(x)) # pyright: ignore[reportUnknownVariableType, reportUnknownArgumentType]
+                        loc_s = ".".join(str(x) for x in loc if str(x))  # pyright: ignore[reportUnknownVariableType, reportUnknownArgumentType]
                     elif loc is not None:
-                        loc_s = str(loc) # pyright: ignore[reportUnknownArgumentType]
-                    blob = " / ".join([x for x in [loc_s, str(msg or "").strip(), str(typ or "").strip()] if x]) # pyright: ignore[reportUnknownArgumentType]
+                        loc_s = str(loc)  # pyright: ignore[reportUnknownArgumentType]
+                    blob = " / ".join(
+                        [x for x in [loc_s, str(msg or "").strip(), str(typ or "").strip()] if x]  # pyright: ignore[reportUnknownArgumentType]
+                    )  # pyright: ignore[reportUnknownArgumentType]
                     if blob:
                         parts.append(blob)
                 else:
-                    s = str(it).strip() # pyright: ignore[reportUnknownArgumentType]
+                    s = str(it).strip()  # pyright: ignore[reportUnknownArgumentType]
                     if s:
                         parts.append(s)
-            return "; ".join(parts) if parts else str(d) # pyright: ignore[reportUnknownArgumentType]
+            return "; ".join(parts) if parts else str(d)  # pyright: ignore[reportUnknownArgumentType]
 
         if isinstance(d, dict):
             # sometimes "detail" is a dict
             return json.dumps(d, ensure_ascii=False)
 
-        return str(d) # pyright: ignore[reportUnknownArgumentType]
+        return str(d)  # pyright: ignore[reportUnknownArgumentType]
     except Exception:
         try:
-            return str(detail) # pyright: ignore[reportUnknownArgumentType]
+            return str(detail)  # pyright: ignore[reportUnknownArgumentType]
         except Exception:
             return "unknown error"
 
@@ -590,9 +609,11 @@ _TS_KEY_RE = re.compile(
     re.IGNORECASE,
 )
 
+
 def _local_tz():
     # Local system tz (handles EST/EDT correctly if OS is configured)
     return datetime.now().astimezone().tzinfo or timezone.utc
+
 
 def _try_parse_iso(s: str) -> Optional[datetime]:
     s2 = s.strip()
@@ -610,10 +631,12 @@ def _try_parse_iso(s: str) -> Optional[datetime]:
     except Exception:
         return None
 
+
 def _format_dt_local(dt: datetime) -> str:
     loc = dt.astimezone(_local_tz())
     # Example: 2026-01-28 13:07:42 EST
     return loc.strftime("%Y-%m-%d %H:%M:%S %Z")
+
 
 def _maybe_format_timestamp(key: str, value: Any) -> Any:
     # Only rewrite if key strongly looks like a timestamp-ish field.
@@ -641,20 +664,22 @@ def _maybe_format_timestamp(key: str, value: Any) -> Any:
 
     return value
 
-def _group_audit(rows: List[Dict[str, Any]]) -> Dict[tuple, List[Dict[str, Any]]]: # pyright: ignore[reportMissingTypeArgument, reportUnknownParameterType]
-    groups: DefaultDict[tuple, List[Dict[str, Any]]] = defaultdict(list) # pyright: ignore[reportMissingTypeArgument, reportUnknownVariableType]
+
+def _group_audit(rows: List[Dict[str, Any]]) -> Dict[tuple, List[Dict[str, Any]]]:  # pyright: ignore[reportMissingTypeArgument, reportUnknownParameterType]
+    groups: DefaultDict[tuple, List[Dict[str, Any]]] = defaultdict(list)  # pyright: ignore[reportMissingTypeArgument, reportUnknownVariableType]
     for r in rows:
         org = r.get("org") or "-"
         sub = r.get("subject") or "-"
         dev = r.get("device_id") or "-"
         groups[(org, sub, dev)].append(r)
-    return dict(groups) # pyright: ignore[reportUnknownVariableType, reportUnknownArgumentType]
+    return dict(groups)  # pyright: ignore[reportUnknownVariableType, reportUnknownArgumentType]
+
 
 def _normalize_for_display(obj: Any) -> Any:
     if isinstance(obj, dict):
         out: Dict[str, Any] = {}
-        for k, v in obj.items(): # pyright: ignore[reportUnknownVariableType]
-            kk = str(k) # pyright: ignore[reportUnknownArgumentType]
+        for k, v in obj.items():  # pyright: ignore[reportUnknownVariableType]
+            kk = str(k)  # pyright: ignore[reportUnknownArgumentType]
             vv = _normalize_for_display(v)
             vv = _maybe_format_timestamp(kk, vv)
 
@@ -664,7 +689,7 @@ def _normalize_for_display(obj: Any) -> Any:
             out[kk] = vv
         return out
     if isinstance(obj, list):
-        return [_normalize_for_display(x) for x in obj] # pyright: ignore[reportUnknownVariableType]
+        return [_normalize_for_display(x) for x in obj]  # pyright: ignore[reportUnknownVariableType]
     return obj
 
 
@@ -678,6 +703,7 @@ def _dump_json_clean(obj: Any) -> str:
         default=str,  # last-resort for odd types
     )
 
+
 def echo_clean(obj: Any, *, pager: bool = True) -> None:
     """
     Pretty-print dict/list/anything as JSON.
@@ -689,12 +715,14 @@ def echo_clean(obj: Any, *, pager: bool = True) -> None:
         s += "\n"
 
     if pager and supports_internal_pager():
-        typer.echo_via_pager(s)
+        typer.echo_via_pager(s)  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
     else:
         typer.echo(s, nl=False)
 
+
 def supports_internal_pager() -> bool:
     return not sys.platform.startswith("win")
+
 
 def render_apikeys_view(data: Dict[str, Any]) -> None:
     keys = data.get("keys", [])
@@ -704,16 +732,18 @@ def render_apikeys_view(data: Dict[str, Any]) -> None:
 
     rows = []
     for k in keys:
-        rows.append({ # pyright: ignore[reportUnknownMemberType]
-            "Prefix": k.get("prefix", "-"),
-            "Owner": k.get("owner", "-"),
-            "Org": k.get("org", "-"),
-            "Scopes": ",".join(k.get("scopes", [])),
-            "Device": k.get("device_id", "-")[:8],
-            "Access": "✓" if k.get("access") else "✗",
-            "Expires": k.get("expires_at", "-"),
-            "Last Used": k.get("last_used_at", "-"),
-        })
+        rows.append(  # pyright: ignore[reportUnknownMemberType]
+            {  # pyright: ignore[reportUnknownMemberType]
+                "Prefix": k.get("prefix", "-"),
+                "Owner": k.get("owner", "-"),
+                "Org": k.get("org", "-"),
+                "Scopes": ",".join(k.get("scopes", [])),
+                "Device": k.get("device_id", "-")[:8],
+                "Access": "✓" if k.get("access") else "✗",
+                "Expires": k.get("expires_at", "-"),
+                "Last Used": k.get("last_used_at", "-"),
+            }
+        )
 
     cols = [
         ("Prefix", "Prefix"),
@@ -726,15 +756,17 @@ def render_apikeys_view(data: Dict[str, Any]) -> None:
         ("Last Used", "Last Used"),
     ]
 
-    print(_render_table(rows, cols)) # pyright: ignore[reportUnknownArgumentType]
+    print(_render_table(rows, cols))  # pyright: ignore[reportUnknownArgumentType]
+
 
 def echo_clean_auto(obj: Any) -> None:
     norm = _normalize_for_display(obj)
-    if isinstance(norm, dict) and isinstance(norm.get("audit"), list) and norm["audit"]: # pyright: ignore[reportUnknownMemberType]
-        text = _render_audit_pages(norm["audit"], per_page=50) # pyright: ignore[reportUnknownArgumentType]
-        typer.echo_via_pager(text)
+    if isinstance(norm, dict) and isinstance(norm.get("audit"), list) and norm["audit"]:  # pyright: ignore[reportUnknownMemberType]
+        text = _render_audit_pages(norm["audit"], per_page=50)  # pyright: ignore[reportUnknownArgumentType]
+        typer.echo_via_pager(text)  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
         return
     echo_clean(norm, pager=True)
+
 
 def _raise_for_status(resp: Any) -> None:
     code = getattr(resp, "status_code", None)
@@ -759,12 +791,13 @@ def _raise_for_status(resp: Any) -> None:
     raise SLAPIHttpError(status_code=int(code), message="Request failed", detail=dpretty)
 
 
-def _is_http_404(err: BaseException) -> bool: # pyright: ignore[reportUnusedFunction]
+def _is_http_404(err: BaseException) -> bool:  # pyright: ignore[reportUnusedFunction]
     s = str(err)
     return ("SLAPI 404" in s) or (" 404" in s) or ("Not Found" in s)
 
 
 # ── HTTP client helpers ───────────────────────────────────────────────────────
+
 
 def _http_get(
     path: str,
@@ -809,7 +842,11 @@ def _http_post(
 
     auth = _auth_for_path(path)
 
-    body = b"" if payload is None else json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    body = (
+        b""
+        if payload is None
+        else json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    )
     headers = _headers("POST", target, body, extra=extra_headers, auth=auth)
     try:
         if _http_lib == "httpx" and hasattr(_http, "Client"):
@@ -863,6 +900,7 @@ def _http_delete(
 
 # ── v3 request wrappers ───────────────────────────────────────────────────────
 
+
 def _get_v3(path_v3: str, *, params: Optional[Dict[str, Any]] = None) -> Any:
     return _http_get(path_v3, params=params)
 
@@ -876,6 +914,7 @@ def _delete_v3(path_v3: str, *, params: Optional[Dict[str, Any]] = None) -> Any:
 
 
 # ── Reachability probe & runtime banner ───────────────────────────────────────
+
 
 def _tcp_probe(base_url: str, timeout: float = 1.5) -> bool:
     """Best-effort TCP reachability check to decide online vs local mode."""
@@ -940,6 +979,7 @@ def _print_mode_banner(*, reachable: bool, authed: bool, url: str, mode: Mode) -
 
 
 # ── dataset picker ────────────────────────────────────────────────────────────
+
 
 def api_list_datasets() -> List[Dict[str, str]]:
     """GET /v3/datasets -> {"datasets": ["file.csv", ...]}."""
@@ -1020,6 +1060,7 @@ class _ViewRow(TypedDict):  # pyright: ignore[reportUnusedClass]
 
 # ── YAML support (optional) ───────────────────────────────────────────────────
 
+
 class _YamlLikeProtocol:
     CSafeLoader: Any
     SafeLoader: Any
@@ -1050,6 +1091,7 @@ def _yaml_load_text(text: str) -> Any:
 
 # ── IO helpers ────────────────────────────────────────────────────────────────
 
+
 def _read_rows(input_path: Path) -> Iterable[Row]:
     if str(input_path) == "-":
         reader = csv.DictReader(sys.stdin)
@@ -1057,7 +1099,9 @@ def _read_rows(input_path: Path) -> Iterable[Row]:
             yield {str(k): v for k, v in row.items()}
         return
     if not input_path.exists():
-        raise typer.BadParameter(f"Input file not found: {input_path}. Pass a YAML/CSV or use '-' for stdin.")
+        raise typer.BadParameter(
+            f"Input file not found: {input_path}. Pass a YAML/CSV or use '-' for stdin."
+        )
     suffix = input_path.suffix.lower()
     if suffix in {".yaml", ".yml"}:
         data_text = input_path.read_text(encoding="utf-8")
@@ -1144,6 +1188,7 @@ def _name_for_row(raw: Mapping[str, Any], preferred: Optional[List[str]] = None)
 
 
 # ── Formatting helpers ────────────────────────────────────────────────────────
+
 
 def _slug_profile_key(name: str) -> str:
     return str(name).strip().lower().replace("-", "_").replace(" ", "_")
@@ -1258,13 +1303,12 @@ def _split_csvish(items: List[str]) -> List[str]:
     return out
 
 
-
-
 def _context_label(value: Any, fallback: str) -> str:
     """Keep CLI tables readable when the scorer returns the full context map."""
     if isinstance(value, str) and value.strip():
         return value.strip()
     return fallback
+
 
 def _format_cell(key: str, v: Any) -> str:
     if v is None:
@@ -1285,33 +1329,43 @@ def _format_cell(key: str, v: Any) -> str:
 class _CsvWriterProtocol:
     def writerow(self, row: Iterable[Any], /) -> Any: ...
 
-def render_table(rows: list[dict], cols: list[str]) -> str: # pyright: ignore[reportMissingTypeArgument, reportUnknownParameterType]
+
+def render_table(rows: list[dict], cols: list[str]) -> str:  # pyright: ignore[reportMissingTypeArgument, reportUnknownParameterType]
     # compute widths
-    widths = {c: max(len(c), *(len(str(r.get(c, ""))) for r in rows)) for c in cols} # pyright: ignore[reportUnknownVariableType, reportUnknownMemberType, reportUnknownArgumentType]
-    def fmt_row(r): # pyright: ignore[reportMissingParameterType, reportUnknownParameterType]
-        return "  ".join(str(r.get(c, "")).ljust(widths[c]) for c in cols) # pyright: ignore[reportUnknownArgumentType, reportUnknownMemberType]
+    widths = {c: max(len(c), *(len(str(r.get(c, ""))) for r in rows)) for c in cols}  # pyright: ignore[reportUnknownVariableType, reportUnknownMemberType, reportUnknownArgumentType]
+
+    def fmt_row(r):  # pyright: ignore[reportMissingParameterType, reportUnknownParameterType]
+        return "  ".join(str(r.get(c, "")).ljust(widths[c]) for c in cols)  # pyright: ignore[reportUnknownArgumentType, reportUnknownMemberType]
 
     out = []
-    out.append("  ".join(c.ljust(widths[c]) for c in cols)) # pyright: ignore[reportUnknownMemberType]
-    out.append("  ".join("-" * widths[c] for c in cols)) # pyright: ignore[reportUnknownMemberType]
-    for r in rows: # pyright: ignore[reportUnknownVariableType]
-        out.append(fmt_row(r)) # pyright: ignore[reportUnknownMemberType]
-    return "\n".join(out) # pyright: ignore[reportUnknownArgumentType]
+    out.append("  ".join(c.ljust(widths[c]) for c in cols))  # pyright: ignore[reportUnknownMemberType]
+    out.append("  ".join("-" * widths[c] for c in cols))  # pyright: ignore[reportUnknownMemberType]
+    for r in rows:  # pyright: ignore[reportUnknownVariableType]
+        out.append(fmt_row(r))  # pyright: ignore[reportUnknownMemberType]
+    return "\n".join(out)  # pyright: ignore[reportUnknownArgumentType]
+
 
 def _render_audit_pages(rows: List[Dict[str, Any]], *, per_page: int = 50) -> str:
     # Normalize & collapse
     rows = _collapse_audit_rows(rows)
 
     # Group
-    groups = _group_audit(rows) # pyright: ignore[reportUnknownVariableType]
+    groups = _group_audit(rows)  # pyright: ignore[reportUnknownVariableType]
 
     # Stable ordering: org, subject, device, newest first in each group
-    ordered_keys = sorted(groups.keys(), key=lambda k: (str(k[0]), str(k[1]), str(k[2]))) # pyright: ignore[reportUnknownLambdaType, reportUnknownArgumentType, reportUnknownVariableType]
+    ordered_keys = sorted(groups.keys(), key=lambda k: (str(k[0]), str(k[1]), str(k[2])))  # pyright: ignore[reportUnknownLambdaType, reportUnknownArgumentType, reportUnknownVariableType]
 
     parts: List[str] = []
-    cols = ["ts", "event", "ok", "api_prefix", "ip", "id"]  # keep tight; subject/org/device go in header
+    cols = [
+        "ts",
+        "event",
+        "ok",
+        "api_prefix",
+        "ip",
+        "id",
+    ]  # keep tight; subject/org/device go in header
 
-    for (org, sub, dev) in ordered_keys: # pyright: ignore[reportUnknownVariableType]
+    for org, sub, dev in ordered_keys:  # pyright: ignore[reportUnknownVariableType]
         g = groups[(org, sub, dev)]
 
         # newest first if ts is sortable string; if not, keep as-is
@@ -1322,7 +1376,7 @@ def _render_audit_pages(rows: List[Dict[str, Any]], *, per_page: int = 50) -> st
 
         # Chunk into “pages” of 40-50 within the section if needed
         for chunk_i in range(0, len(g_sorted), per_page):
-            chunk = g_sorted[chunk_i:chunk_i + per_page]
+            chunk = g_sorted[chunk_i : chunk_i + per_page]
             if chunk_i > 0:
                 parts.append(f"-- continued ({chunk_i}/{len(g_sorted)}) --")
 
@@ -1332,6 +1386,7 @@ def _render_audit_pages(rows: List[Dict[str, Any]], *, per_page: int = 50) -> st
         parts.append("")  # extra spacer between principals
 
     return "\n".join(parts).rstrip() + "\n"
+
 
 def _render_table(rows: Rows, cols: List[Tuple[str, str]], limit: int = 0) -> str:
     view = rows[: (limit or len(rows))]
@@ -1365,7 +1420,9 @@ def _render_table(rows: Rows, cols: List[Tuple[str, str]], limit: int = 0) -> st
     out_lines.append("| " + " | ".join(hdr.ljust(widths[hdr]) for hdr, _ in cols) + " |")
     out_lines.append(line("="))
     for row in matrix:
-        out_lines.append("| " + " | ".join(row.get(hdr, "").ljust(widths[hdr]) for hdr, _ in cols) + " |")
+        out_lines.append(
+            "| " + " | ".join(row.get(hdr, "").ljust(widths[hdr]) for hdr, _ in cols) + " |"
+        )
     out_lines.append(line("-"))
     return "\n".join(out_lines)
 
@@ -1403,6 +1460,7 @@ def _render_md(rows: Rows, cols: List[Tuple[str, str]], limit: int = 0) -> str:
 
 
 # ── Filters/dimensions (adapter-defined; best-effort introspection) ───────────
+
 
 def _as_str_list(x: Any) -> List[str]:
     if x is None:
@@ -1496,7 +1554,7 @@ def _parse_kv_items(items: List[str]) -> Dict[str, Any]:
         else:
             # numeric if possible
             if v.lower() in {"true", "false"}:
-                out[k] = (v.lower() == "true")
+                out[k] = v.lower() == "true"
             else:
                 try:
                     out[k] = int(v)
@@ -1509,6 +1567,7 @@ def _parse_kv_items(items: List[str]) -> Dict[str, Any]:
 
 
 # ── API facades (v3-only remote, local fallback) ─────────────────────────────────
+
 
 def api_adapter_metric_keys(adapter: str) -> List[str]:
     if not _online or _mode == "local":
@@ -1539,7 +1598,9 @@ def api_adapter_metric_keys(adapter: str) -> List[str]:
     try:
         data = _get_v3(f"/v3/adapter/{adapter}/metric-keys")
         items = data.get("keys", [])
-        return [str(x).strip() for x in items if isinstance(x, (str, int, float)) and str(x).strip()]
+        return [
+            str(x).strip() for x in items if isinstance(x, (str, int, float)) and str(x).strip()
+        ]
     except Exception:
         return []
 
@@ -1565,7 +1626,9 @@ def api_adapter_weight_presets(adapter: str) -> List[str]:
     return []
 
 
-def _resolve_local_weights(adp: Any, w: Optional[Union[Dict[str, Any], str]]) -> Optional[Dict[str, float]]:
+def _resolve_local_weights(
+    adp: Any, w: Optional[Union[Dict[str, Any], str]]
+) -> Optional[Dict[str, float]]:
     if w is None:
         return None
     if isinstance(w, str):
@@ -1624,7 +1687,9 @@ def _local_fallback_score_row(
     caps_override: Optional[Dict[str, float]],
     filters: Optional[Dict[str, Any]],
 ) -> Row:
-    res = _local_fallback_score_batch(adapter, [row], weights_override, context, caps_override, filters)
+    res = _local_fallback_score_batch(
+        adapter, [row], weights_override, context, caps_override, filters
+    )
     return res[0] if res else {"pri": 99, "pri_raw": 1.0, "context_used": "local-fallback"}
 
 
@@ -1645,8 +1710,7 @@ def api_list_adapters() -> List[str]:
         _log_note(TAMPER_NOTES, f"[auth-reject] {desc} :: {e}")
         _fallback_banner("Not authenticated")
         typer.secho(
-            f"Auth failed: {e}\n{desc}\n"
-            "Continuing in demo/local mode.",
+            f"Auth failed: {e}\n{desc}\nContinuing in demo/local mode.",
             fg=typer.colors.YELLOW,
         )
         return _local_adapter_names()
@@ -1669,7 +1733,9 @@ def api_score_batch(
     filters: Optional[Dict[str, Any]],
 ) -> Rows:
     if not _online or _mode == "local":
-        return _local_fallback_score_batch(adapter, rows, weights_override, context, caps_override, filters)
+        return _local_fallback_score_batch(
+            adapter, rows, weights_override, context, caps_override, filters
+        )
 
     payload = {
         "adapter": adapter,
@@ -1687,15 +1753,21 @@ def api_score_batch(
     except PermissionError as e:
         _log_note(BUG_NOTES, f"[score-batch auth] {_describe_auth_state()} :: {e}")
         _fallback_banner("Auth to host refused")
-        return _local_fallback_score_batch(adapter, rows, weights_override, context, caps_override, filters)
+        return _local_fallback_score_batch(
+            adapter, rows, weights_override, context, caps_override, filters
+        )
     except ConnectionError as e:
         _log_note(BUG_NOTES, f"[score-batch connect] {_slapi_url} :: {e}")
         _fallback_banner("Connection failed; treating as offline")
-        return _local_fallback_score_batch(adapter, rows, weights_override, context, caps_override, filters)
+        return _local_fallback_score_batch(
+            adapter, rows, weights_override, context, caps_override, filters
+        )
     except Exception as e:
         _log_note(BUG_NOTES, f"[score-batch unexpected] {e!r}")
         _fallback_banner("Unexpected API error")
-        return _local_fallback_score_batch(adapter, rows, weights_override, context, caps_override, filters)
+        return _local_fallback_score_batch(
+            adapter, rows, weights_override, context, caps_override, filters
+        )
 
 
 def api_score_row(
@@ -1707,7 +1779,9 @@ def api_score_row(
     filters: Optional[Dict[str, Any]],
 ) -> Row:
     if not _online or _mode == "local":
-        return _local_fallback_score_row(adapter, row, weights_override, context, caps_override, filters)
+        return _local_fallback_score_row(
+            adapter, row, weights_override, context, caps_override, filters
+        )
 
     payload = {
         "adapter": adapter,
@@ -1723,15 +1797,21 @@ def api_score_row(
     except PermissionError as e:
         _log_note(BUG_NOTES, f"[score-row auth] {_describe_auth_state()} :: {e}")
         _fallback_banner("Auth to host refused")
-        return _local_fallback_score_row(adapter, row, weights_override, context, caps_override, filters)
+        return _local_fallback_score_row(
+            adapter, row, weights_override, context, caps_override, filters
+        )
     except ConnectionError as e:
         _log_note(BUG_NOTES, f"[score-row connect] {_slapi_url} :: {e}")
         _fallback_banner("Connection failed; treating as offline")
-        return _local_fallback_score_row(adapter, row, weights_override, context, caps_override, filters)
+        return _local_fallback_score_row(
+            adapter, row, weights_override, context, caps_override, filters
+        )
     except Exception as e:
         _log_note(BUG_NOTES, f"[score-row unexpected] {e!r}")
         _fallback_banner("Unexpected API error")
-        return _local_fallback_score_row(adapter, row, weights_override, context, caps_override, filters)
+        return _local_fallback_score_row(
+            adapter, row, weights_override, context, caps_override, filters
+        )
 
 
 def api_calc_pri_single(
@@ -1749,7 +1829,12 @@ def api_calc_pri_single(
         # If filters are present, or the row is raw-ish, use /v3/pri/row instead
         # (RAW -> MAPPED -> PRI in one call) which *does* accept ScoreRowIn shape.
         if filters:
-            payload = {"adapter": adapter, "row": row, "weights": weights_override, "filters": filters}
+            payload = {
+                "adapter": adapter,
+                "row": row,
+                "weights": weights_override,
+                "filters": filters,
+            }
             data = _post_v3("/v3/pri/row", payload)
             return cast(Row, data)
 
@@ -1823,7 +1908,10 @@ def api_pri_batch(
 
     if not _online or _mode == "local":
         if caps == "clamps":
-            return [_local_fallback_score_row(adapter, r, weights_override, None, None, filters) for r in rows]
+            return [
+                _local_fallback_score_row(adapter, r, weights_override, None, None, filters)
+                for r in rows
+            ]
         return _local_fallback_score_batch(adapter, rows, weights_override, None, None, filters)
 
     payload = {
@@ -1841,23 +1929,33 @@ def api_pri_batch(
         _log_note(BUG_NOTES, f"[pri-batch auth] {_describe_auth_state()} :: {e}")
         _fallback_banner("Auth to host refused")
         if caps == "clamps":
-            return [_local_fallback_score_row(adapter, r, weights_override, None, None, filters) for r in rows]
+            return [
+                _local_fallback_score_row(adapter, r, weights_override, None, None, filters)
+                for r in rows
+            ]
         return _local_fallback_score_batch(adapter, rows, weights_override, None, None, filters)
     except ConnectionError as e:
         _log_note(BUG_NOTES, f"[pri-batch connect] {_slapi_url} :: {e}")
         _fallback_banner("Connection failed; treating as offline")
         if caps == "clamps":
-            return [_local_fallback_score_row(adapter, r, weights_override, None, None, filters) for r in rows]
+            return [
+                _local_fallback_score_row(adapter, r, weights_override, None, None, filters)
+                for r in rows
+            ]
         return _local_fallback_score_batch(adapter, rows, weights_override, None, None, filters)
     except Exception as e:
         _log_note(BUG_NOTES, f"[pri-batch unexpected] {e!r}")
         _fallback_banner("Unexpected API error")
         if caps == "clamps":
-            return [_local_fallback_score_row(adapter, r, weights_override, None, None, filters) for r in rows]
+            return [
+                _local_fallback_score_row(adapter, r, weights_override, None, None, filters)
+                for r in rows
+            ]
         return _local_fallback_score_batch(adapter, rows, weights_override, None, None, filters)
 
 
 # ── root options & helpers ────────────────────────────────────────────────────
+
 
 def _resolve_timing(ctx: typer.Context, local: Optional[bool]) -> bool:
     if local is not None:
@@ -1957,7 +2055,9 @@ def _root(
 
     if _mode == "remote":
         if not _reachable:
-            raise typer.BadParameter(f"SLAPI remote mode requires a reachable server at {_slapi_url}.")
+            raise typer.BadParameter(
+                f"SLAPI remote mode requires a reachable server at {_slapi_url}."
+            )
         if not _online:
             raise typer.BadParameter(
                 "SLAPI remote mode requires a fully authenticated principal.\n"
@@ -1987,6 +2087,7 @@ app.callback(invoke_without_command=True)(_root)
 # Sys helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 @sys_app.command("status")
 def sys_status() -> None:
     """Print runtime mode, SLAPI reachability, and auth material paths."""
@@ -2009,6 +2110,7 @@ def sys_status() -> None:
 # Auth (v3+)
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 @auth_app.command("status")
 def auth_status() -> None:
     """Show local auth material and (if possible) server principal info."""
@@ -2027,7 +2129,9 @@ def auth_status() -> None:
 
 
 @auth_app.command("device-init")
-def auth_device_init(force: bool = typer.Option(False, "--force", help="Overwrite existing DEVICEKEY.")) -> None:
+def auth_device_init(
+    force: bool = typer.Option(False, "--force", help="Overwrite existing DEVICEKEY."),
+) -> None:
     """Create an Ed25519 device keypair and store it in secrets/DEVICEKEY."""
     ensure_banner()
     priv = _ensure_ed25519_keypair(force=force)
@@ -2093,23 +2197,31 @@ def auth_device_info() -> None:
     """Device-proof sanity check: returns the server-side device record."""
     ensure_banner()
     if _mode == "local":
-        raise typer.BadParameter("Device info requires SLAPI. Re-run with --mode auto or --mode remote.")
+        raise typer.BadParameter(
+            "Device info requires SLAPI. Re-run with --mode auto or --mode remote."
+        )
     data = _get_v3("/v3/auth/device")
     render_apikeys_view(data)
 
 
 @auth_app.command("apikey-request")
 def auth_apikey_request(
-    owner: Optional[str] = typer.Option(None, "--owner", help="Optional owner label (defaults to host)."),
+    owner: Optional[str] = typer.Option(
+        None, "--owner", help="Optional owner label (defaults to host)."
+    ),
     scopes: List[str] = typer.Option([], "--scope", help="Scope (repeatable)."),
     ttl_days: Optional[int] = typer.Option(None, "--ttl-days", help="Requested TTL in days."),
 ) -> None:
     """Create an API key request (requires enrolled ACTIVE device; device-proof only)."""
     ensure_banner()
     if _mode == "local":
-        raise typer.BadParameter("API key request requires SLAPI. Re-run with --mode auto or --mode remote.")
+        raise typer.BadParameter(
+            "API key request requires SLAPI. Re-run with --mode auto or --mode remote."
+        )
     if not _has_device() or not _has_device_id():
-        raise typer.BadParameter("Device not enrolled. Run: statline auth device-init  (then)  statline auth enroll ...")
+        raise typer.BadParameter(
+            "Device not enrolled. Run: statline auth device-init  (then)  statline auth enroll ..."
+        )
 
     payload: Dict[str, Any] = {
         "owner": owner or platform.node(),
@@ -2120,7 +2232,9 @@ def auth_apikey_request(
     rid = data.get("request_id")
     typer.secho("API key request created.", fg=typer.colors.GREEN, bold=True)
     typer.echo(f"  request_id: {rid}")
-    typer.echo("Ask an admin to approve this request, then claim it with: statline auth apikey-claim --request-id <id>")
+    typer.echo(
+        "Ask an admin to approve this request, then claim it with: statline auth apikey-claim --request-id <id>"
+    )
 
 
 @auth_app.command("apikey-claim")
@@ -2131,7 +2245,9 @@ def auth_apikey_claim(
     """Claim an approved API key (requires enrolled device; device-proof only)."""
     ensure_banner()
     if _mode == "local":
-        raise typer.BadParameter("API key claim requires SLAPI. Re-run with --mode auto or --mode remote.")
+        raise typer.BadParameter(
+            "API key claim requires SLAPI. Re-run with --mode auto or --mode remote."
+        )
     if not _has_device() or not _has_device_id():
         raise typer.BadParameter("Device not enrolled.")
 
@@ -2164,7 +2280,9 @@ def auth_apikeys() -> None:
     """List API keys for the active device (device-proof only)."""
     ensure_banner()
     if _mode == "local":
-        raise typer.BadParameter("apikeys requires SLAPI. Re-run with --mode auto or --mode remote.")
+        raise typer.BadParameter(
+            "apikeys requires SLAPI. Re-run with --mode auto or --mode remote."
+        )
     data = _get_v3("/v3/auth/apikeys")
     render_apikeys_view(data)
 
@@ -2172,6 +2290,7 @@ def auth_apikeys() -> None:
 # ─────────────────────────────────────────────────────────────────────────────
 # Moderation (v3/mod/*) — requires moderation scope
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 @mod_app.command("audit")
 def mod_audit(
@@ -2191,7 +2310,6 @@ def mod_audit(
     echo_clean_auto(data)
 
 
-
 @mod_app.command("apikeys")
 def mod_apikeys(org: Optional[str] = typer.Option(None, "--org")) -> None:
     ensure_banner()
@@ -2202,7 +2320,9 @@ def mod_apikeys(org: Optional[str] = typer.Option(None, "--org")) -> None:
 
 
 @mod_app.command("apikey-access")
-def mod_apikey_access(prefix: str = typer.Argument(...), value: bool = typer.Option(..., "--value")) -> None:
+def mod_apikey_access(
+    prefix: str = typer.Argument(...), value: bool = typer.Option(..., "--value")
+) -> None:
     ensure_banner()
     if _mode == "local":
         raise typer.BadParameter("Moderation requires SLAPI. Re-run with --mode remote.")
@@ -2224,11 +2344,15 @@ def mod_revoke_apikey(prefix: str = typer.Argument(...)) -> None:
 
 
 @mod_app.command("revoke-device")
-def mod_revoke_device(device_id: str = typer.Argument(...), note: str = typer.Option("", "--note")) -> None:
+def mod_revoke_device(
+    device_id: str = typer.Argument(...), note: str = typer.Option("", "--note")
+) -> None:
     ensure_banner()
     if _mode == "local":
         raise typer.BadParameter("Moderation requires SLAPI. Re-run with --mode remote.")
-    data = _post_v3(f"/v3/mod/devices/{device_id}/revoke", None, params={"note": note} if note else None)
+    data = _post_v3(
+        f"/v3/mod/devices/{device_id}/revoke", None, params={"note": note} if note else None
+    )
     if not data.get("ok"):
         raise typer.BadParameter(f"revoke failed: {data}")
     typer.secho("Device revoked.", fg=typer.colors.GREEN, bold=True)
@@ -2237,6 +2361,7 @@ def mod_revoke_device(device_id: str = typer.Argument(...), note: str = typer.Op
 # ─────────────────────────────────────────────────────────────────────────────
 # Admin (v3/admin/*) — requires admin scope
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 @admin_app.command("mint-regtoken")
 def admin_mint_regtoken(
@@ -2274,7 +2399,6 @@ def admin_enrollments(status: str = typer.Option("PENDING", "--status")) -> None
         raise typer.BadParameter("Admin requires SLAPI. Re-run with --mode remote.")
     data = _get_v3("/v3/admin/enrollments", params={"status": status})
     echo_clean_auto(data)
-
 
 
 @admin_app.command("approve-enrollment")
@@ -2329,12 +2453,15 @@ def admin_apikey_requests_cmd(
     data = _get_v3("/v3/admin/apikey-requests", params=params)
     echo_clean_auto(data)
 
+
 @admin_app.command("approve-apikey-request")
 def admin_approve_apikey_request_cmd(
     request_id: str = typer.Argument(...),
     decided_by: str = typer.Option("admin", "--by"),
     note: str = typer.Option("", "--note"),
-    scopes: List[str] = typer.Option([], "--scope", help="Optional scope narrowing at approval (repeatable)."),
+    scopes: List[str] = typer.Option(
+        [], "--scope", help="Optional scope narrowing at approval (repeatable)."
+    ),
 ) -> None:
     ensure_banner()
     if _mode == "local":
@@ -2380,7 +2507,6 @@ def admin_interactive() -> None:
 
     def show(x: Any) -> None:
         echo_clean_auto(x)
-
 
     def try_call(fn: Any, *args: Any, **kwargs: Any) -> Any:
         try:
@@ -2430,7 +2556,9 @@ def admin_interactive() -> None:
         if top == "Mint registration token (reg_...)":
             org = str(typer.prompt("org", default="statline")).strip() or "statline"
             ttl = int(str(typer.prompt("ttl_days", default="14")).strip() or "14")
-            scopes_raw = str(typer.prompt("scopes (comma sep) [blank=userbase]", default="")).strip()
+            scopes_raw = str(
+                typer.prompt("scopes (comma sep) [blank=userbase]", default="")
+            ).strip()
             scopes2 = [s.strip() for s in scopes_raw.split(",") if s.strip()] if scopes_raw else []
             params: Dict[str, Any] = {"org": org, "ttl_days": ttl, "scopes": scopes2 or None}
             data = try_call(_post_v3, "/v3/admin/mint-regtoken", None, params=params)
@@ -2444,7 +2572,7 @@ def admin_interactive() -> None:
             data = try_call(_get_v3, "/v3/admin/enrollments", params={"status": status})
             if not data:
                 continue
-            items = data.get("enrollments", []) if isinstance(data, dict) else [] # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+            items = data.get("enrollments", []) if isinstance(data, dict) else []  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
             show(items)
             if not items:
                 continue
@@ -2461,14 +2589,18 @@ def admin_interactive() -> None:
                     _post_v3,
                     f"/v3/admin/enrollments/{rid}/approve",
                     None,
-                    params={"decided_by": decided_by, "note": note} if (decided_by or note) else None,
+                    params={"decided_by": decided_by, "note": note}
+                    if (decided_by or note)
+                    else None,
                 )
             else:
                 res = try_call(
                     _post_v3,
                     f"/v3/admin/enrollments/{rid}/deny",
                     None,
-                    params={"decided_by": decided_by, "note": note} if (decided_by or note) else None,
+                    params={"decided_by": decided_by, "note": note}
+                    if (decided_by or note)
+                    else None,
                 )
             if res is not None:
                 show(res)
@@ -2483,7 +2615,7 @@ def admin_interactive() -> None:
             data = try_call(_get_v3, "/v3/admin/apikey-requests", params=params3)
             if not data:
                 continue
-            items = data.get("requests", []) if isinstance(data, dict) else [] # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+            items = data.get("requests", []) if isinstance(data, dict) else []  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
             show(items)
             if not items:
                 continue
@@ -2496,8 +2628,12 @@ def admin_interactive() -> None:
             decided_by = str(typer.prompt("decided_by", default="admin")).strip() or "admin"
             note = str(typer.prompt("note (optional)", default="")).strip() or None
             if action == "approve":
-                scopes_raw = str(typer.prompt("narrow scopes (comma sep) [blank=no change]", default="")).strip()
-                scopes4 = [s.strip() for s in scopes_raw.split(",") if s.strip()] if scopes_raw else None
+                scopes_raw = str(
+                    typer.prompt("narrow scopes (comma sep) [blank=no change]", default="")
+                ).strip()
+                scopes4 = (
+                    [s.strip() for s in scopes_raw.split(",") if s.strip()] if scopes_raw else None
+                )
                 payload: Dict[str, Any] = {"decided_by": decided_by, "note": note}
                 if scopes4 is not None:
                     payload["scopes"] = scopes4
@@ -2556,10 +2692,10 @@ def admin_apikeys_cmd(org: Optional[str] = typer.Option(None, "--org")) -> None:
     render_apikeys_view(data)
 
 
-
 # ─────────────────────────────────────────────────────────────────────────────
 # Userbase commands
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 @app.command("adapters")
 def adapters_list() -> None:
@@ -2610,14 +2746,20 @@ def interactive(
         if not keys:
             return None
 
-        typer.secho("\nAdapter filters/dimensions (adapter-defined):", fg=typer.colors.BLUE, bold=True)
+        typer.secho(
+            "\nAdapter filters/dimensions (adapter-defined):", fg=typer.colors.BLUE, bold=True
+        )
         out: Dict[str, Any] = {}
         for k in keys:
             # If adapter exposes options (dict shape), show a menu; else prompt raw.
             options: List[str] = []
-            if isinstance(traits.get("filters"), dict) and k in cast(Dict[str, Any], traits["filters"]):
+            if isinstance(traits.get("filters"), dict) and k in cast(
+                Dict[str, Any], traits["filters"]
+            ):
                 options = _as_str_list(cast(Dict[str, Any], traits["filters"]).get(k))
-            elif isinstance(traits.get("dimensions"), dict) and k in cast(Dict[str, Any], traits["dimensions"]):
+            elif isinstance(traits.get("dimensions"), dict) and k in cast(
+                Dict[str, Any], traits["dimensions"]
+            ):
                 options = _as_str_list(cast(Dict[str, Any], traits["dimensions"]).get(k))
 
             if options:
@@ -2756,7 +2898,11 @@ def interactive(
             except ValueError:
                 raw_row[k] = 0.0
     else:
-        typer.secho("\nAdapter did not report metrics; enter values (blank = 0):", fg=typer.colors.BLUE, bold=True)
+        typer.secho(
+            "\nAdapter did not report metrics; enter values (blank = 0):",
+            fg=typer.colors.BLUE,
+            bold=True,
+        )
         while True:
             k = str(typer.prompt("stat/key (blank to finish)", default="")).strip()
             if not k:
@@ -2773,7 +2919,9 @@ def interactive(
         if csv_path:
             batch_rows = list(_read_rows(Path(csv_path)))
             batch_rows.append(raw_row)
-            results = api_score_batch(adapter_key, batch_rows, weights_override, None, None, filters)
+            results = api_score_batch(
+                adapter_key, batch_rows, weights_override, None, None, filters
+            )
             my_res = results[-1]
         else:
             typer.secho("No dataset selected; falling back to clamps.", fg=typer.colors.YELLOW)
@@ -2798,6 +2946,7 @@ def interactive(
         if val is not None:
             typer.echo(f"{_profile_header(p)}:  {val}")
 
+
 @app.command("launch")
 def launch() -> None:
     """Open the StatLine HomeShell."""
@@ -2808,6 +2957,7 @@ def launch() -> None:
         config=LauncherConfig(title="StatLine UX"),
     ).run()
 
+
 @app.command("score")
 def score(
     ctx: typer.Context,
@@ -2816,11 +2966,19 @@ def score(
         Path("stats.csv"),
         help="YAML/CSV understood by your adapter mapping (server-side), or '-' for CSV from stdin.",
     ),
-    weights: Optional[Path] = typer.Option(None, "--weights", help="YAML mapping of {bucket: weight}"),
-    weights_preset: Optional[str] = typer.Option(None, "--weights-preset", help="Preset name you want to send"),
+    weights: Optional[Path] = typer.Option(
+        None, "--weights", help="YAML mapping of {bucket: weight}"
+    ),
+    weights_preset: Optional[str] = typer.Option(
+        None, "--weights-preset", help="Preset name you want to send"
+    ),
     out: Optional[Path] = typer.Option(None, "--out", help="Write results (format via --fmt)"),
-    include_headers: bool = typer.Option(True, "--headers/--no-headers", help="Include header row for CSV output"),
-    timing: Optional[bool] = typer.Option(None, "--timing/--no-timing", help="(Client flag only) — server may ignore."),
+    include_headers: bool = typer.Option(
+        True, "--headers/--no-headers", help="Include header row for CSV output"
+    ),
+    timing: Optional[bool] = typer.Option(
+        None, "--timing/--no-timing", help="(Client flag only) — server may ignore."
+    ),
     caps: str = typer.Option(
         "batch",
         "--caps",
@@ -2834,7 +2992,9 @@ def score(
         help="Output format: csv|table|md|json|jsonl",
         case_sensitive=False,
     ),
-    name_col: List[str] = typer.Option([], "--name-col", help="Preferred name column(s); first non-empty wins."),
+    name_col: List[str] = typer.Option(
+        [], "--name-col", help="Preferred name column(s); first non-empty wins."
+    ),
     limit: int = typer.Option(0, "--limit", min=0, help="Limit rows shown (0=all)"),
     profiles: List[str] = typer.Option(
         [],
@@ -2858,7 +3018,9 @@ def score(
         "--details/--no-details",
         help="For json/jsonl: include full result payload from API under 'details'.",
     ),
-    pretty: bool = typer.Option(False, "--pretty/--no-pretty", help="For json output: pretty-print JSON."),
+    pretty: bool = typer.Option(
+        False, "--pretty/--no-pretty", help="For json output: pretty-print JSON."
+    ),
     filters: List[str] = typer.Option(
         [],
         "--filter",
@@ -2904,9 +3066,13 @@ def score(
 
     if caps_mode == "clamps":
         # Correct endpoint path for RAW->MAPPED->PRI with clamp behavior:
-        results = api_pri_batch(adapter, raw_rows, weights_override, filters_dict or None, caps_mode="clamps")
+        results = api_pri_batch(
+            adapter, raw_rows, weights_override, filters_dict or None, caps_mode="clamps"
+        )
     else:
-        results = api_score_batch(adapter, raw_rows, weights_override, None, None, filters_dict or None)
+        results = api_score_batch(
+            adapter, raw_rows, weights_override, None, None, filters_dict or None
+        )
 
     prof_in = _split_csvish(profiles)
     prof_norm = [p for p in prof_in if p.strip()]
@@ -3052,15 +3218,18 @@ def score(
         return
 
 
-
 # ─────────────────────────────────────────────────────────────────────────────
 # Expanded v3 CLI surface — generated from project review
 # ─────────────────────────────────────────────────────────────────────────────
 
-adapter_app = typer.Typer(no_args_is_help=True, help="Adapter metadata, registry, sniffing, and spec inspection")
+adapter_app = typer.Typer(
+    no_args_is_help=True, help="Adapter metadata, registry, sniffing, and spec inspection"
+)
 map_app = typer.Typer(no_args_is_help=True, help="Map raw rows through adapters without scoring")
 calc_app = typer.Typer(no_args_is_help=True, help="Score already-mapped metric rows")
-cache_app = typer.Typer(no_args_is_help=True, help="Local SLAPI cache inspection and refresh helpers")
+cache_app = typer.Typer(
+    no_args_is_help=True, help="Local SLAPI cache inspection and refresh helpers"
+)
 storage_app = typer.Typer(no_args_is_help=True, help="CSV/storage utilities")
 weights_app = typer.Typer(no_args_is_help=True, help="Weight utilities")
 
@@ -3078,10 +3247,12 @@ def _print_payload(data: Any, *, fmt: str = "json", pretty: bool = True) -> None
         if pretty:
             typer.echo(json.dumps(_normalize_for_display(data), ensure_ascii=False, indent=2))
         else:
-            typer.echo(json.dumps(_normalize_for_display(data), ensure_ascii=False, separators=(",", ":")))
+            typer.echo(
+                json.dumps(_normalize_for_display(data), ensure_ascii=False, separators=(",", ":"))
+            )
     elif fmt_l == "jsonl":
         if isinstance(data, list):
-            for row in data: # pyright: ignore[reportUnknownVariableType]
+            for row in data:  # pyright: ignore[reportUnknownVariableType]
                 typer.echo(json.dumps(_normalize_for_display(row), ensure_ascii=False))
         else:
             typer.echo(json.dumps(_normalize_for_display(data), ensure_ascii=False))
@@ -3123,7 +3294,9 @@ def _merge_row_items(row_json: Optional[str], kv: List[str]) -> Dict[str, Any]:
     return out
 
 
-def _load_weights_arg(weights: Optional[Path], preset: Optional[str]) -> Optional[Union[Dict[str, float], str]]:
+def _load_weights_arg(
+    weights: Optional[Path], preset: Optional[str]
+) -> Optional[Union[Dict[str, float], str]]:
     if weights and preset:
         raise typer.BadParameter("Specify either --weights or --weights-preset, not both.")
     if preset:
@@ -3136,7 +3309,7 @@ def _load_weights_arg(weights: Optional[Path], preset: Optional[str]) -> Optiona
     return None
 
 
-def _score_output_options( # pyright: ignore[reportUnusedFunction]
+def _score_output_options(  # pyright: ignore[reportUnusedFunction]
     *,
     show_weights: bool,
     hide_pri_raw: bool,
@@ -3292,30 +3465,36 @@ def _local_calc_row(adapter: str, row: Row, **kwargs: Any) -> Dict[str, Any]:
 def _wire_format_to_path(path: Path, data: Any, *, fmt: str, include_headers: bool = True) -> None:
     fmt_l = (fmt or "json").lower()
     if fmt_l == "json":
-        path.write_text(json.dumps(_normalize_for_display(data), ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        path.write_text(
+            json.dumps(_normalize_for_display(data), ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
         return
     if fmt_l == "jsonl":
-        rows = data if isinstance(data, list) else [data] # pyright: ignore[reportUnknownVariableType]
-        path.write_text("".join(json.dumps(_normalize_for_display(r), ensure_ascii=False) + "\n" for r in rows), encoding="utf-8") # pyright: ignore[reportUnknownVariableType]
+        rows = data if isinstance(data, list) else [data]  # pyright: ignore[reportUnknownVariableType]
+        path.write_text(
+            "".join(json.dumps(_normalize_for_display(r), ensure_ascii=False) + "\n" for r in rows),  # pyright: ignore[reportUnknownVariableType]
+            encoding="utf-8",
+        )  # pyright: ignore[reportUnknownVariableType]
         return
     if fmt_l == "csv":
-        rows = data if isinstance(data, list) else [data] # pyright: ignore[reportUnknownVariableType]
+        rows = data if isinstance(data, list) else [data]  # pyright: ignore[reportUnknownVariableType]
         if not rows:
             path.write_text("", encoding="utf-8")
             return
         fields: List[str] = []
-        for r in rows: # pyright: ignore[reportUnknownVariableType]
+        for r in rows:  # pyright: ignore[reportUnknownVariableType]
             if isinstance(r, Mapping):
-                for k in r.keys(): # pyright: ignore[reportUnknownVariableType]
-                    ks = str(k) # pyright: ignore[reportUnknownArgumentType]
+                for k in r.keys():  # pyright: ignore[reportUnknownVariableType]
+                    ks = str(k)  # pyright: ignore[reportUnknownArgumentType]
                     if ks not in fields:
                         fields.append(ks)
         with path.open("w", encoding="utf-8", newline="") as f:
             w = csv.DictWriter(f, fieldnames=fields, extrasaction="ignore")
             if include_headers:
                 w.writeheader()
-            for r in rows: # pyright: ignore[reportUnknownVariableType]
-                w.writerow(dict(r) if isinstance(r, Mapping) else {"value": r}) # pyright: ignore[reportUnknownArgumentType]
+            for r in rows:  # pyright: ignore[reportUnknownVariableType]
+                w.writerow(dict(r) if isinstance(r, Mapping) else {"value": r})  # pyright: ignore[reportUnknownArgumentType]
         return
     raise typer.BadParameter("--fmt must be json, jsonl, or csv when --out is used.")
 
@@ -3323,7 +3502,9 @@ def _wire_format_to_path(path: Path, data: Any, *, fmt: str, include_headers: bo
 @adapter_app.command("list")
 def adapter_list(
     source: str = typer.Option("auto", "--source", help="auto|local|remote", case_sensitive=False),
-    fast: bool = typer.Option(False, "--fast", help="Remote only: ask server for fast YAML discovery."),
+    fast: bool = typer.Option(
+        False, "--fast", help="Remote only: ask server for fast YAML discovery."
+    ),
     fmt: str = typer.Option("table", "--fmt", help="table|json", case_sensitive=False),
 ) -> None:
     """List available adapters from local registry or SLAPI."""
@@ -3338,7 +3519,7 @@ def adapter_list(
     if fmt.lower() == "json":
         _print_payload(data)
     else:
-        names = list(data.get("adapters", []) or []) if isinstance(data, Mapping) else [] # pyright: ignore[reportUnknownArgumentType, reportUnknownMemberType]
+        names = list(data.get("adapters", []) or []) if isinstance(data, Mapping) else []  # pyright: ignore[reportUnknownArgumentType, reportUnknownMemberType]
         for name in names:
             typer.echo(str(name))
 
@@ -3357,7 +3538,11 @@ def adapter_refresh() -> None:
 def adapter_spec_cmd(
     adapter: str = typer.Argument(...),
     source: str = typer.Option("auto", "--source", help="auto|local|remote", case_sensitive=False),
-    full: bool = typer.Option(False, "--full/--summary", help="Local only: emit full dataclass spec instead of server-style summary."),
+    full: bool = typer.Option(
+        False,
+        "--full/--summary",
+        help="Local only: emit full dataclass spec instead of server-style summary.",
+    ),
     fmt: str = typer.Option("json", "--fmt", help="json|clean", case_sensitive=False),
 ) -> None:
     """Show adapter spec metadata, including buckets, inputs, filters, weights, and score profiles."""
@@ -3365,20 +3550,32 @@ def adapter_spec_cmd(
     if source.lower() == "remote" or (source.lower() == "auto" and _online):
         data = _get_v3(f"/v3/adapter/{adapter}/spec")
     else:
-        data = _local_adapter_spec_payload(adapter) if full else _local_adapter_traits_payload(adapter)
+        data = (
+            _local_adapter_spec_payload(adapter) if full else _local_adapter_traits_payload(adapter)
+        )
     _print_payload(data, fmt=fmt)
 
 
 @adapter_app.command("traits")
-def adapter_traits_cmd(adapter: str = typer.Argument(...), source: str = typer.Option("auto", "--source", case_sensitive=False)) -> None:
+def adapter_traits_cmd(
+    adapter: str = typer.Argument(...),
+    source: str = typer.Option("auto", "--source", case_sensitive=False),
+) -> None:
     """Show the operational trait bundle used by guided clients."""
     ensure_banner()
-    data = _get_v3(f"/v3/adapter/{adapter}/traits") if (source.lower() == "remote" or (source.lower() == "auto" and _online)) else _local_adapter_traits_payload(adapter)
+    data = (
+        _get_v3(f"/v3/adapter/{adapter}/traits")
+        if (source.lower() == "remote" or (source.lower() == "auto" and _online))
+        else _local_adapter_traits_payload(adapter)
+    )
     _print_payload(data)
 
 
 @adapter_app.command("weights")
-def adapter_weights_cmd(adapter: str = typer.Argument(...), source: str = typer.Option("auto", "--source", case_sensitive=False)) -> None:
+def adapter_weights_cmd(
+    adapter: str = typer.Argument(...),
+    source: str = typer.Option("auto", "--source", case_sensitive=False),
+) -> None:
     """Show adapter weight presets."""
     ensure_banner()
     if source.lower() == "remote" or (source.lower() == "auto" and _online):
@@ -3389,11 +3586,19 @@ def adapter_weights_cmd(adapter: str = typer.Argument(...), source: str = typer.
 
 
 @adapter_app.command("metrics")
-def adapter_metrics_cmd(adapter: str = typer.Argument(...), source: str = typer.Option("auto", "--source", case_sensitive=False), probe: bool = typer.Option(False, "--probe")) -> None:
+def adapter_metrics_cmd(
+    adapter: str = typer.Argument(...),
+    source: str = typer.Option("auto", "--source", case_sensitive=False),
+    probe: bool = typer.Option(False, "--probe"),
+) -> None:
     """Show adapter metric keys. Use --probe for mapper-like keys on SLAPI."""
     ensure_banner()
     if source.lower() == "remote" or (source.lower() == "auto" and _online):
-        path = f"/v3/adapter/{adapter}/metric-keys/probe" if probe else f"/v3/adapter/{adapter}/metric-keys"
+        path = (
+            f"/v3/adapter/{adapter}/metric-keys/probe"
+            if probe
+            else f"/v3/adapter/{adapter}/metric-keys"
+        )
         data = _get_v3(path)
     else:
         data = {"keys": _local_adapter_traits_payload(adapter).get("metric_keys", [])}
@@ -3401,7 +3606,11 @@ def adapter_metrics_cmd(adapter: str = typer.Argument(...), source: str = typer.
 
 
 @adapter_app.command("inputs")
-def adapter_inputs_cmd(adapter: str = typer.Argument(...), source: str = typer.Option("auto", "--source", case_sensitive=False), raw: bool = typer.Option(False, "--raw")) -> None:
+def adapter_inputs_cmd(
+    adapter: str = typer.Argument(...),
+    source: str = typer.Option("auto", "--source", case_sensitive=False),
+    raw: bool = typer.Option(False, "--raw"),
+) -> None:
     """Show raw input/prompt keys expected by an adapter."""
     ensure_banner()
     if source.lower() == "remote" or (source.lower() == "auto" and _online):
@@ -3413,7 +3622,10 @@ def adapter_inputs_cmd(adapter: str = typer.Argument(...), source: str = typer.O
 
 
 @adapter_app.command("prompt-keys")
-def adapter_prompt_keys_cmd(adapter: str = typer.Argument(...), source: str = typer.Option("auto", "--source", case_sensitive=False)) -> None:
+def adapter_prompt_keys_cmd(
+    adapter: str = typer.Argument(...),
+    source: str = typer.Option("auto", "--source", case_sensitive=False),
+) -> None:
     """Show preferred prompt keys for manual row entry."""
     ensure_banner()
     if source.lower() == "remote" or (source.lower() == "auto" and _online):
@@ -3424,7 +3636,10 @@ def adapter_prompt_keys_cmd(adapter: str = typer.Argument(...), source: str = ty
 
 
 @adapter_app.command("dimensions")
-def adapter_dimensions_cmd(adapter: str = typer.Argument(...), source: str = typer.Option("auto", "--source", case_sensitive=False)) -> None:
+def adapter_dimensions_cmd(
+    adapter: str = typer.Argument(...),
+    source: str = typer.Option("auto", "--source", case_sensitive=False),
+) -> None:
     """Show adapter dimensions and allowed values."""
     ensure_banner()
     if source.lower() == "remote" or (source.lower() == "auto" and _online):
@@ -3435,7 +3650,10 @@ def adapter_dimensions_cmd(adapter: str = typer.Argument(...), source: str = typ
 
 
 @adapter_app.command("filters")
-def adapter_filters_cmd(adapter: str = typer.Argument(...), source: str = typer.Option("auto", "--source", case_sensitive=False)) -> None:
+def adapter_filters_cmd(
+    adapter: str = typer.Argument(...),
+    source: str = typer.Option("auto", "--source", case_sensitive=False),
+) -> None:
     """Show declared adapter filters, operations, and modes."""
     ensure_banner()
     if source.lower() == "remote" or (source.lower() == "auto" and _online):
@@ -3449,7 +3667,9 @@ def adapter_filters_cmd(adapter: str = typer.Argument(...), source: str = typer.
 @adapter_app.command("sniff")
 def adapter_sniff_cmd(
     headers: List[str] = typer.Argument(None, help="Header names, or omit and use --file."),
-    file: Optional[Path] = typer.Option(None, "--file", "-f", help="CSV/YAML/JSON file whose first row/header should be sniffed."),
+    file: Optional[Path] = typer.Option(
+        None, "--file", "-f", help="CSV/YAML/JSON file whose first row/header should be sniffed."
+    ),
     source: str = typer.Option("auto", "--source", help="auto|local|remote", case_sensitive=False),
 ) -> None:
     """Detect matching adapters from headers."""
@@ -3462,6 +3682,7 @@ def adapter_sniff_cmd(
                 header_list.extend(str(k) for k in rows[0].keys())
         except Exception:
             from statline.slapi.storage.csv import peek_headers
+
             header_list.extend(peek_headers(file))
     header_list = _as_str_list(header_list)
     if not header_list:
@@ -3493,8 +3714,12 @@ def adapter_sniff_cmd(
 @map_app.command("row")
 def map_row_cmd(
     adapter: str = typer.Option(..., "--adapter", "-a"),
-    row: Optional[str] = typer.Option(None, "--row", help="JSON/YAML object containing raw fields."),
-    kv: List[str] = typer.Option([], "--set", "-s", help="Raw field assignment, e.g. ppg=25. Repeatable or comma-separated."),
+    row: Optional[str] = typer.Option(
+        None, "--row", help="JSON/YAML object containing raw fields."
+    ),
+    kv: List[str] = typer.Option(
+        [], "--set", "-s", help="Raw field assignment, e.g. ppg=25. Repeatable or comma-separated."
+    ),
     source: str = typer.Option("auto", "--source", help="auto|local|remote", case_sensitive=False),
     fmt: str = typer.Option("json", "--fmt", help="json|clean", case_sensitive=False),
 ) -> None:
@@ -3535,11 +3760,17 @@ def map_batch_cmd(
 @calc_app.command("row")
 def calc_row_cmd(
     adapter: str = typer.Option(..., "--adapter", "-a"),
-    row: Optional[str] = typer.Option(None, "--row", help="JSON/YAML object containing mapped metrics."),
-    kv: List[str] = typer.Option([], "--set", "-s", help="Mapped metric assignment. Repeatable or comma-separated."),
+    row: Optional[str] = typer.Option(
+        None, "--row", help="JSON/YAML object containing mapped metrics."
+    ),
+    kv: List[str] = typer.Option(
+        [], "--set", "-s", help="Mapped metric assignment. Repeatable or comma-separated."
+    ),
     weights: Optional[Path] = typer.Option(None, "--weights"),
     weights_preset: Optional[str] = typer.Option(None, "--weights-preset"),
-    penalties: Optional[str] = typer.Option(None, "--penalties", help="JSON/YAML bucket penalty mapping."),
+    penalties: Optional[str] = typer.Option(
+        None, "--penalties", help="JSON/YAML bucket penalty mapping."
+    ),
     output: Optional[str] = typer.Option(None, "--output", help="JSON/YAML output toggle mapping."),
     source: str = typer.Option("auto", "--source", help="auto|local|remote", case_sensitive=False),
     fmt: str = typer.Option("json", "--fmt", help="json|clean", case_sensitive=False),
@@ -3550,14 +3781,30 @@ def calc_row_cmd(
     if not mapped:
         raise typer.BadParameter("Provide --row JSON/YAML or --set metric=value options.")
     weights_arg = _load_weights_arg(weights, weights_preset)
-    penalties_override = cast(Optional[Dict[str, float]], _read_jsonish_arg(penalties, default=None, name="--penalties"))
-    output_dict = cast(Optional[Dict[str, Any]], _read_jsonish_arg(output, default=None, name="--output"))
-    payload: Dict[str, Any] = {"adapter": adapter, "row": mapped, "weights": weights_arg, "penalties_override": penalties_override, "output": output_dict}
+    penalties_override = cast(
+        Optional[Dict[str, float]], _read_jsonish_arg(penalties, default=None, name="--penalties")
+    )
+    output_dict = cast(
+        Optional[Dict[str, Any]], _read_jsonish_arg(output, default=None, name="--output")
+    )
+    payload: Dict[str, Any] = {
+        "adapter": adapter,
+        "row": mapped,
+        "weights": weights_arg,
+        "penalties_override": penalties_override,
+        "output": output_dict,
+    }
     payload = {k: v for k, v in payload.items() if v is not None}
     if source.lower() == "remote" or (source.lower() == "auto" and _online):
         data = _post_v3("/v3/calc/pri", payload)
     else:
-        data = _local_calc_row(adapter, mapped, weights_arg=weights_arg, penalties_override=penalties_override, output=output_dict)
+        data = _local_calc_row(
+            adapter,
+            mapped,
+            weights_arg=weights_arg,
+            penalties_override=penalties_override,
+            output=output_dict,
+        )
     _print_payload(data, fmt=fmt)
 
 
@@ -3567,9 +3814,13 @@ def calc_batch_cmd(
     adapter: str = typer.Option(..., "--adapter", "-a"),
     weights: Optional[Path] = typer.Option(None, "--weights"),
     weights_preset: Optional[str] = typer.Option(None, "--weights-preset"),
-    penalties: Optional[str] = typer.Option(None, "--penalties", help="JSON/YAML bucket penalty mapping."),
+    penalties: Optional[str] = typer.Option(
+        None, "--penalties", help="JSON/YAML bucket penalty mapping."
+    ),
     output: Optional[str] = typer.Option(None, "--output", help="JSON/YAML output toggle mapping."),
-    caps_mode: str = typer.Option("batch", "--caps-mode", help="batch|clamps", case_sensitive=False),
+    caps_mode: str = typer.Option(
+        "batch", "--caps-mode", help="batch|clamps", case_sensitive=False
+    ),
     source: str = typer.Option("auto", "--source", help="auto|local|remote", case_sensitive=False),
     out: Optional[Path] = typer.Option(None, "--out"),
     fmt: str = typer.Option("json", "--fmt", help="json|jsonl|csv|clean", case_sensitive=False),
@@ -3578,8 +3829,12 @@ def calc_batch_cmd(
     ensure_banner()
     rows = list(_read_rows(input_path))
     weights_arg = _load_weights_arg(weights, weights_preset)
-    penalties_override = cast(Optional[Dict[str, float]], _read_jsonish_arg(penalties, default=None, name="--penalties"))
-    output_dict = cast(Optional[Dict[str, Any]], _read_jsonish_arg(output, default=None, name="--output"))
+    penalties_override = cast(
+        Optional[Dict[str, float]], _read_jsonish_arg(penalties, default=None, name="--penalties")
+    )
+    output_dict = cast(
+        Optional[Dict[str, Any]], _read_jsonish_arg(output, default=None, name="--output")
+    )
     payload: Dict[str, Any] = {
         "adapter": adapter,
         "rows": rows,
@@ -3593,9 +3848,24 @@ def calc_batch_cmd(
         data = _post_v3("/v3/calc/pri/batch", payload)
     else:
         if (caps_mode or "batch").lower() == "clamps":
-            data = [_local_calc_row(adapter, r, weights_arg=weights_arg, penalties_override=penalties_override, output=output_dict) for r in rows]
+            data = [
+                _local_calc_row(
+                    adapter,
+                    r,
+                    weights_arg=weights_arg,
+                    penalties_override=penalties_override,
+                    output=output_dict,
+                )
+                for r in rows
+            ]
         else:
-            data = _local_calc_batch(adapter, rows, weights_arg=weights_arg, penalties_override=penalties_override, output=output_dict)
+            data = _local_calc_batch(
+                adapter,
+                rows,
+                weights_arg=weights_arg,
+                penalties_override=penalties_override,
+                output=output_dict,
+            )
     if out:
         _wire_format_to_path(out, data, fmt=fmt)
     else:
@@ -3652,10 +3922,7 @@ def serve_cmd(
         start_new_session = False
 
         if os.name == "nt":
-            creationflags = (
-                subprocess.CREATE_NEW_PROCESS_GROUP
-                | subprocess.DETACHED_PROCESS
-            )
+            creationflags = subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS
         else:
             start_new_session = True
 
@@ -3764,6 +4031,7 @@ def serve_cmd(
         reload=reload,
     )
 
+
 @auth_app.command("apikey-requests")
 def auth_apikey_requests_cmd() -> None:
     """List API-key requests for the active enrolled device."""
@@ -3773,7 +4041,9 @@ def auth_apikey_requests_cmd() -> None:
 
 
 @auth_app.command("revoke-apikey")
-def auth_revoke_apikey_cmd(prefix: str = typer.Argument(..., help="API key prefix8 to revoke for this device.")) -> None:
+def auth_revoke_apikey_cmd(
+    prefix: str = typer.Argument(..., help="API key prefix8 to revoke for this device."),
+) -> None:
     """Revoke one API key belonging to the active device."""
     ensure_banner()
     data = _delete_v3(f"/v3/auth/apikeys/{prefix}")
@@ -3781,7 +4051,9 @@ def auth_revoke_apikey_cmd(prefix: str = typer.Argument(..., help="API key prefi
 
 
 @admin_app.command("devkey-init")
-def admin_devkey_init_cmd(overwrite: bool = typer.Option(False, "--overwrite/--no-overwrite")) -> None:
+def admin_devkey_init_cmd(
+    overwrite: bool = typer.Option(False, "--overwrite/--no-overwrite"),
+) -> None:
     """Generate DEVKEY + DEVKEY.pub on the SLAPI host."""
     ensure_banner()
     data = _post_v3("/v3/admin/devkey/init", None, params={"overwrite": overwrite})
@@ -3797,7 +4069,9 @@ def admin_devkey_info_cmd() -> None:
 
 
 @admin_app.command("inspect-regtoken")
-def admin_inspect_regtoken_cmd(token: str = typer.Argument(..., help="reg_ token to inspect.")) -> None:
+def admin_inspect_regtoken_cmd(
+    token: str = typer.Argument(..., help="reg_ token to inspect."),
+) -> None:
     """Inspect a registration token payload."""
     ensure_banner()
     data = _post_v3("/v3/admin/regtoken/inspect", None, params={"token": token})
@@ -3833,6 +4107,7 @@ def cache_db_path_cmd() -> None:
     """Print the local SLAPI SQLite cache path."""
     ensure_banner()
     from statline.slapi.storage.sqlite import get_db_path
+
     typer.echo(str(get_db_path()))
 
 
@@ -3841,6 +4116,7 @@ def cache_scopes_cmd() -> None:
     """List known cache scopes."""
     ensure_banner()
     from statline.slapi.cache import iterate_scopes
+
     _print_payload({"scopes": list(iterate_scopes())})
 
 
@@ -3849,60 +4125,94 @@ def cache_config_cmd(scope: str = typer.Argument(...)) -> None:
     """Show cache sync config for a scope."""
     ensure_banner()
     from statline.slapi.cache import get_scope_config
+
     cfg = get_scope_config(scope)
     _print_payload(None if cfg is None else {"scope": cfg.scope, "last_sync_ts": cfg.last_sync_ts})
 
 
 @cache_app.command("touch")
-def cache_touch_cmd(scope: str = typer.Argument(...), last_sync_ts: Optional[int] = typer.Option(None, "--last-sync-ts")) -> None:
+def cache_touch_cmd(
+    scope: str = typer.Argument(...),
+    last_sync_ts: Optional[int] = typer.Option(None, "--last-sync-ts"),
+) -> None:
     """Create/update cache sync config for a scope."""
     ensure_banner()
     from statline.slapi.cache import now_ts, update_scope_config
+
     update_scope_config(scope, last_sync_ts=now_ts() if last_sync_ts is None else last_sync_ts)
     typer.secho("Cache scope config updated.", fg=typer.colors.GREEN, bold=True)
 
 
 @cache_app.command("should-sync")
-def cache_should_sync_cmd(scope: str = typer.Argument(...), ttl_sec: int = typer.Option(86400, "--ttl-sec")) -> None:
+def cache_should_sync_cmd(
+    scope: str = typer.Argument(...), ttl_sec: int = typer.Option(86400, "--ttl-sec")
+) -> None:
     """Return whether a scope is stale under the given TTL."""
     ensure_banner()
     from statline.slapi.cache import should_sync_scope
-    _print_payload({"scope": scope, "should_sync": should_sync_scope(scope, ttl_sec=ttl_sec), "ttl_sec": ttl_sec})
+
+    _print_payload(
+        {
+            "scope": scope,
+            "should_sync": should_sync_scope(scope, ttl_sec=ttl_sec),
+            "ttl_sec": ttl_sec,
+        }
+    )
 
 
 @cache_app.command("refresh")
-def cache_refresh_cmd(scope: str = typer.Argument(...), ttl_sec: int = typer.Option(86400, "--ttl-sec"), force: bool = typer.Option(False, "--force")) -> None:
+def cache_refresh_cmd(
+    scope: str = typer.Argument(...),
+    ttl_sec: int = typer.Option(86400, "--ttl-sec"),
+    force: bool = typer.Option(False, "--force"),
+) -> None:
     """Refresh one scope via optional sheets sync hook if stale/forced."""
     ensure_banner()
     from statline.slapi.cache import sync_scope_if_stale
-    _print_payload({"scope": scope, "upserted": sync_scope_if_stale(scope, ttl_sec=ttl_sec, force=force)})
+
+    _print_payload(
+        {"scope": scope, "upserted": sync_scope_if_stale(scope, ttl_sec=ttl_sec, force=force)}
+    )
 
 
 @cache_app.command("refresh-all")
-def cache_refresh_all_cmd(ttl_sec: int = typer.Option(86400, "--ttl-sec"), force: bool = typer.Option(False, "--force")) -> None:
+def cache_refresh_all_cmd(
+    ttl_sec: int = typer.Option(86400, "--ttl-sec"), force: bool = typer.Option(False, "--force")
+) -> None:
     """Refresh all known scopes via optional sheets sync hook."""
     ensure_banner()
     from statline.slapi.cache import refresh_all_scopes
+
     _print_payload(refresh_all_scopes(ttl_sec=ttl_sec, force=force))
 
 
 @cache_app.command("entities")
-def cache_entities_cmd(scope: str = typer.Argument(...), limit: int = typer.Option(0, "--limit")) -> None:
+def cache_entities_cmd(
+    scope: str = typer.Argument(...), limit: int = typer.Option(0, "--limit")
+) -> None:
     """List cached entities for a scope."""
     ensure_banner()
     from statline.slapi.cache import get_entities_for_scope
+
     rows = get_entities_for_scope(scope)
     _print_payload(rows[:limit] if limit else rows)
 
 
 @cache_app.command("metrics")
-def cache_metrics_cmd(scope: str = typer.Argument(...), fuzzy_key: Optional[str] = typer.Option(None, "--fuzzy-key"), limit: int = typer.Option(0, "--limit")) -> None:
+def cache_metrics_cmd(
+    scope: str = typer.Argument(...),
+    fuzzy_key: Optional[str] = typer.Option(None, "--fuzzy-key"),
+    limit: int = typer.Option(0, "--limit"),
+) -> None:
     """List cached metrics for a scope or one entity."""
     ensure_banner()
     from statline.slapi.cache import get_metrics_for_entity, get_metrics_for_scope
-    data: Any = get_metrics_for_entity(scope, fuzzy_key) if fuzzy_key else get_metrics_for_scope(scope)
+
+    data: Any = (
+        get_metrics_for_entity(scope, fuzzy_key) if fuzzy_key else get_metrics_for_scope(scope)
+    )
     if isinstance(data, list) and limit:
-        data = data[:limit] # pyright: ignore[reportUnknownVariableType]
+        data = data[:limit]  # pyright: ignore[reportUnknownVariableType]
     _print_payload(data)
 
 
@@ -3911,6 +4221,7 @@ def cache_metric_keys_cmd(scope: str = typer.Argument(...)) -> None:
     """List distinct cached metric keys for a scope."""
     ensure_banner()
     from statline.slapi.cache import get_distinct_metric_keys
+
     _print_payload({"keys": get_distinct_metric_keys(scope)})
 
 
@@ -3919,14 +4230,18 @@ def storage_csv_peek_cmd(path: Path = typer.Argument(...)) -> None:
     """Print normalized CSV headers."""
     ensure_banner()
     from statline.slapi.storage.csv import peek_headers
+
     _print_payload({"headers": peek_headers(path)})
 
 
 @storage_app.command("csv-read")
-def storage_csv_read_cmd(path: Path = typer.Argument(...), limit: int = typer.Option(20, "--limit")) -> None:
+def storage_csv_read_cmd(
+    path: Path = typer.Argument(...), limit: int = typer.Option(20, "--limit")
+) -> None:
     """Read a CSV using StatLine's tolerant CSV reader."""
     ensure_banner()
     from statline.slapi.storage.csv import read_csv_rows
+
     rows = read_csv_rows(path)
     _print_payload(rows[:limit] if limit else rows)
 
@@ -3935,28 +4250,36 @@ def storage_csv_read_cmd(path: Path = typer.Argument(...), limit: int = typer.Op
 def storage_csv_write_cmd(
     input_path: Path = typer.Argument(..., help="JSON/YAML rows to write."),
     out: Path = typer.Option(..., "--out"),
-    fields: List[str] = typer.Option([], "--field", help="Field order; repeatable or comma-separated."),
+    fields: List[str] = typer.Option(
+        [], "--field", help="Field order; repeatable or comma-separated."
+    ),
     include_headers: bool = typer.Option(True, "--headers/--no-headers"),
 ) -> None:
     """Write JSON/YAML rows to CSV using StatLine's CSV writer."""
     ensure_banner()
     from statline.slapi.storage.csv import write_csv_rows
+
     data = _read_jsonish_file(input_path, default=[], name="input")
     if isinstance(data, Mapping):
         rows = [cast(Mapping[str, Any], data)]
     elif isinstance(data, list):
-        rows = [cast(Mapping[str, Any], x) for x in data if isinstance(x, Mapping)] # pyright: ignore[reportUnknownVariableType]
+        rows = [cast(Mapping[str, Any], x) for x in data if isinstance(x, Mapping)]  # pyright: ignore[reportUnknownVariableType]
     else:
         raise typer.BadParameter("input must be an object or list of objects.")
-    count, used_fields = write_csv_rows(out, rows, fieldnames=_split_csvish(fields) or None, include_header=include_headers)
+    count, used_fields = write_csv_rows(
+        out, rows, fieldnames=_split_csvish(fields) or None, include_header=include_headers
+    )
     _print_payload({"rows_written": count, "fields": used_fields, "out": str(out)})
 
 
 @weights_app.command("normalize")
-def weights_normalize_cmd(items: List[str] = typer.Argument(..., help="key=value weight pairs.")) -> None:
+def weights_normalize_cmd(
+    items: List[str] = typer.Argument(..., help="key=value weight pairs."),
+) -> None:
     """L1-normalize arbitrary weights using statline.core.weights.normalize_weights."""
     ensure_banner()
     from statline.core.weights import normalize_weights
+
     raw = _parse_kv_items(_split_csvish(items))
     weights = {k: float(v) for k, v in raw.items()}
     _print_payload(normalize_weights(weights))
@@ -3966,16 +4289,20 @@ def weights_normalize_cmd(items: List[str] = typer.Argument(..., help="key=value
 def weights_resolve_cmd(
     adapter: str = typer.Option(..., "--adapter", "-a"),
     preset: Optional[str] = typer.Option(None, "--preset"),
-    override: List[str] = typer.Option([], "--override", help="bucket=value override; repeatable or comma-separated."),
+    override: List[str] = typer.Option(
+        [], "--override", help="bucket=value override; repeatable or comma-separated."
+    ),
 ) -> None:
     """Resolve and normalize a weight profile/override against an adapter's buckets."""
     ensure_banner()
     from statline.core.weights import normalize_weights, pick_profile
+
     adp = load_adapter(adapter)
     profiles = getattr(adp, "weights", {}) or {}
     base = dict(pick_profile(profiles, preset))
     base.update({k: float(v) for k, v in _parse_kv_items(_split_csvish(override)).items()})
     _print_payload({"weights": base, "normalized": normalize_weights(base)})
+
 
 def main() -> None:
     try:
@@ -3987,6 +4314,7 @@ def main() -> None:
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
         raise typer.Exit(code=1)
+
 
 if __name__ == "__main__":
     main()

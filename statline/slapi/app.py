@@ -81,7 +81,7 @@ def _calculate_pri_mapped_single(
 ) -> Dict[str, Any]:
     """Score one already-mapped metric row with the canonical v3 scorer."""
     result = _calculate_pri(dict(row), adapter=adapter, **kwargs)
-    if not isinstance(result, Mapping): # pyright: ignore[reportUnnecessaryIsInstance]
+    if not isinstance(result, Mapping):  # pyright: ignore[reportUnnecessaryIsInstance]
         raise HTTPException(500, "scorer returned a non-mapping single result")
     return dict(result)
 
@@ -194,6 +194,7 @@ def _filter_metadata(spec: Any) -> Dict[str, Any]:
         }
     return out
 
+
 # =============================================================================
 # Versioning
 # =============================================================================
@@ -204,6 +205,7 @@ API_VERSION = "3.0.0"
 SCOPE_USERBASE = "userbase"
 SCOPE_MODERATION = "moderation"
 SCOPE_ADMIN = "admin"
+
 
 def _json_error_response(exc: Exception) -> JSONResponse:
     mapped = to_http_exception(exc)
@@ -247,16 +249,19 @@ DeviceRowDep = Annotated[DeviceRow, Depends(require_device)]
 # Scope gating helpers (server-side authoritative RBAC)
 # =============================================================================
 
+
 def require_scope(scope: str) -> Callable[[Principal], Principal]:
     def _dep(p: Annotated[Principal, Depends(require_principal)]) -> Principal:
         need(scope, p)
         return p
+
     return _dep
 
 
 # =============================================================================
 # Minimal auth schemas (until you move them into statline.slapi.schemas)
 # =============================================================================
+
 
 class ApiKeyRequestIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -316,6 +321,7 @@ admin_router = APIRouter(
 # DEVKEY helpers
 # =============================================================================
 
+
 def _safe_devkey_fp() -> Optional[str]:
     try:
         return devkey_fingerprint()
@@ -326,6 +332,7 @@ def _safe_devkey_fp() -> Optional[str]:
 # =============================================================================
 # Admin endpoints (ADMIN scope)
 # =============================================================================
+
 
 @admin_router.post("/devkey/init")  # pyright: ignore[reportUnknownMemberType]
 def admin_devkey_init(overwrite: bool = False) -> Dict[str, Any]:
@@ -375,7 +382,11 @@ def admin_enroll_approve(
     decided_by: str = "dev",
     note: Optional[str] = None,
 ) -> Dict[str, bool]:
-    return {"ok": admin_approve_enrollment(request_id=request_id, decided_by=decided_by, decision_note=note)}
+    return {
+        "ok": admin_approve_enrollment(
+            request_id=request_id, decided_by=decided_by, decision_note=note
+        )
+    }
 
 
 @admin_router.post("/enrollments/{request_id}/deny")  # pyright: ignore[reportUnknownMemberType]
@@ -384,7 +395,11 @@ def admin_enroll_deny(
     decided_by: str = "dev",
     note: Optional[str] = None,
 ) -> Dict[str, bool]:
-    return {"ok": admin_deny_enrollment(request_id=request_id, decided_by=decided_by, decision_note=note)}
+    return {
+        "ok": admin_deny_enrollment(
+            request_id=request_id, decided_by=decided_by, decision_note=note
+        )
+    }
 
 
 @admin_router.get("/apikey-requests")  # pyright: ignore[reportUnknownMemberType]
@@ -429,6 +444,7 @@ def debug_core_adapters() -> Dict[str, Any]:
 @admin_router.get("/debug/registry-list")  # pyright: ignore[reportUnknownMemberType]
 def debug_registry_list() -> Dict[str, Any]:
     from statline.core.adapters import list_names
+
     try:
         return {"adapters": list_names()}
     except Exception as e:
@@ -438,6 +454,7 @@ def debug_registry_list() -> Dict[str, Any]:
 # =============================================================================
 # Moderation endpoints (MODERATION scope)
 # =============================================================================
+
 
 @mod_router.post("/devices/{device_id}/revoke")  # pyright: ignore[reportUnknownMemberType]
 def mod_device_revoke(device_id: str, note: Optional[str] = None) -> Dict[str, bool]:
@@ -460,13 +477,16 @@ def mod_apikey_revoke(prefix: str) -> Dict[str, bool]:
 
 
 @mod_router.get("/audit")  # pyright: ignore[reportUnknownMemberType]
-def mod_audit(limit: int = 200, event: Optional[str] = None, org: Optional[str] = None) -> Dict[str, Any]:
+def mod_audit(
+    limit: int = 200, event: Optional[str] = None, org: Optional[str] = None
+) -> Dict[str, Any]:
     return {"audit": admin_list_audit(limit=limit, event=event, org=org)}
 
 
 # =============================================================================
 # Auth (user-facing): enroll + apikey requests (device-proof only)
 # =============================================================================
+
 
 @auth_router.post("/enroll")  # pyright: ignore[reportUnknownMemberType]
 def enroll(body: EnrollIn) -> Dict[str, Any]:
@@ -542,6 +562,7 @@ def whoami(auth: AuthDep) -> Dict[str, Any]:
 # Health / info (no auth)
 # =============================================================================
 
+
 @app.get("/")  # pyright: ignore[reportUnknownMemberType]
 def root() -> Dict[str, Any]:
     return {"name": "StatLine API", "version": API_VERSION}
@@ -556,6 +577,7 @@ def health() -> Dict[str, Any]:
 # =============================================================================
 # Adapters / metadata (USERBASE)
 # =============================================================================
+
 
 @api_router.get("/datasets")  # pyright: ignore[reportUnknownMemberType]
 def list_datasets() -> Dict[str, Any]:
@@ -624,7 +646,11 @@ def adapter_inputs(adapter: str) -> Dict[str, List[str]]:
 
 @api_router.get("/adapter/{adapter}/prompt-keys")  # pyright: ignore[reportUnknownMemberType]
 def adapter_prompt_keys(adapter: str) -> Dict[str, List[str]]:
-    keys = _infer_input_keys(adapter) or _mapper_metric_like_keys(adapter) or _declared_metric_keys(adapter)
+    keys = (
+        _infer_input_keys(adapter)
+        or _mapper_metric_like_keys(adapter)
+        or _declared_metric_keys(adapter)
+    )
     return {"keys": keys}
 
 
@@ -656,7 +682,10 @@ def adapter_traits(adapter: str) -> Dict[str, Any]:
         "filters": _filter_metadata(spec),
         "filter_keys": list(_filter_metadata(spec).keys()),
         "dimensions": _dimension_options(spec),
-        "weights": {str(k): {str(kk): float(vv) for kk, vv in dict(v).items()} for k, v in (getattr(spec, "weights", {}) or {}).items()},
+        "weights": {
+            str(k): {str(kk): float(vv) for kk, vv in dict(v).items()}
+            for k, v in (getattr(spec, "weights", {}) or {}).items()
+        },
         "score_profiles": list((getattr(spec, "score_profiles", {}) or {}).keys()),
     }
 
@@ -664,6 +693,7 @@ def adapter_traits(adapter: str) -> Dict[str, Any]:
 # =============================================================================
 # Mapping (USERBASE)
 # =============================================================================
+
 
 def _map_row_with_adapter(adapter_key: str, adp: Any, row: Mapping[str, Any]) -> Dict[str, float]:
     mapped = _safe_map_raw(adp, row)
@@ -695,6 +725,7 @@ def map_batch(body: MapBatchIn) -> List[Dict[str, float]]:
 # =============================================================================
 # Scoring via façade (USERBASE)
 # =============================================================================
+
 
 @api_router.post("/score/row")  # pyright: ignore[reportUnknownMemberType]
 def score_row(body: ScoreRowIn) -> Dict[str, Any]:
@@ -732,6 +763,7 @@ def score_batch(body: ScoreBatchIn) -> List[Dict[str, Any]]:
 # Calc passthroughs (mapped-metrics convenience) (USERBASE)
 # =============================================================================
 
+
 @api_router.post("/calc/pri")  # pyright: ignore[reportUnknownMemberType]
 def calc_pri_single(body: PriSingleIn) -> Dict[str, Any]:
     """
@@ -740,7 +772,9 @@ def calc_pri_single(body: PriSingleIn) -> Dict[str, Any]:
     """
     adp = _load_adapter(body.adapter)
 
-    weights_in = body.weights if getattr(body, "weights", None) is not None else body.weights_override
+    weights_in = (
+        body.weights if getattr(body, "weights", None) is not None else body.weights_override
+    )
     weights_arg = weights_in if isinstance(weights_in, (str, dict)) else None
 
     return _calculate_pri_mapped_single(
@@ -762,7 +796,9 @@ def calc_pri_batch(body: PriBatchIn) -> List[Dict[str, Any]]:
     """
     adp = _load_adapter(body.adapter)
 
-    weights_in = body.weights if getattr(body, "weights", None) is not None else body.weights_override
+    weights_in = (
+        body.weights if getattr(body, "weights", None) is not None else body.weights_override
+    )
     weights_arg = weights_in if isinstance(weights_in, (str, dict)) else None
 
     if (body.caps_mode or "batch").lower() == "clamps":
@@ -794,6 +830,7 @@ def calc_pri_batch(body: PriBatchIn) -> List[Dict[str, Any]]:
 # Combined convenience endpoints (RAW -> MAPPED -> PRI) (USERBASE)
 # =============================================================================
 
+
 @api_router.post("/pri/row")  # pyright: ignore[reportUnknownMemberType]
 def pri_row(body: ScoreRowIn) -> Dict[str, Any]:
     """
@@ -802,7 +839,11 @@ def pri_row(body: ScoreRowIn) -> Dict[str, Any]:
     """
     adp = _load_adapter(body.adapter)
 
-    weights_in = body.weights if getattr(body, "weights", None) is not None else getattr(body, "weights_override", None)
+    weights_in = (
+        body.weights
+        if getattr(body, "weights", None) is not None
+        else getattr(body, "weights_override", None)
+    )
     weights_arg = weights_in if isinstance(weights_in, (str, dict)) else None  # pyright: ignore[reportUnknownVariableType]
 
     mapped = _map_row_with_adapter(body.adapter, adp, body.row)
@@ -828,7 +869,11 @@ def pri_batch(body: ScoreBatchIn, caps_mode: str = "batch") -> List[Dict[str, An
     """
     adp = _load_adapter(body.adapter)
 
-    weights_in = body.weights if getattr(body, "weights", None) is not None else getattr(body, "weights_override", None)
+    weights_in = (
+        body.weights
+        if getattr(body, "weights", None) is not None
+        else getattr(body, "weights_override", None)
+    )
     weights_arg = weights_in if isinstance(weights_in, (str, dict)) else None  # pyright: ignore[reportUnknownVariableType]
 
     mapped_rows = [_map_row_with_adapter(body.adapter, adp, r) for r in body.rows]
@@ -861,6 +906,7 @@ def pri_batch(body: ScoreBatchIn, caps_mode: str = "batch") -> List[Dict[str, An
 # =============================================================================
 # Optional: adapter spec peek (USERBASE)
 # =============================================================================
+
 
 @api_router.get("/adapter/{adapter}/spec")  # pyright: ignore[reportUnknownMemberType]
 def adapter_spec(adapter: str) -> Dict[str, Any]:
@@ -899,6 +945,7 @@ def adapter_spec(adapter: str) -> Dict[str, Any]:
         "weights": weights,
         "score_profiles": list((getattr(spec, "score_profiles", {}) or {}).keys()),
     }
+
 
 app.include_router(auth_router)
 app.include_router(api_router)

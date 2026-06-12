@@ -6,6 +6,7 @@ from typing import Any, Callable, Literal, Mapping
 
 ParamKind = Literal["text", "number", "boolean", "path", "choice", "multi"]
 
+
 @dataclass(frozen=True)
 class ParamSpec:
     name: str
@@ -16,12 +17,14 @@ class ParamSpec:
     choices: tuple[str, ...] = ()
     aliases: tuple[str, ...] = ()
 
+
 @dataclass(frozen=True)
 class ActionResult:
     title: str
     data: Any
     kind: Literal["table", "json", "markdown", "text", "status"] = "json"
     message: str = ""
+
 
 @dataclass(frozen=True)
 class ActionSpec:

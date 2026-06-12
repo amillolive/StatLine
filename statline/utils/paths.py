@@ -8,10 +8,12 @@ def project_caps_dir(cwd: Path | None = None) -> Path:
     base = cwd or Path.cwd()
     return base / ".statline" / "caps"
 
+
 def user_cache_caps_dir() -> Path:
     xdg = os.getenv("XDG_CACHE_HOME")
     base = Path(xdg).expanduser() if xdg else Path.home() / ".cache"
     return base / "statline" / "caps"
+
 
 def resolve_caps_read_path(adapter_key: str, explicit: Path | None = None) -> Path | None:
     if explicit is not None:
@@ -23,6 +25,7 @@ def resolve_caps_read_path(adapter_key: str, explicit: Path | None = None) -> Pa
     if p2.exists():
         return p2
     return None
+
 
 def resolve_caps_write_path(adapter_key: str, prefer_project: bool = True) -> Path:
     target_dir = project_caps_dir() if prefer_project else user_cache_caps_dir()

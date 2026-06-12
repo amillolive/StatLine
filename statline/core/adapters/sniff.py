@@ -47,17 +47,21 @@ def sniff_adapters(headers: Iterable[str]) -> List[str]:
 
         def _sniff_values(name: str) -> list[object]:
             if isinstance(sniff_meta, dict):
-                val = sniff_meta.get(name) # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+                val = sniff_meta.get(name)  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
             else:
                 val = getattr(sniff_meta, name, None)
             if isinstance(val, (list, tuple, set)):
-                return list(val) # pyright: ignore[reportUnknownArgumentType]
+                return list(val)  # pyright: ignore[reportUnknownArgumentType]
             if isinstance(val, str):
                 return [val]
             return []
 
-        any_need = {str(x).strip().lower() for x in _sniff_values("require_any_headers") if str(x).strip()}
-        all_need = {str(x).strip().lower() for x in _sniff_values("require_all_headers") if str(x).strip()}
+        any_need = {
+            str(x).strip().lower() for x in _sniff_values("require_any_headers") if str(x).strip()
+        }
+        all_need = {
+            str(x).strip().lower() for x in _sniff_values("require_all_headers") if str(x).strip()
+        }
         if (any_need and (any_need & hset)) or (all_need and all_need.issubset(hset)):
             k = adp.key
             lk = k.lower()

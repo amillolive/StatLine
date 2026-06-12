@@ -3,6 +3,7 @@
 The goal of this module is to give bots, dashboards, notebooks, and other Python
 apps a small, boring API over the richer internal implementation.
 """
+
 from __future__ import annotations
 
 from collections.abc import Iterable as AbcIterable
@@ -158,12 +159,12 @@ def score(
     if isinstance(data, AbcMapping):
         raise TypeError("batch mode requires an iterable of row mappings, not one mapping")
 
-    if not isinstance(data, AbcIterable): # pyright: ignore[reportUnnecessaryIsInstance]
+    if not isinstance(data, AbcIterable):  # pyright: ignore[reportUnnecessaryIsInstance]
         raise TypeError("batch mode requires an iterable of row mappings")
 
     return score_batch(
         adapter,
-        cast(Iterable[Mapping[str, Any]], data), # pyright: ignore[reportUnnecessaryCast]
+        cast(Iterable[Mapping[str, Any]], data),  # pyright: ignore[reportUnnecessaryCast]
         weights=weights,
         weights_override=weights_override,
         penalties_override=penalties_override,

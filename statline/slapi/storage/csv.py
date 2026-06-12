@@ -29,8 +29,10 @@ DialectLike = Union[str, csv.Dialect]  # name or instance (never a class)
 # Utilities
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 def _ensure_path(p: _PathLike) -> Path:
     return p if isinstance(p, Path) else Path(p)
+
 
 def _maybe_normalize_header(name: str, *, normalize_headers: bool) -> str:
     if not normalize_headers:
@@ -47,6 +49,7 @@ def _maybe_normalize_header(name: str, *, normalize_headers: bool) -> str:
                 out.append("_")
             prev_us = True
     return "".join(out).strip("_")
+
 
 def _coerce_cell(x: str, *, coerce_numbers: bool, strip_cells: bool) -> Any:
     if strip_cells:
@@ -65,9 +68,11 @@ def _coerce_cell(x: str, *, coerce_numbers: bool, strip_cells: bool) -> Any:
         pass
     return x
 
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Dialect sniffing (always returns name or instance)
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 def sniff_dialect_name_or_instance(
     sample: Union[bytes, str],
@@ -86,9 +91,11 @@ def sniff_dialect_name_or_instance(
     except Exception:
         return "excel"
 
+
 # ──────────────────────────────────────────────────────────────────────────────
 # File opening
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 @contextmanager
 def _open_text(
@@ -106,6 +113,7 @@ def _open_text(
         yield f
     finally:
         f.close()
+
 
 def _iter_from_file(
     f: TextIO,
@@ -148,11 +156,9 @@ def _iter_from_file(
         return  # empty file
 
     if header_present:
-        header = [
-            _maybe_normalize_header(h, normalize_headers=normalize_headers) for h in first
-        ]
+        header = [_maybe_normalize_header(h, normalize_headers=normalize_headers) for h in first]
     else:
-        header = [f"col_{i+1}" for i in range(len(first))]
+        header = [f"col_{i + 1}" for i in range(len(first))]
         row_vals = [
             _coerce_cell(v, coerce_numbers=coerce_numbers, strip_cells=strip_cells) for v in first
         ]
@@ -163,15 +169,17 @@ def _iter_from_file(
         if len(row) < len(header):
             row = row + [""] * (len(header) - len(row))
         elif len(row) > len(header):
-            row = row[:len(header)]
+            row = row[: len(header)]
         vals = [
             _coerce_cell(v, coerce_numbers=coerce_numbers, strip_cells=strip_cells) for v in row
         ]
         yield dict(zip(header, vals))
 
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Public readers
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 def iter_csv_rows(
     src: Union[_PathLike, TextIO],
@@ -209,6 +217,7 @@ def iter_csv_rows(
             delimiters=delimiters,
         )
 
+
 def read_csv_rows(
     path: _PathLike,
     **kwargs: Any,
@@ -216,9 +225,11 @@ def read_csv_rows(
     """Read entire CSV into memory as List[Dict[str, Any]]."""
     return list(iter_csv_rows(path, **kwargs))
 
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Writers
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 def write_csv_rows(
     path: _PathLike,
@@ -267,9 +278,11 @@ def write_csv_rows(
             count += 1
     return count, list(fieldnames)
 
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Preview helpers
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 def peek_headers(
     path: _PathLike,

@@ -22,9 +22,7 @@ class LauncherConfig:
 
 class ActionItem(ListItem):
     def __init__(self, action: ActionSpec) -> None:
-        super().__init__(
-            Label(f"{action.title}  —  {action.short_help or action.group}")
-        )
+        super().__init__(Label(f"{action.title}  —  {action.short_help or action.group}"))
         self.action = action
 
 

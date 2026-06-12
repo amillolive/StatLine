@@ -28,6 +28,7 @@ class AdapterHooks(Protocol):
 
 class NoOpHooks:
     """Default no-op implementation used when an adapter doesn't provide hooks."""
+
     def pre_map(self, row: Dict[str, Any]) -> Dict[str, Any]:
         return row
 

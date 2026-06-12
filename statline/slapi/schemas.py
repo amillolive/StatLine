@@ -8,10 +8,10 @@ from pydantic import BaseModel, ConfigDict
 Row = Mapping[str, Any]
 Rows = Sequence[Row]
 
-Weights = Dict[str, float]                 # bucket -> weight
-WeightsArg = Union[str, Weights]           # preset name OR bucket->weight override
+Weights = Dict[str, float]  # bucket -> weight
+WeightsArg = Union[str, Weights]  # preset name OR bucket->weight override
 
-Penalties = Dict[str, float]               # bucket -> penalty (0..1)
+Penalties = Dict[str, float]  # bucket -> penalty (0..1)
 Output = Dict[str, Any]
 Filters = Dict[str, Any]
 

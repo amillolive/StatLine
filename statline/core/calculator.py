@@ -139,7 +139,7 @@ def score_rows_from_raw(
             caps_override=caps_override,
             timing=timing,
         ),
-    ) # pyright: ignore[reportUnnecessaryCast]
+    )  # pyright: ignore[reportUnnecessaryCast]
 
 
 def score_row_from_raw(
