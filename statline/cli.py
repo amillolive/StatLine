@@ -19,7 +19,7 @@ from collections import defaultdict
 
 # ── stdlib ────────────────────────────────────────────────────────────────────
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timezone, tzinfo
 from os import getenv
 from pathlib import Path
 from typing import (
@@ -610,7 +610,7 @@ _TS_KEY_RE = re.compile(
 )
 
 
-def _local_tz():
+def _local_tz() -> tzinfo:
     # Local system tz (handles EST/EDT correctly if OS is configured)
     return datetime.now().astimezone().tzinfo or timezone.utc
 
@@ -658,9 +658,12 @@ def _maybe_format_timestamp(key: str, value: Any) -> Any:
 
     # ISO-ish string
     if isinstance(value, str):
-        dt = _try_parse_iso(value)
-        if dt is not None:
-            return _format_dt_local(dt)
+        parsed_dt = _try_parse_iso(value)
+
+        if parsed_dt is None:
+            return value
+
+        dt = parsed_dt
 
     return value
 
@@ -715,7 +718,7 @@ def echo_clean(obj: Any, *, pager: bool = True) -> None:
         s += "\n"
 
     if pager and supports_internal_pager():
-        typer.echo_via_pager(s)  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
+        click.echo_via_pager(s)
     else:
         typer.echo(s, nl=False)
 
@@ -762,8 +765,9 @@ def render_apikeys_view(data: Dict[str, Any]) -> None:
 def echo_clean_auto(obj: Any) -> None:
     norm = _normalize_for_display(obj)
     if isinstance(norm, dict) and isinstance(norm.get("audit"), list) and norm["audit"]:  # pyright: ignore[reportUnknownMemberType]
-        text = _render_audit_pages(norm["audit"], per_page=50)  # pyright: ignore[reportUnknownArgumentType]
-        typer.echo_via_pager(text)  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
+        audit_rows = cast(List[Dict[str, Any]], norm["audit"])
+        text = _render_audit_pages(audit_rows, per_page=50)
+        click.echo_via_pager(text)
         return
     echo_clean(norm, pager=True)
 
@@ -1219,12 +1223,16 @@ def _extract_profile_score(res: Mapping[str, Any], profile: str) -> Optional[int
             return 0
 
     def _as_int(x: object, default: int = 0) -> int:
-        if x is None:
+        if x is None or isinstance(x, bool):
             return default
-        try:
-            return int(x)  # type: ignore[arg-type]
-        except Exception:
-            return default
+        if isinstance(x, int):
+            return x
+        if isinstance(x, (float, str)):
+            try:
+                return int(x)
+            except ValueError:
+                return default
+        return default
 
     slug = _slug_profile_key(p)
     if slug in res:
@@ -2608,10 +2616,11 @@ def admin_interactive() -> None:
 
         if top == "API key requests: list + approve/deny":
             status = str(typer.prompt("status", default="PENDING")).strip() or "PENDING"
-            org = str(typer.prompt("org (blank=all)", default="")).strip() or None
+            org_raw = str(typer.prompt("org (blank=all)", default="")).strip()
+            org_filter: Optional[str] = org_raw or None
             params3: Dict[str, Any] = {"status": status}
-            if org:
-                params3["org"] = org
+            if org_filter:
+                params3["org"] = org_filter
             data = try_call(_get_v3, "/v3/admin/apikey-requests", params=params3)
             if not data:
                 continue
@@ -2646,8 +2655,13 @@ def admin_interactive() -> None:
             continue
 
         if top == "Moderation (best-effort): list apikeys":
-            org = str(typer.prompt("org (blank=all)", default="")).strip() or None
-            data = try_call(_get_v3, "/v3/mod/apikeys", params={"org": org} if org else None)
+            org_raw = str(typer.prompt("org (blank=all)", default="")).strip()
+            org_filter: Optional[str] = org_raw or None
+            data = try_call(
+                _get_v3,
+                "/v3/mod/apikeys",
+                params={"org": org_filter} if org_filter else None,
+            )
             if data is not None:
                 show(data)
             continue
@@ -2655,12 +2669,14 @@ def admin_interactive() -> None:
         if top == "Moderation (best-effort): audit log":
             limit = int(str(typer.prompt("limit", default="200")).strip() or "200")
             event = str(typer.prompt("event (blank=all)", default="")).strip() or None
-            org = str(typer.prompt("org (blank=all)", default="")).strip() or None
+            org_raw = str(typer.prompt("org (blank=all)", default="")).strip()
+            org_filter: Optional[str] = org_raw or None
+
             params2: Dict[str, Any] = {"limit": limit}
             if event:
                 params2["event"] = event
-            if org:
-                params2["org"] = org
+            if org_filter:
+                params2["org"] = org_filter
             data = try_call(_get_v3, "/v3/mod/audit", params=params2)
             if data is not None:
                 show(data)
@@ -3922,7 +3938,9 @@ def serve_cmd(
         start_new_session = False
 
         if os.name == "nt":
-            creationflags = subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS
+            creationflags = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0) | getattr(
+                subprocess, "DETACHED_PROCESS", 0
+            )
         else:
             start_new_session = True
 

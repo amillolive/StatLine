@@ -767,15 +767,18 @@ def load_spec(name: str) -> AdapterSpec:
 
     # Weights (optional; default uniform pri)
     weights_raw = data.get("weights")
+    weights_out: dict[str, dict[str, float]]
+
     if weights_raw is None:
         weights_out = _uniform_weights(sorted(bucket_names))
     else:
         weights_map = _as_str_dict(weights_raw, ctx=f"Adapter '{name}': 'weights'")
-        weights_out: dict[str, dict[str, float]] = {}
+        weights_out = {}
+
         for profile, bw_obj in weights_map.items():
             bw = _as_str_dict(bw_obj, ctx=f"Adapter '{name}': weights profile '{profile}'")
 
-            inner: dict[str, float] = {bk: 0.0 for bk in bucket_names}
+            weight_inner: dict[str, float] = {bk: 0.0 for bk in bucket_names}
             for b, v in bw.items():
                 if b not in bucket_names:
                     msg = f"Adapter '{name}': weights profile '{profile}' references unknown bucket '{b}'"
@@ -783,15 +786,19 @@ def load_spec(name: str) -> AdapterSpec:
                         raise KeyError(msg)
                     _warn(msg + " — treating as 0.0 and ignoring.")
                     continue
-                inner[b] = _finite_float(v, default=0.0)
-            weights_out[profile] = inner
+
+                weight_inner[b] = _finite_float(v, default=0.0)
+
+            weights_out[profile] = weight_inner
 
     # Penalties (optional)
     penalties_map = _as_str_dict(data.get("penalties"), ctx=f"Adapter '{name}': 'penalties'")
     penalties: dict[str, dict[str, float]] = {}
+
     for profile, pw_obj in penalties_map.items():
         pw = _as_str_dict(pw_obj, ctx=f"Adapter '{name}': penalties profile '{profile}'")
-        inner: dict[str, float] = {}
+
+        penalty_inner: dict[str, float] = {}
         for b, v in pw.items():
             if b not in bucket_names:
                 msg = f"Adapter '{name}': penalties profile '{profile}' references unknown bucket '{b}'"
@@ -799,8 +806,10 @@ def load_spec(name: str) -> AdapterSpec:
                     raise KeyError(msg)
                 _warn(msg + " — dropping penalty.")
                 continue
-            inner[b] = _finite_float(v, default=0.0)
-        penalties[profile] = inner
+
+            penalty_inner[b] = _finite_float(v, default=0.0)
+
+        penalties[profile] = penalty_inner
 
     # Metrics (fail-fast source; check unknown keys; strict unknown bucket)
     metrics_items = _as_obj_list(data["metrics"], ctx=f"Adapter '{name}': 'metrics'")

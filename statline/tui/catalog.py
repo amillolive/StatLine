@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 import click
 import typer
@@ -161,7 +161,7 @@ def build_action_catalog(
     *,
     exclude: set[str] | None = None,
 ) -> list[ActionSpec]:
-    click_root = get_command(typer_app)
+    click_root = cast(click.Command, get_command(typer_app))
 
     excluded = {
         "interactive",

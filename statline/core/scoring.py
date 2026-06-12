@@ -44,6 +44,26 @@ def _to_float(x: Any, default: float = 0.0) -> float:
         return default
 
 
+def _to_float_or_none(x: object) -> Optional[float]:
+    if isinstance(x, (int, float, str)):
+        try:
+            return float(x)
+        except ValueError:
+            return None
+    return None
+
+
+def _to_int(x: object, default: int = 0) -> int:
+    if isinstance(x, int):
+        return x
+    if isinstance(x, (float, str)):
+        try:
+            return int(x)
+        except ValueError:
+            return default
+    return default
+
+
 def _ctx_get(ctx: Mapping[str, Mapping[str, float]], k: str) -> Tuple[float, float]:
     info = ctx.get(k) or {}
     leader = _to_float(info.get("leader", 1.0), 1.0)
@@ -571,7 +591,7 @@ def _passes_dimension_filters(
 
     dim_filters_any = filters.get("dimensions")
     dim_filters: Dict[str, Any] = (
-        dict(dim_filters_any) if isinstance(dim_filters_any, Mapping) else {}
+        dict(dim_filters_any) if isinstance(dim_filters_any, Mapping) else {}  # pyright: ignore[reportUnknownArgumentType]
     )  # pyright: ignore[reportUnknownArgumentType]
 
     # also accept dimension keys at the top-level
@@ -795,11 +815,11 @@ def _calculate_pri_batch_mapped(
                     ctx[kk] = {"leader": c, "floor": 0.0}
         elif context is not None:
             ctx = {}
-            for k, v in (context or {}).items():
+            for k, ctx_info in (context or {}).items():
                 kk = str(k)
                 ctx[kk] = {
-                    "leader": _to_float(v.get("leader", 1.0), 1.0),
-                    "floor": _to_float(v.get("floor", 0.0), 0.0),
+                    "leader": _to_float(ctx_info.get("leader", 1.0), 1.0),
+                    "floor": _to_float(ctx_info.get("floor", 0.0), 0.0),
                 }
         elif len(rows_used) == 1:
             ctx = _context_from_clamps(adapter, invert_map)
@@ -808,13 +828,11 @@ def _calculate_pri_batch_mapped(
             vals: Dict[str, List[float]] = {k: [] for k in metric_keys}
             for r in rows_used:
                 for k in metric_keys:
-                    v = r.get(k)
-                    if v is None:
+                    raw_value = r.get(k)
+                    numeric_value = _to_float_or_none(raw_value)
+                    if numeric_value is None:
                         continue
-                    try:
-                        vals[k].append(float(v))
-                    except Exception:
-                        pass
+                    vals[k].append(numeric_value)
 
             ctx = {}
             for k in metric_keys:
@@ -969,12 +987,12 @@ def _calculate_pri_batch_mapped(
                 x01 = clamp01(x01 * RAW01_SCALE)
                 raw01_by_profile[pname].append(x01)
 
-            payload = {
+            payload: Dict[str, Any] = {
                 "buckets": bucket_scores,
                 "components": comps,
-                "weights": dict(pri_unit_w),  # legacy: primary profile weights only
+                "weights": dict(pri_unit_w),
                 "context_used": context_used,
-                "pri_raw": raw01_by_profile[primary_name][-1],  # legacy: pri_raw == PRIMARY
+                "pri_raw": raw01_by_profile[primary_name][-1],
                 "primary_profile": primary_name,
                 "_i": idx,
             }
@@ -989,8 +1007,8 @@ def _calculate_pri_batch_mapped(
         # Final pass: build output items
         by_idx: Dict[int, Dict[str, Any]] = {}
         for payload in tmp_rows:
-            idx = int(payload.get("_i", 0))
-            item = dict(payload)
+            idx = _to_int(payload.get("_i", 0), 0)
+            item: Dict[str, Any] = dict(payload)
             item.pop("_i", None)
 
             scores: Dict[str, int] = {}
@@ -1001,10 +1019,12 @@ def _calculate_pri_batch_mapped(
                 scores[name] = int(round(sval))
 
             # Back-compat: keep primary PRI in "pri"
-            item["pri"] = scores.get(
-                primary_name,
-                int(round(_affine01(item.get("pri_raw", 0.0), 55.0, 99.0))),
-            )
+            primary_score = scores.get(primary_name)
+            if primary_score is None:
+                pri_raw = _to_float(item.get("pri_raw", 0.0), 0.0)
+                primary_score = int(round(_affine01(pri_raw, 55.0, 99.0)))
+
+            item["pri"] = primary_score
 
             # Full map + flattened fields
             item["scores"] = dict(scores)
