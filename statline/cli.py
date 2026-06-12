@@ -2616,11 +2616,11 @@ def admin_interactive() -> None:
 
         if top == "API key requests: list + approve/deny":
             status = str(typer.prompt("status", default="PENDING")).strip() or "PENDING"
-            org_raw = str(typer.prompt("org (blank=all)", default="")).strip()
-            org_filter: Optional[str] = org_raw or None
+            requests_org_raw = str(typer.prompt("org (blank=all)", default="")).strip()
+            requests_org_filter: Optional[str] = requests_org_raw or None
             params3: Dict[str, Any] = {"status": status}
-            if org_filter:
-                params3["org"] = org_filter
+            if requests_org_filter:
+                params3["org"] = requests_org_filter
             data = try_call(_get_v3, "/v3/admin/apikey-requests", params=params3)
             if not data:
                 continue
@@ -2655,12 +2655,13 @@ def admin_interactive() -> None:
             continue
 
         if top == "Moderation (best-effort): list apikeys":
-            org_raw = str(typer.prompt("org (blank=all)", default="")).strip()
-            org_filter: Optional[str] = org_raw or None
+            apikeys_org_raw = str(typer.prompt("org (blank=all)", default="")).strip()
+            apikeys_org_filter: Optional[str] = apikeys_org_raw or None
+
             data = try_call(
                 _get_v3,
                 "/v3/mod/apikeys",
-                params={"org": org_filter} if org_filter else None,
+                params={"org": apikeys_org_filter} if apikeys_org_filter else None,
             )
             if data is not None:
                 show(data)
@@ -2669,14 +2670,14 @@ def admin_interactive() -> None:
         if top == "Moderation (best-effort): audit log":
             limit = int(str(typer.prompt("limit", default="200")).strip() or "200")
             event = str(typer.prompt("event (blank=all)", default="")).strip() or None
-            org_raw = str(typer.prompt("org (blank=all)", default="")).strip()
-            org_filter: Optional[str] = org_raw or None
+            audit_org_raw = str(typer.prompt("org (blank=all)", default="")).strip()
+            audit_org_filter: Optional[str] = audit_org_raw or None
 
             params2: Dict[str, Any] = {"limit": limit}
             if event:
                 params2["event"] = event
-            if org_filter:
-                params2["org"] = org_filter
+            if audit_org_filter:
+                params2["org"] = audit_org_filter
             data = try_call(_get_v3, "/v3/mod/audit", params=params2)
             if data is not None:
                 show(data)
