@@ -130,7 +130,6 @@ settings.local.*
 # optional: ignore runtime dumps
 # ─────────────────────────────────────────────────────────────────────────────
 *.pid
-*.lock
 *.tmp
 *.bak
 *.swp
