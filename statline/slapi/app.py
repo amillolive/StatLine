@@ -14,7 +14,7 @@ try:
 except ModuleNotFoundError as e:
     raise RuntimeError(
         "StatLine SLAPI requires optional dependencies. Install with: "
-        "pip install 'statline[api]'  (or)  pip install -e '.[api]'"
+        "pip install 'statline[remote]'  (or)  pip install -e '.[remote]'"
     ) from e
 
 from statline.core.adapters import list_names as _list_names
@@ -198,7 +198,7 @@ def _filter_metadata(spec: Any) -> Dict[str, Any]:
 # Versioning
 # =============================================================================
 
-API_VERSION = "3.0.0rc3"
+API_VERSION = "3.0.0"
 
 # Scope names (expanded/validated in auth.py; app.py only gates)
 SCOPE_USERBASE = "userbase"
