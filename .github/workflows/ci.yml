@@ -175,7 +175,6 @@ jobs:
         with:
           name: dist-ubuntu
           path: dist/*
-
   smoke:
     name: Wheel smoke (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
@@ -203,21 +202,41 @@ jobs:
           name: dist-ubuntu
           path: dist
 
-      - name: Install wheel (base)
-        run: uv pip install dist/*.whl
+      - name: Install wheel
+        run: |
+          for i in 1 2 3; do
+            uv pip install dist/*.whl && exit 0
+            echo "Wheel install failed, retrying..."
+            sleep 10
+          done
+          uv pip install dist/*.whl
+
+      - name: Resolve venv commands
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            echo "PY=$GITHUB_WORKSPACE/.venv/Scripts/python.exe" >> "$GITHUB_ENV"
+            echo "STATLINE=$GITHUB_WORKSPACE/.venv/Scripts/statline.exe" >> "$GITHUB_ENV"
+          else
+            echo "PY=$GITHUB_WORKSPACE/.venv/bin/python" >> "$GITHUB_ENV"
+            echo "STATLINE=$GITHUB_WORKSPACE/.venv/bin/statline" >> "$GITHUB_ENV"
+          fi
 
       - name: Import package
-        run: uv run python -c "import statline; print('Import OK', statline.__version__)"
+        working-directory: ${{ runner.temp }}
+        run: '"$PY" -c "import statline; print(\"Import OK\", statline.__version__)"'
 
       - name: CLI help (module entry point)
-        run: uv run python -m statline.cli --mode local --help
+        working-directory: ${{ runner.temp }}
+        run: '"$PY" -m statline.cli --mode local --help'
 
       - name: CLI help (console script)
-        run: uv run statline --mode local --help
+        working-directory: ${{ runner.temp }}
+        run: '"$STATLINE" --mode local --help'
 
       - name: Public API smoke
+        working-directory: ${{ runner.temp }}
         run: |
-          uv run python - <<'PY'
+          "$PY" - <<'PY'
           from statline import list_adapters, list_datasets, load_adapter, load_dataset, score_row
 
           adapters = list_adapters()
@@ -237,8 +256,9 @@ jobs:
           PY
 
       - name: Adapter registry smoke
+        working-directory: ${{ runner.temp }}
         run: |
-          uv run python - <<'PY'
+          "$PY" - <<'PY'
           from statline.core.adapters import list_names, load
 
           names = list_names()
