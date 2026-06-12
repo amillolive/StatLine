@@ -54,7 +54,7 @@ jobs:
       - name: Verify tag matches project.version
         if: startsWith(github.ref, 'refs/tags/')
         run: |
-          uv run python - <<'PY'
+          .venv/bin/python - <<'PY'
           import os
           import pathlib
           import sys
@@ -73,10 +73,10 @@ jobs:
           PY
 
       - name: Build
-        run: uv run python -m build
+        run: .venv/bin/python -m build
 
       - name: Twine check
-        run: uv run python -m twine check dist/*
+        run: .venv/bin/python -m twine check dist/*
 
       - name: Upload dist
         uses: actions/upload-artifact@v4
@@ -84,7 +84,7 @@ jobs:
           name: dist
           path: dist/*
           if-no-files-found: error
-
+          
   publish-pypi:
     name: Publish to PyPI (OIDC)
     needs: build
