@@ -111,18 +111,7 @@ jobs:
       - name: Run tests
         shell: bash
         run: |
-          if [[ "$RUNNER_OS" == "macOS" ]]; then
-            if [[ -x /opt/homebrew/bin/bash ]]; then
-              exec /opt/homebrew/bin/bash "$0"
-            elif [[ -x /usr/local/bin/bash ]]; then
-              exec /usr/local/bin/bash "$0"
-            fi
-          fi
-
-          shopt -s nullglob globstar
-          files=(tests/test_*.py tests/**/test_*.py)
-
-          if [ ${#files[@]} -eq 0 ]; then
+          if ! find tests -name 'test_*.py' -print -quit 2>/dev/null | grep -q .; then
             echo "No tests detected."
             echo '<?xml version="1.0" ?><testsuite></testsuite>' > test-results/junit.xml
             echo '<?xml version="1.0" ?><coverage></coverage>' > coverage.xml
@@ -135,7 +124,7 @@ jobs:
             --cov=statline \
             --cov-report=xml:coverage.xml \
             --junitxml=test-results/junit.xml
-
+            
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4

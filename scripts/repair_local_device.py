@@ -3,7 +3,7 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
-from statline.cli import DEVICEID_PATH, APIKEY_PATH
+from statline.cli import APIKEY_PATH, DEVICEID_PATH
 
 try:
     from statline.slapi.auth import DB_PATH
