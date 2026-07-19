@@ -283,13 +283,16 @@ jobs:
         working-directory: ${{ runner.temp }}
         run: |
           "$PY" - <<'PY'
-          from statline.core.adapters import list_names, load
+          from statline.core.adapters import list_adapters, load_adapter
 
-          names = list_names()
+          names = list_adapters()
           assert names, "No adapters discovered"
+
           for name in names:
-              adapter = load(name)
+              adapter = load_adapter(name)
               assert adapter.key
               assert adapter.score_profiles, f"{adapter.key} has no score profiles"
+
           print("Adapters OK:", ", ".join(names))
           PY
+          
