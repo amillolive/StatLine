@@ -5,7 +5,7 @@
 key: eba_teams
 version: 1.0.0
 aliases: [eba_teams, eba_power, eba_t, ebat, eba_team]
-title: EBA Teams (real_gp weighted)
+title: EBA Teams (GP + form weighted)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Dimensions
@@ -19,7 +19,7 @@ dimensions:
     meta: { display: Team }
 
   conference:
-    values: [Eastern Conference, Western Conference]
+    values: [Eastern, Western]
     strict: true
     description: Conference identifier
     meta: { display: Conference }
@@ -27,7 +27,7 @@ dimensions:
   streak:
     values: []
     strict: false
-    description: Streak label (e.g., w2, l1). Not scored unless you add numeric streak fields.
+    description: Current win/loss streak count.
     meta: { display: Streak }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -74,13 +74,17 @@ buckets:
     title: Net Rating
     description: Margin strength, real_gp reliability-adjusted.
 
-  off:
+  offense:
     title: Offense
     description: Points-for environment, real_gp reliability-adjusted.
 
-  def:
+  defense:
     title: Defense
     description: Points-against environment, real_gp reliability-adjusted.
+  
+  form:
+    title: Recent Form
+    description: Current win/loss streak pressure.
 
   telem:
     title: Telemetry
@@ -136,7 +140,7 @@ metrics:
     bucket: telem
     clamp: [0.0, 32.0]
     source:
-      expr: "max(0.0, gp - ff_total)"
+      expr: "gp"
 
   - key: diff_raw
     bucket: telem
@@ -199,13 +203,13 @@ metrics:
       expr: "diff_raw / max(1.0, real_gp)"
 
   - key: off_rtg
-    bucket: off
+    bucket: offense
     clamp: [70.0, 130.0]
     source:
       expr: "100.0 + (pf_pg - 100.0) * rel4_eff - no_real * 30.0"
 
   - key: def_rtg
-    bucket: def
+    bucket: defense
     invert: true
     clamp: [70.0, 130.0]
     source:
@@ -224,10 +228,10 @@ metrics:
       expr: "pf_pg + pa_pg"
 
   - key: streak_signed
-    bucket: telem
+    bucket: form
     clamp: [-5.0, 5.0]
     source:
-      expr: "STREAK * STREAK_SIGN"
+      expr: "max(-4.0, (STREAK * STREAK_SIGN) * rel4 - no_real * 4.0)"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Weights
@@ -235,34 +239,39 @@ metrics:
 
 weights:
   pri:
-    wl:  0.20
-    net: 0.50
-    off: 0.15
-    def: 0.15
+    wl:  0.18
+    net: 0.46
+    offense: 0.14
+    defense: 0.14
+    form: 0.08
 
   standings:
-    wl:  0.50
-    net: 0.40
-    off: 0.05
-    def: 0.05
+    wl:  0.48
+    net: 0.38
+    offense: 0.04
+    defense: 0.04
+    form: 0.06
 
   predictive:
-    wl:  0.30
-    net: 0.60
-    off: 0.05
-    def: 0.05
+    wl:  0.27
+    net: 0.57
+    offense: 0.04
+    defense: 0.04
+    form: 0.08
 
   offense:
     wl:  0.10
     net: 0.15
-    off: 0.75
-    def: 0.00
+    offense: 0.75
+    defense: 0.00
+    form: 0.00
 
   defense:
     wl:  0.15
     net: 0.10
-    off: 0.00
-    def: 0.75
+    offense: 0.00
+    defense: 0.75
+    form: 0.00
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Score profiles

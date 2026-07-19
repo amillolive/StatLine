@@ -1,28 +1,35 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# venvs & caches
+# Virtual envs, Python caches, test/cache output
 # ─────────────────────────────────────────────────────────────────────────────
 /.venv/
+.venv/
+venv/
+env/
+
 __pycache__/
+*.py[cod]
+*$py.class
+
 .mypy_cache/
 .ruff_cache/
 .pytest_cache/
 .coverage
 coverage.xml
+htmlcov/
 pip-wheel-metadata/
-*.py[cod]
-*$py.class
 
 # ─────────────────────────────────────────────────────────────────────────────
-# build outputs
+# Build outputs / package artifacts
 # ─────────────────────────────────────────────────────────────────────────────
 /dist/
-build/
+/build/
 *.egg-info/
 .eggs/
 *.whl
+*.tar.gz
 
 # ─────────────────────────────────────────────────────────────────────────────
-# OS/editor
+# OS / editor
 # ─────────────────────────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
@@ -32,11 +39,16 @@ Thumbs.db
 *.swo
 
 # ─────────────────────────────────────────────────────────────────────────────
-# lockfiles (library)
+# Lockfiles
 # ─────────────────────────────────────────────────────────────────────────────
+# For a library, usually do NOT ignore lockfiles unless you intentionally do not
+# want to commit them.
+# uv.lock
+# poetry.lock
+# Pipfile.lock
 
 # ─────────────────────────────────────────────────────────────────────────────
-# databases (local dev/runtime)
+# Local databases / runtime storage
 # ─────────────────────────────────────────────────────────────────────────────
 *.db
 *.sqlite
@@ -45,26 +57,41 @@ Thumbs.db
 *.mdb
 *.accdb
 *.rdb
-*.pdb
 *.realm
 *.logdb
 *.leveldb/
-*.rdb/
 
-# If you keep dbs in a known folder, ignore it too:
-db/
-data/db/
+/db/
+/data/db/
+/.db/
 
 # ─────────────────────────────────────────────────────────────────────────────
-# secrets / local config / tokens / api keys
+# Runtime logs / local server output
 # ─────────────────────────────────────────────────────────────────────────────
-# Your existing specifics
+/statline/log/
+*.log
+*.pid
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Runtime dumps / temp files
+# ─────────────────────────────────────────────────────────────────────────────
+*.tmp
+*.bak
+*.dump
+*.dmp
+*.trace
+*.stackdump
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Secrets / local config / tokens / API keys
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Project-specific secrets
 /statline/.keys.json
-**/.keys.json
 /statline/secrets/
 pypi.ini
 
-# Generic "secrets" folders anywhere
+# Secrets folders
 **/secrets/
 **/secret/
 **/.secrets/
@@ -72,18 +99,7 @@ pypi.ini
 **/private/
 **/.private/
 
-# Keys / certificates / auth material
-**/*.pem
-**/*.key
-**/*.crt
-**/*.cer
-**/*.p12
-**/*.pfx
-**/*.jks
-**/*.keystore
-**/*.der
-
-# Common env/config files that often contain credentials
+# Environment / local config files
 .env
 .env.*
 *.env
@@ -96,42 +112,54 @@ settings.local.*
 *.local.toml
 *.local.ini
 
-# API key / token dumps and common names
-**/*apikey*
-**/*api_key*
-**/*api-key*
-**/*token*
-**/*access_key*
-**/*secret_key*
-**/*private_key*
-**/*credentials*
-**/*creds*
-**/*session*
-**/*cookie*
+# Key / certificate / auth material
+*.pem
+*.key
+*.crt
+*.cer
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.der
 
-# Registration / enrollment / device keys (your “reg keys” / enrollment tokens)
-**/*regkey*
-**/*reg_key*
-**/*registration*
-**/*enroll*
-**/*device_key*
-**/*devicekey*
-**/*devkey*
-**/*dev_key*
-
-# JSON/TOML/YAML/INI that are specifically “secrets-ish”
+# Explicit secret-like files
+**/.keys.json
 **/*secrets*.json
 **/*secrets*.toml
 **/*secrets*.yaml
 **/*secrets*.yml
 **/*secrets*.ini
+**/*credentials*.json
+**/*credentials*.toml
+**/*credentials*.yaml
+**/*credentials*.yml
+**/*credentials*.ini
+**/*creds*.json
+**/*creds*.toml
+**/*creds*.yaml
+**/*creds*.yml
+**/*token*.json
+**/*token*.toml
+**/*token*.yaml
+**/*token*.yml
+**/*token*.ini
+**/*apikey*.json
+**/*api_key*.json
+**/*api-key*.json
+**/*registration*.json
+**/*regkey*.json
+**/*reg_key*.json
+**/*enroll*.json
+**/*device_key*.json
+**/*devicekey*.json
+**/*devkey*.json
+**/*dev_key*.json
 
 # ─────────────────────────────────────────────────────────────────────────────
-# optional: ignore runtime dumps
+# Local visual history / repo export artifacts
 # ─────────────────────────────────────────────────────────────────────────────
-*.pid
-*.tmp
-*.bak
-*.swp
-*.dump
-*.dmp
+/repo-visual-archive/
+/repo-visual-archive.zip
+/export-visual-history.ps1
+/scripts/export-visual-history.sh

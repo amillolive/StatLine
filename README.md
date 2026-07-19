@@ -4,7 +4,7 @@
 
 It can run completely local for simple scoring workflows, or against **SLAPI**, the optional StatLine API layer for authenticated remote scoring, adapter inspection, and multi-client deployments.
 
-> Release target: **v3.0.0**  
+> Release target: **v3.0.1**  
 > Python: **3.10 through 3.14**  
 > License: **AGPL-3.0-or-later**, with separate trademark restrictions for the StatLine name and branding.
 
@@ -28,7 +28,7 @@ At a high level, StatLine provides:
 
 ## Install
 
-StatLine v3.0.0 has four intended install variants.
+StatLine v3.0.1 has four intended install variants.
 
 | Variant | Command | Use this when you want |
 | --- | --- | --- |
@@ -63,7 +63,7 @@ Score the bundled demo CSV from a source checkout:
 ```bash
 statline --mode local score \
   --adapter demo \
-  statline/data/stats/DEMO/demo.csv \
+  statline/core/datasets/data/stats/DEMO/demo.csv \
   --fmt table \
   --profile all \
   --percentile \
@@ -75,7 +75,7 @@ Write JSON instead:
 ```bash
 statline --mode local score \
   --adapter demo \
-  statline/data/stats/DEMO/demo.csv \
+  statline/core/datasets/data/stats/DEMO/demo.csv \
   --fmt json \
   --pretty \
   --out results.json

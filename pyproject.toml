@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "statline"
-version = "3.0.0"
+version = "3.0.1"
 description = "StatLine — weighted player scoring, efficiency modeling, CLI + adapter tooling"
 readme = "README.md"
 requires-python = ">=3.10,<3.15"
@@ -39,7 +39,7 @@ classifiers = [
 
 # Variant 1: base
 # pip install statline
-# Local library + local CLI scoring. httpx stays here because statline.cli imports
+# Local library + CLI scoring. httpx remains a direct CLI dependency because the entrypoint imports
 # an HTTP backend at import time; move that import behind remote-only commands if you
 # want a stricter no-network-deps base later.
 dependencies = [
@@ -105,7 +105,7 @@ devpack = [
 
 [project.scripts]
 statline = "statline.cli:main"
-slapi = "statline.slapi.__main__:main"
+slapi = "statline.app.runner.main:main"
 
 [project.urls]
 Homepage = "https://statline.dev"
@@ -183,8 +183,7 @@ include = [
   "statline/**/*.yml",
   "statline/**/*.json",
   "statline/core/adapters/defs/*.yaml",
-  "statline/data/stats/**/*.csv",
-  "statline/slapi/storage/migrations/*.sql",
+  "statline/core/datasets/data/stats/**/*.csv",
 ]
 exclude = [
   ".db/**",
@@ -211,12 +210,13 @@ include = [
   "statline/**/*.yml",
   "statline/**/*.json",
   "statline/core/adapters/defs/*.yaml",
-  "statline/data/stats/**/*.csv",
-  "statline/slapi/storage/migrations/*.sql",
+  "statline/core/datasets/data/stats/**/*.csv",
   "tests/**/*.py",
   "scripts/**/*.py",
+  "typings/**/*.pyi",
   "README.md",
   "HOWTO.md",
+  "ARCHITECTURE.md",
   "LICENSE",
   "CLA.md",
   "TRADEMARK_POLICY.md",

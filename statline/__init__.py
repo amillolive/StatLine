@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-__version__ = "3.0.0"
+__version__ = "3.0.1"
 
-from statline.datasets import (
+from statline.core.datasets import (
     dataset_root,
     iter_dataset,
     list_datasets,

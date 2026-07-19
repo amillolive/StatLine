@@ -1,0 +1,138 @@
+from __future__ import annotations
+
+from threading import RLock
+from typing import Any, Dict, List, Mapping, Optional, Union, cast
+
+from statline.core.adapters import load_adapter as _load_adapter
+from statline.core.scoring.map import score_row_from_raw as _core_score_row_from_raw
+from statline.core.scoring.map import score_rows_from_raw as _core_score_rows_from_raw
+from statline.core.types.timing import StageTimes  # optional: callers may pass in
+from statline.gateway.adapters.score_types import (
+    ScoreBatchRequest,
+    ScoreBatchResponse,
+    ScoreRowRequest,
+    ScoreRowResponse,
+)
+from statline.gateway.http.errors import BadRequest, NotFound
+
+Row = Mapping[str, Any]
+Rows = List[Row]
+
+Weights = Dict[str, float]  # bucket -> weight
+WeightsArg = Union[str, Weights]  # preset name OR bucket->weight override
+Penalties = Dict[str, float]  # bucket -> penalty
+Output = Dict[str, Any]
+Filters = Dict[str, Any]
+
+Context = Dict[str, Dict[str, float]]
+Caps = Dict[str, float]
+
+
+_adapter_cache: Dict[str, Any] = {}
+_adapter_lock = RLock()
+
+
+def _cache_key(adapter_key: str) -> str:
+    return (adapter_key or "").strip().lower()
+
+
+def _get_adapter(adapter_key: str) -> Any:
+    key_raw = (adapter_key or "").strip()
+    if not key_raw:
+        raise BadRequest("adapter key is required")
+
+    key = _cache_key(key_raw)
+    with _adapter_lock:
+        cached = _adapter_cache.get(key)
+        if cached is not None:
+            return cached
+
+    try:
+        adp = _load_adapter(key_raw)
+    except Exception as e:
+        # Treat adapter load failures as a 404 at the SLAPI layer.
+        raise NotFound(f"Unknown adapter: {key_raw}", detail=str(e)) from e
+
+    with _adapter_lock:
+        _adapter_cache[key] = adp
+    return adp
+
+
+def _ensure_rows(rows: object) -> List[Mapping[str, Any]]:
+    # Be strict: our API contract is "list of objects" (JSON array of dict-like rows).
+    if not isinstance(rows, list):
+        raise BadRequest("rows must be a List[Mapping[str, Any]] (e.g., a list of dicts)")
+
+    rows_obj = cast(List[object], rows)
+    for r in rows_obj:
+        if not isinstance(r, Mapping):
+            raise BadRequest("each row must be a Mapping[str, Any]")
+
+    return cast(List[Mapping[str, Any]], rows_obj)
+
+
+def score_row(req: ScoreRowRequest, *, timing: Optional[StageTimes] = None) -> ScoreRowResponse:
+    adp = _get_adapter(req.adapter)
+
+    try:
+        res = _core_score_row_from_raw(
+            req.row,
+            adp,
+            weights=req.weights,
+            output=req.output,
+            filters=req.filters,
+            penalties_override=req.penalties_override,
+            context=req.context,
+            caps_override=req.caps_override,
+            timing=timing,
+        )
+    except (KeyError, ValueError, TypeError) as e:
+        # Scoring failures that are almost always caller input issues
+        raise BadRequest("Could not score row", detail=str(e)) from e
+    except Exception:
+        # Let truly unexpected exceptions bubble; app can map to 500.
+        raise
+
+    return dict(res)
+
+
+def score_batch(
+    req: ScoreBatchRequest, *, timing: Optional[StageTimes] = None
+) -> ScoreBatchResponse:
+    rows_checked = _ensure_rows(req.rows)
+    adp = _get_adapter(req.adapter)
+
+    try:
+        res_list = _core_score_rows_from_raw(
+            rows_checked,
+            adp,
+            weights=req.weights,
+            output=req.output,
+            filters=req.filters,
+            penalties_override=req.penalties_override,
+            context=req.context,
+            caps_override=req.caps_override,
+            timing=timing,
+        )
+    except (KeyError, ValueError, TypeError) as e:
+        raise BadRequest("Could not score batch", detail=str(e)) from e
+    except Exception:
+        raise
+
+    return [dict(r) for r in res_list]
+
+
+def adapters_available() -> List[str]:
+    """
+    Best-effort list of adapter names. If the registry fails for any reason,
+    fall back to whatever we've already loaded into the cache.
+    """
+    try:
+        from statline.core.adapters import list_adapters as _list_adapters
+
+        return [str(n) for n in _list_adapters()]
+    except Exception:
+        pass
+
+    with _adapter_lock:
+        return sorted(_adapter_cache.keys())

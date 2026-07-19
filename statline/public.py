@@ -10,10 +10,11 @@ from collections.abc import Iterable as AbcIterable
 from collections.abc import Mapping as AbcMapping
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Union, cast
 
-from statline.core.adapters import CompiledAdapter, list_names
+from statline.core.adapters import CompiledAdapter
+from statline.core.adapters import list_adapters as _list_adapters
 from statline.core.adapters import load_adapter as _load_adapter
-from statline.core.calculator import safe_map_raw, score_row_from_raw, score_rows_from_raw
-from statline.datasets import list_datasets, load_dataset
+from statline.core.datasets import list_datasets, load_dataset
+from statline.core.scoring.map import safe_map_raw, score_row_from_raw, score_rows_from_raw
 
 Row = Dict[str, Any]
 Rows = List[Row]
@@ -24,7 +25,7 @@ OutputArg = Optional[Dict[str, Any]]
 
 def list_adapters() -> List[str]:
     """Return available adapter keys."""
-    return list_names()
+    return _list_adapters()
 
 
 def load_adapter(name: str) -> CompiledAdapter:
@@ -35,7 +36,7 @@ def load_adapter(name: str) -> CompiledAdapter:
 def _resolve_adapter(adapter: AdapterLike) -> Any:
     if isinstance(adapter, str):
         return load_adapter(adapter)
-    if hasattr(adapter, "map_raw") or hasattr(adapter, "map_raw_to_metrics"):
+    if hasattr(adapter, "map_raw"):
         return adapter
     raise TypeError("adapter must be an adapter key or a compiled adapter object")
 
@@ -164,7 +165,7 @@ def score(
 
     return score_batch(
         adapter,
-        cast(Iterable[Mapping[str, Any]], data),  # pyright: ignore[reportUnnecessaryCast]
+        data,
         weights=weights,
         weights_override=weights_override,
         penalties_override=penalties_override,

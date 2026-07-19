@@ -1,6 +1,6 @@
 # StatLine HOWTO
 
-This guide shows the practical workflows for StatLine v3.0.0: installing the right variant, scoring locally, using SLAPI, writing adapters, and preparing a release.
+This guide shows the practical workflows for StatLine v3.0.1: installing the right variant, scoring locally, using SLAPI, writing adapters, and preparing a release.
 
 ---
 
@@ -70,7 +70,7 @@ statline --mode local adapter filters demo
 Detect adapters from a file:
 
 ```bash
-statline --mode local adapter sniff --file statline/data/stats/DEMO/demo.csv
+statline --mode local adapter sniff --file statline/core/datasets/data/stats/DEMO/demo.csv
 ```
 
 Refresh the local adapter registry after changing YAML files:
@@ -88,7 +88,7 @@ From a source checkout:
 ```bash
 statline --mode local score \
   --adapter demo \
-  statline/data/stats/DEMO/demo.csv \
+  statline/core/datasets/data/stats/DEMO/demo.csv \
   --fmt table \
   --limit 10
 ```
@@ -98,7 +98,7 @@ Include all detected profile columns and client-side percentiles:
 ```bash
 statline --mode local score \
   --adapter demo \
-  statline/data/stats/DEMO/demo.csv \
+  statline/core/datasets/data/stats/DEMO/demo.csv \
   --fmt table \
   --profile all \
   --percentile
@@ -109,7 +109,7 @@ Write JSON:
 ```bash
 statline --mode local score \
   --adapter demo \
-  statline/data/stats/DEMO/demo.csv \
+  statline/core/datasets/data/stats/DEMO/demo.csv \
   --fmt json \
   --pretty \
   --out results.json
@@ -120,7 +120,7 @@ Write CSV:
 ```bash
 statline --mode local score \
   --adapter demo \
-  statline/data/stats/DEMO/demo.csv \
+  statline/core/datasets/data/stats/DEMO/demo.csv \
   --fmt csv \
   --out results.csv
 ```
@@ -144,7 +144,7 @@ Use an adapter-defined preset:
 ```bash
 statline --mode local score \
   --adapter demo \
-  statline/data/stats/DEMO/demo.csv \
+  statline/core/datasets/data/stats/DEMO/demo.csv \
   --weights-preset pri
 ```
 
@@ -170,7 +170,7 @@ Then run:
 ```bash
 statline --mode local score \
   --adapter demo \
-  statline/data/stats/DEMO/demo.csv \
+  statline/core/datasets/data/stats/DEMO/demo.csv \
   --weights weights.yaml
 ```
 
@@ -217,7 +217,7 @@ Map a file:
 ```bash
 statline --mode local map batch \
   --adapter demo \
-  statline/data/stats/DEMO/demo.csv \
+  statline/core/datasets/data/stats/DEMO/demo.csv \
   --fmt json \
   --out mapped.json
 ```
@@ -672,10 +672,10 @@ pip-audit
 
 ---
 
-## 18. v3.0.0 release checklist
+## 18. v3.0.1 release checklist
 
-1. Update package metadata to `3.0.0` in `pyproject.toml`.
-2. Update runtime versions in `statline/__init__.py`, `statline/cli.py`, and `statline/slapi/app.py`.
+1. Update package metadata to `3.0.1` in `pyproject.toml`.
+2. Update runtime versions in `statline/__init__.py`, `statline/app/cli/main.py`, and `statline/gateway/http/app.py`.
 3. Update bundled adapter versions where they still say `3.0.0rc3`.
 4. Confirm install variants:
    - base: `pip install statline`
@@ -708,7 +708,7 @@ Install the remote stack:
 pip install "statline[remote]"
 ```
 
-Some older runtime error strings may still mention `[api]`; for v3.0.0, the intended extra name is `[remote]`.
+Some older runtime error strings may still mention `[api]`; for v3.0.1, the intended extra name is `[remote]`.
 
 ### My adapter does not appear
 

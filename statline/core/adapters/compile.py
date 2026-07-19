@@ -1,271 +1,337 @@
-# statline/core/adapters/compile.py
+"""Compile adapter specifications into reusable execution plans."""
+
 from __future__ import annotations
 
 import ast
 import math
 from collections.abc import Mapping
-from dataclasses import dataclass
+from functools import lru_cache
+from types import MappingProxyType
 from typing import Callable, Optional, SupportsFloat, SupportsIndex, TypeAlias, cast
 
-from .hooks import get as get_hooks
-from .types import (
+from statline.core.adapters.hooks import get as get_hooks
+from statline.core.types.adapters import (
     AdapterSpec,
-    BucketSpec,
-    DimensionSpec,
+    CompiledAdapter,
+    CompiledEfficiency,
+    CompiledMetric,
     EffSpec,
-    FilterSpec,
+    ExpressionEvaluator,
+    MetricEvaluator,
     MetricSpec,
-    ScoreProfileSpec,
-    SniffSpec,
     SourceSpec,
     TransformSpec,
 )
 
 _ALLOWED_BINOPS = (ast.Add, ast.Sub, ast.Mult, ast.Div, ast.FloorDiv, ast.Mod)
 _ALLOWED_UNARY = (ast.UAdd, ast.USub)
-
-# What float(x) accepts (typing-wise)
 _ConvertibleToFloat: TypeAlias = SupportsFloat | SupportsIndex | str | bytes | bytearray
+_TransformEvaluator: TypeAlias = Callable[[float, Mapping[str, object]], float]
 
 
 def _finite(x: float, default: float = 0.0) -> float:
-    """
-    Consistent with loader policy:
-      - non-numeric or non-finite -> default (0.0)
-    """
+    """Return a finite float or the supplied default."""
     try:
-        xf = float(x)
+        value = float(x)
     except Exception:
         return default
-    return xf if math.isfinite(xf) else default
+    return value if math.isfinite(value) else default
 
 
-def _num(v: object) -> float:
+def _num(value: object) -> float:
     try:
-        if v is None:
+        if value is None:
             return 0.0
-        if isinstance(v, (int, float)):
-            return _finite(float(v))
-        if isinstance(v, str):
-            s = v.strip().replace(",", ".")
-            return _finite(float(s)) if s else 0.0
-
-        # attempt float conversion for float-convertible objects
-        return _finite(float(cast(_ConvertibleToFloat, v)))
+        if isinstance(value, (int, float)):
+            return _finite(float(value))
+        if isinstance(value, str):
+            stripped = value.strip().replace(",", ".")
+            return _finite(float(stripped)) if stripped else 0.0
+        return _finite(float(cast(_ConvertibleToFloat, value)))
     except Exception:
         return 0.0
 
 
-def _eval_expr(expr: str, ctx: Mapping[str, object]) -> float:
+def _safe_div(left: float, right: float) -> float:
+    return left / right if abs(right) > 1e-12 else 0.0
+
+
+def _safe_floordiv(left: float, right: float) -> float:
+    return left // right if abs(right) > 1e-12 else 0.0
+
+
+def _safe_mod(left: float, right: float) -> float:
+    return left % right if abs(right) > 1e-12 else 0.0
+
+
+def _safe_min(values: tuple[float, ...]) -> float:
+    return min(values, default=0.0)
+
+
+def _safe_max(values: tuple[float, ...]) -> float:
+    return max(values, default=0.0)
+
+
+def _lower_expr_node(node: ast.AST) -> ast.expr:
+    """Lower the restricted expression DSL into a safe Python expression."""
+    if isinstance(node, ast.Expression):
+        return _lower_expr_node(node.body)
+    if isinstance(node, ast.Constant):
+        return ast.Call(ast.Name("_num", ast.Load()), [ast.Constant(node.value)], [])
+    if isinstance(node, ast.Name):
+        if node.id == "x":
+            return ast.Name("__x", ast.Load())
+        lookup = ast.Call(
+            ast.Attribute(ast.Name("__ctx", ast.Load()), "get", ast.Load()),
+            [ast.Constant(node.id), ast.Constant(0.0)],
+            [],
+        )
+        return ast.Call(ast.Name("_num", ast.Load()), [lookup], [])
+    if isinstance(node, ast.UnaryOp) and isinstance(node.op, _ALLOWED_UNARY):
+        return ast.UnaryOp(node.op, _lower_expr_node(node.operand))
+    if isinstance(node, ast.BinOp) and isinstance(node.op, _ALLOWED_BINOPS):
+        left = _lower_expr_node(node.left)
+        right = _lower_expr_node(node.right)
+        if isinstance(node.op, ast.Div):
+            helper = "_safe_div"
+        elif isinstance(node.op, ast.FloorDiv):
+            helper = "_safe_floordiv"
+        elif isinstance(node.op, ast.Mod):
+            helper = "_safe_mod"
+        else:
+            return ast.BinOp(left, node.op, right)
+        return ast.Call(ast.Name(helper, ast.Load()), [left, right], [])
+    if (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id in ("min", "max")
+        and not node.keywords
+    ):
+        values = ast.Tuple([_lower_expr_node(arg) for arg in node.args], ast.Load())
+        return ast.Call(ast.Name(f"_safe_{node.func.id}", ast.Load()), [values], [])
+    return ast.Constant(0.0)
+
+
+@lru_cache(maxsize=512)
+def _compile_expr(expr: str) -> ExpressionEvaluator:
+    """Compile and cache one restricted expression."""
     try:
-        tree = ast.parse(expr, mode="eval")
+        parsed = ast.parse(expr, mode="eval")
     except Exception:
-        return 0.0
+        return lambda _ctx, _x: 0.0
 
-    def _ev(node: ast.AST) -> float:
-        if isinstance(node, ast.Expression):
-            return _ev(node.body)
+    function_ast = ast.Expression(
+        ast.Lambda(
+            ast.arguments(
+                posonlyargs=[],
+                args=[ast.arg("__ctx"), ast.arg("__x")],
+                kwonlyargs=[],
+                kw_defaults=[],
+                defaults=[],
+            ),
+            _lower_expr_node(parsed),
+        )
+    )
+    ast.fix_missing_locations(function_ast)
+    namespace: dict[str, object] = {
+        "__builtins__": {},
+        "_num": _num,
+        "_safe_div": _safe_div,
+        "_safe_floordiv": _safe_floordiv,
+        "_safe_mod": _safe_mod,
+        "_safe_min": _safe_min,
+        "_safe_max": _safe_max,
+    }
+    code = compile(function_ast, "<statline-adapter-expression>", "eval")
+    return cast(ExpressionEvaluator, eval(code, namespace, {}))
 
-        if isinstance(node, ast.Constant):
-            return _num(node.value)
 
-        if isinstance(node, ast.Name):
-            return _num(ctx.get(node.id, 0.0))
-
-        if isinstance(node, ast.UnaryOp) and isinstance(node.op, _ALLOWED_UNARY):
-            v = _ev(node.operand)
-            return +v if isinstance(node.op, ast.UAdd) else -v
-
-        if isinstance(node, ast.BinOp) and isinstance(node.op, _ALLOWED_BINOPS):
-            a, b = _ev(node.left), _ev(node.right)
-            if isinstance(node.op, ast.Add):
-                return a + b
-            if isinstance(node.op, ast.Sub):
-                return a - b
-            if isinstance(node.op, ast.Mult):
-                return a * b
-            if isinstance(node.op, ast.Div):
-                return a / b if abs(b) > 1e-12 else 0.0
-            if isinstance(node.op, ast.FloorDiv):
-                return a // b if abs(b) > 1e-12 else 0.0
-            return a % b if abs(b) > 1e-12 else 0.0
-
-        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and not node.keywords:
-            fn = node.func.id
-            if fn in ("min", "max"):
-                vals = [_ev(arg) for arg in node.args]
-                return (min if fn == "min" else max)(vals) if vals else 0.0
-
-        return 0.0
-
-    return float(_ev(tree))
+def _eval_expr(  # pyright: ignore[reportUnusedFunction]
+    expr: str, context: Mapping[str, object]
+) -> float:
+    return _finite(_compile_expr(expr)(context, _num(context.get("x", 0.0))))
 
 
 def _sanitize_row(raw: Mapping[str, object]) -> dict[str, object]:
-    out: dict[str, object] = {}
-    for k, v in raw.items():
-        key = str(k)
-        if isinstance(v, str):
-            s = v.strip()
-            out[key] = _num(s) if s else 0.0
+    output: dict[str, object] = {}
+    for key, value in raw.items():
+        if isinstance(value, str):
+            stripped = value.strip()
+            output[str(key)] = _num(stripped) if stripped else 0.0
         else:
-            out[key] = v
-    return out
+            output[str(key)] = value
+    return output
 
 
-def _compute_source(row: Mapping[str, object], src: SourceSpec) -> float:
-    if src.kind == "field":
-        return _num(row.get(src.field or "", 0.0))
-    if src.kind == "const":
-        return _num(src.const)
-    if src.kind == "expr":
-        return _eval_expr(src.expr or "", row)
-    raise ValueError(f"Unsupported source kind: {src.kind}")
+def _compile_source(source: SourceSpec) -> MetricEvaluator:
+    if source.kind == "field":
+        field = (source.field or "").strip()
+        if not field:
+            raise ValueError("Field source requires a non-empty field.")
+        return lambda context: _num(context.get(field, 0.0))
+    if source.kind == "const":
+        if source.const is None:
+            raise ValueError("Constant source requires const.")
+        value = _num(source.const)
+        return lambda _context: value
+    if source.kind == "expr":
+        expression = (source.expr or "").strip()
+        if not expression:
+            raise ValueError("Expression source requires a non-empty expr.")
+        evaluator = _compile_expr(expression)
+        return lambda context: _finite(evaluator(context, _num(context.get("x", 0.0))))
+    raise ValueError(f"Unsupported source kind: {source.kind}")
 
 
-def _apply_transform(x: float, spec: Optional[TransformSpec], ctx: Mapping[str, object]) -> float:
+def _compile_transform(spec: Optional[TransformSpec]) -> _TransformEvaluator:
     if spec is None:
-        return x
+        return lambda value, _context: value
 
-    # params are already flattened by loader into dict[str, MetaValue]
-    p: dict[str, object] = dict(spec.params)
-
+    params: dict[str, object] = dict(spec.params)
     if spec.kind == "expr":
-        expr = str(p.get("expr", "")).strip()
-        if not expr:
-            return x
-        ctx2: dict[str, object] = dict(ctx)
-        ctx2["x"] = x
-        return _eval_expr(expr, ctx2)
-
+        expression = str(params.get("expr", "")).strip()
+        if not expression:
+            raise ValueError("Expression transform requires a non-empty expr.")
+        evaluator = _compile_expr(expression)
+        return lambda value, context: _finite(evaluator(context, value))
     if spec.kind == "affine":
-        scale = _num(p.get("scale", p.get("a", 1.0)))
-        offset = _num(p.get("offset", p.get("b", 0.0)))
-        return x * scale + offset
-
+        scale = _num(params.get("scale", params.get("a", 1.0)))
+        offset = _num(params.get("offset", params.get("b", 0.0)))
+        return lambda value, _context: value * scale + offset
     if spec.kind == "scale":
-        return x * _num(p.get("scale", 1.0))
-
+        scale = _num(params["scale"])
+        return lambda value, _context: value * scale
     if spec.kind == "clip":
-        lo = _num(p.get("lo", x))
-        hi = _num(p.get("hi", x))
-        return min(max(x, lo), hi)
-
+        lower = _num(params["lo"])
+        upper = _num(params["hi"])
+        if lower > upper:
+            raise ValueError("Clip transform requires lo <= hi.")
+        return lambda value, _context: min(max(value, lower), upper)
     if spec.kind == "round":
-        nd = int(_num(p.get("ndigits", 0)))
-        try:
-            return float(round(x, nd))
-        except Exception:
-            return x
+        digits = int(_num(params["ndigits"]))
+        return lambda value, _context: float(round(value, digits))
+    if spec.kind != "custom":
+        raise ValueError(f"Unknown transform kind '{spec.kind}'")
 
-    if spec.kind == "custom":
-        name = str(p.get("name", "")).lower()
+    name = str(params.get("name", "")).strip().casefold()
+    if name == "linear":
+        scale = _num(params.get("scale", 1.0))
+        offset = _num(params.get("offset", 0.0))
+        return lambda value, _context: value * scale + offset
+    if name == "capped_linear":
+        cap = _num(params["cap"])
+        return lambda value, _context: min(value, cap)
+    if name == "minmax":
+        lower = _num(params["lo"])
+        upper = _num(params["hi"])
+        if lower > upper:
+            raise ValueError("minmax transform requires lo <= hi.")
+        return lambda value, _context: min(max(value, lower), upper)
+    if name == "pct01":
+        divisor = _num(params.get("by", 100.0)) or 100.0
+        return lambda value, _context: value / divisor
+    if name == "softcap":
+        cap = _num(params["cap"])
+        slope = _num(params.get("slope", 1.0))
+        return lambda value, _context: value if value <= cap else cap + (value - cap) * slope
+    if name == "log1p":
+        scale = _num(params.get("scale", 1.0))
+        return lambda value, _context: math.log1p(max(value, 0.0)) * scale
+    raise ValueError(f"Unknown custom transform '{name}'")
 
-        if name == "linear":
-            return x * _num(p.get("scale", 1.0)) + _num(p.get("offset", 0.0))
-        if name == "capped_linear":
-            cap = _num(p.get("cap", x))
-            return x if x <= cap else cap
-        if name == "minmax":
-            lo = _num(p.get("lo", x))
-            hi = _num(p.get("hi", x))
-            return min(max(x, lo), hi)
-        if name == "pct01":
-            by = _num(p.get("by", 100.0)) or 100.0
-            return x / by
-        if name == "softcap":
-            cap = _num(p.get("cap", x))
-            slope = _num(p.get("slope", 1.0))
-            return x if x <= cap else cap + (x - cap) * slope
-        if name == "log1p":
-            return math.log1p(max(x, 0.0)) * _num(p.get("scale", 1.0))
 
-        raise ValueError(f"Unknown custom transform '{name}'")
+def _compile_metric(metric: MetricSpec) -> CompiledMetric:
+    if metric.source is None:
+        raise ValueError(f"Metric '{metric.key}' is missing its source.")
+    source = _compile_source(metric.source)
+    transform = _compile_transform(metric.transform)
 
-    raise ValueError(f"Unknown transform kind '{spec.kind}'")
+    def evaluate(context: Mapping[str, object]) -> float:
+        return _finite(transform(source(context), context))
+
+    return CompiledMetric(metric.key, evaluate)
 
 
-@dataclass(frozen=True)
-class CompiledAdapter:
-    key: str
-    version: str
-    aliases: tuple[str, ...]
-    title: str
+def _compile_efficiency(efficiency: EffSpec) -> CompiledEfficiency:
+    make = _compile_expr(efficiency.make)
+    attempt = _compile_expr(efficiency.attempt)
+    transform = _compile_transform(efficiency.transform)
+    minimum = float(efficiency.min_den)
+    if not math.isfinite(minimum) or minimum <= 0:
+        raise ValueError(f"Efficiency '{efficiency.key}' requires min_den > 0.")
 
-    dimensions: dict[str, DimensionSpec]
-    sniff: SniffSpec
-    filters: dict[str, FilterSpec]
-    score_profiles: dict[str, ScoreProfileSpec]
+    def evaluate(context: Mapping[str, object]) -> float:
+        numerator = make(context, _num(context.get("x", 0.0)))
+        attempted = attempt(context, _num(context.get("x", 0.0)))
+        denominator = attempted if attempted >= max(1e-12, minimum) else max(1.0, minimum)
+        return _finite(transform(_safe_div(numerator, denominator), context))
 
-    metrics: list[MetricSpec]
-    buckets: dict[str, BucketSpec]
-    weights: dict[str, dict[str, float]]
-    penalties: dict[str, dict[str, float]]
-    efficiency: list[EffSpec]
+    return CompiledEfficiency(efficiency.key, evaluate)
 
-    def map_raw(self, raw: Mapping[str, object]) -> dict[str, float]:
-        hooks_obj: object = get_hooks(self.key)
-        raw_d: dict[str, object] = dict(raw)
 
-        pre = getattr(hooks_obj, "pre_map", None)
-        if callable(pre):
-            row = cast(Callable[[dict[str, object]], Mapping[str, object]], pre)(raw_d)
-        else:
-            row = raw_d
+def _freeze_nested(table: Mapping[str, Mapping[str, float]]) -> Mapping[str, Mapping[str, float]]:
+    return MappingProxyType(
+        {name: MappingProxyType(dict(values)) for name, values in table.items()}
+    )
 
-        ctx = _sanitize_row(row)
-        out: dict[str, float] = {}
 
-        for m in self.metrics:
-            # Loader is fail-fast, but keep a hard guard for programmatic specs.
-            if m.source is None:
-                raise ValueError(f"Metric '{m.key}' missing source (invalid AdapterSpec).")
-            x = _compute_source(ctx, m.source)
-            x = _apply_transform(x, m.transform, ctx)
-            out[m.key] = _finite(float(x))
-            ctx[m.key] = out[m.key]
+def map_raw(adapter: CompiledAdapter, raw: Mapping[str, object]) -> dict[str, float]:
+    """Map one raw row through an adapter's precompiled execution plan."""
+    hooks = get_hooks(adapter.key)
+    raw_row = dict(raw)
+    pre = getattr(hooks, "pre_map", None)
+    row = (
+        cast(Callable[[dict[str, object]], Mapping[str, object]], pre)(raw_row)
+        if callable(pre)
+        else raw_row
+    )
+    context = _sanitize_row(row)
+    output: dict[str, float] = {}
 
-        for e in self.efficiency:
-            mk = _eval_expr(e.make, ctx)
-            at = _eval_expr(e.attempt, ctx)
+    for metric in adapter.metric_plan:
+        value = metric.evaluate(context)
+        output[metric.key] = value
+        context[metric.key] = value
+    for efficiency in adapter.efficiency_plan:
+        value = efficiency.evaluate(context)
+        output[efficiency.key] = value
+        context[efficiency.key] = value
 
-            # Keep your safeguard semantics (denom never < max(1, min_den)).
-            min_den = float(e.min_den or 1.0)
-            den = at if at >= max(1e-12, min_den) else max(1.0, min_den)
-
-            val = (mk / den) if den > 0 else 0.0
-            val = _apply_transform(val, e.transform, ctx)
-            out[e.key] = _finite(float(val))
-            ctx[e.key] = out[e.key]
-
-        post = getattr(hooks_obj, "post_map", None)
-        if callable(post):
-            return cast(Callable[[dict[str, float]], dict[str, float]], post)(out)
-        return out
-
-    def map_raw_to_metrics(self, raw: Mapping[str, object]) -> Mapping[str, object]:
-        return self.map_raw(dict(raw))
+    post = getattr(hooks, "post_map", None)
+    if callable(post):
+        return cast(Callable[[dict[str, float]], dict[str, float]], post)(output)
+    return output
 
 
 def compile_adapter(spec: AdapterSpec) -> CompiledAdapter:
+    """Validate execution ownership and compile an immutable adapter plan."""
     if getattr(spec, "mapping", None):
         raise ValueError("Legacy mapping is unsupported; use typed source/transform.")
 
+    keys = [metric.key for metric in spec.metrics] + [item.key for item in spec.efficiency]
+    duplicate = next((key for key in keys if keys.count(key) > 1), None)
+    if duplicate is not None:
+        raise ValueError(f"Duplicate adapter output key '{duplicate}'.")
+
+    metrics = tuple(spec.metrics)
+    efficiency = tuple(spec.efficiency)
     return CompiledAdapter(
         key=spec.key,
         version=spec.version,
         aliases=spec.aliases,
-        title=(spec.title or spec.key),
-        dimensions=dict(spec.dimensions),
+        title=spec.title or spec.key,
+        dimensions=MappingProxyType(dict(spec.dimensions)),
         sniff=spec.sniff,
-        filters=dict(spec.filters),
-        score_profiles=dict(spec.score_profiles),
-        metrics=list(spec.metrics),
-        buckets=dict(spec.buckets),
-        weights=dict(spec.weights),
-        penalties=dict(spec.penalties),
-        efficiency=list(spec.efficiency),
+        filters=MappingProxyType(dict(spec.filters)),
+        score_profiles=MappingProxyType(dict(spec.score_profiles)),
+        metrics=metrics,
+        buckets=MappingProxyType(dict(spec.buckets)),
+        weights=_freeze_nested(spec.weights),
+        penalties=_freeze_nested(spec.penalties),
+        efficiency=efficiency,
+        metric_plan=tuple(_compile_metric(metric) for metric in metrics),
+        efficiency_plan=tuple(_compile_efficiency(item) for item in efficiency),
     )
 
 
-__all__ = ["CompiledAdapter", "compile_adapter"]
+__all__ = ["compile_adapter", "map_raw"]

@@ -1,65 +1,80 @@
-# statline/core/adapters/registry.py
+"""Canonical adapter registry functions."""
+
 from __future__ import annotations
 
 from pathlib import Path
+from threading import RLock
 from typing import Dict, List
 
-from .compile import CompiledAdapter, compile_adapter
-from .loader import load_spec
+from statline.core.adapters.compile import compile_adapter
+from statline.core.adapters.load import load_spec
+from statline.core.types.adapters import CompiledAdapter
 
-# Cache of all compiled adapters, keyed by primary key + aliases (lowercased).
-_CACHE: Dict[str, CompiledAdapter] = {}
+_cache: Dict[str, CompiledAdapter] = {}
+_LOCK = RLock()
 
 
-def _discover() -> None:
-    """
-    Populate the adapter cache by compiling all YAML specs in defs/.
-    Both primary keys and aliases are cached (lowercased).
-    """
+def _normalize_name(value: object) -> str:
+    return str(value or "").strip().casefold()
+
+
+def _build_cache() -> Dict[str, CompiledAdapter]:
     base = Path(__file__).parent / "defs"
     found: Dict[str, CompiledAdapter] = {}
-
-    for y in sorted(base.glob("*.y*ml")):
-        spec = load_spec(y.stem)
-        comp = compile_adapter(spec)
-
-        # Primary key
-        pk = comp.key.lower()
-        if pk in found:
-            raise ValueError(f"Duplicate adapter key '{comp.key}' in {y}")
-        found[pk] = comp
-
-        # Aliases
-        for alias in comp.aliases:
-            ak = alias.lower()
-            if ak in found and found[ak] is not comp:
-                raise ValueError(f"Alias '{alias}' from {comp.key} collides with another adapter")
-            found[ak] = comp
-
-    _CACHE.clear()
-    _CACHE.update(found)
+    for path in sorted(base.glob("*.y*ml")):
+        adapter = compile_adapter(load_spec(path))
+        primary = _normalize_name(adapter.key)
+        if not primary:
+            raise ValueError(f"Adapter in {path} has an empty key")
+        if primary in found:
+            raise ValueError(f"Duplicate adapter key '{adapter.key}' in {path}")
+        found[primary] = adapter
+        for alias in adapter.aliases:
+            normalized = _normalize_name(alias)
+            if not normalized:
+                continue
+            if normalized in found and found[normalized] is not adapter:
+                raise ValueError(
+                    f"Alias '{alias}' from {adapter.key} collides with another adapter"
+                )
+            found[normalized] = adapter
+    return found
 
 
-def list_names() -> List[str]:
-    """Return sorted list of adapter primary keys (not aliases)."""
-    if not _CACHE:
-        _discover()
-    return sorted({c.key for c in _CACHE.values()})
+def _discover(*, force: bool = False) -> None:
+    global _cache
+    with _LOCK:
+        if _cache and not force:
+            return
+        _cache = _build_cache()
 
 
-def load(name: str) -> CompiledAdapter:
-    """
-    Load an adapter by name or alias. Raises ValueError if not found.
-    """
-    if not _CACHE:
-        _discover()
-    key = (name or "").lower()
-    try:
-        return _CACHE[key]
-    except KeyError:
-        raise ValueError(f"Unknown adapter '{name}'. Available: {', '.join(list_names())}")
-
-
-def refresh() -> None:
-    """Force re-scan of defs/ (useful in tests or dev)."""
+def list_adapters() -> List[str]:
     _discover()
+    return sorted({adapter.key for adapter in _cache.values()})
+
+
+def load_adapter(name: str) -> CompiledAdapter:
+    _discover()
+    normalized = _normalize_name(name)
+    try:
+        return _cache[normalized]
+    except KeyError as error:
+        available = ", ".join(list_adapters())
+        raise ValueError(f"Unknown adapter '{name}'. Available: {available}") from error
+
+
+def refresh_adapters() -> None:
+    _discover(force=True)
+
+
+def supported_adapters() -> Dict[str, str]:
+    _discover()
+    supported: Dict[str, str] = {}
+    for adapter in _cache.values():
+        supported[_normalize_name(adapter.key)] = adapter.key
+        supported.update({_normalize_name(alias): adapter.key for alias in adapter.aliases})
+    return dict(sorted(supported.items()))
+
+
+__all__ = ["list_adapters", "load_adapter", "refresh_adapters", "supported_adapters"]

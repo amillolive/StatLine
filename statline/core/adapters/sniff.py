@@ -3,8 +3,9 @@ from __future__ import annotations
 
 from typing import Iterable, List
 
+from statline.core.adapters.hooks import get as get_hooks
+
 from . import registry
-from .hooks import get as get_hooks
 
 
 def sniff_adapters(headers: Iterable[str]) -> List[str]:
@@ -23,8 +24,8 @@ def sniff_adapters(headers: Iterable[str]) -> List[str]:
     out: List[str] = []
     seen: set[str] = set()
 
-    for name in registry.list_names():
-        adp = registry.load(name)
+    for name in registry.list_adapters():
+        adp = registry.load_adapter(name)
 
         # (1) hook-based sniff (optional)
         try:
