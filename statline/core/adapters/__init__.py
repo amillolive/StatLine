@@ -1,4 +1,5 @@
 """Canonical adapter namespace."""
+
 from statline.core.adapters.compile import compile_adapter, map_raw
 from statline.core.adapters.hooks import available, clear, get, register
 from statline.core.adapters.registry import (
@@ -19,8 +20,22 @@ from statline.core.types.adapters import (
 )
 
 __all__ = [
-    "AdapterHooks", "AdapterSpec", "AdapterValidationError", "CompiledAdapter", "NoOpHooks",
-    "ValidationIssue", "available", "clear", "compile_adapter", "get", "list_adapters",
-    "load_adapter", "map_raw", "refresh_adapters", "register", "sniff_adapters",
-    "supported_adapters", "validate_adapter",
+    "AdapterHooks",
+    "AdapterSpec",
+    "AdapterValidationError",
+    "CompiledAdapter",
+    "NoOpHooks",
+    "ValidationIssue",
+    "available",
+    "clear",
+    "compile_adapter",
+    "get",
+    "list_adapters",
+    "load_adapter",
+    "map_raw",
+    "refresh_adapters",
+    "register",
+    "sniff_adapters",
+    "supported_adapters",
+    "validate_adapter",
 ]

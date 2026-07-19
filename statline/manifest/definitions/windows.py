@@ -20,8 +20,7 @@ class WindowsFileAssociation:
     def command(self) -> str:
         executable = str(self.executable.resolve())
         arguments = " ".join(
-            f'"{argument}"' if " " in argument else argument
-            for argument in self.arguments
+            f'"{argument}"' if " " in argument else argument for argument in self.arguments
         )
 
         if arguments:

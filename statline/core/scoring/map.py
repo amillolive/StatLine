@@ -24,8 +24,6 @@ WeightsArg = Optional[Union[str, Dict[str, float]]]
 OutputArg = Optional[Dict[str, Any]]
 
 
-
-
 def _sanitize_numeric_metrics(raw_metrics: Mapping[str, Any]) -> Dict[str, Any]:
     """
     Coerce string numbers, including comma decimals, to float; blank strings to 0.0.

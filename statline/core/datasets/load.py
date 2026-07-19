@@ -1,4 +1,5 @@
 """Dataset CSV loading functions."""
+
 from __future__ import annotations
 
 import csv
@@ -39,7 +40,9 @@ def iter_dataset(
     with path.open("r", encoding=encoding, newline="") as handle:
         for index, row in enumerate(csv.DictReader(handle), start=1):
             yield {
-                str(key): _coerce_cell(str(value), coerce_numbers=coerce_numbers, strip_cells=strip_cells)
+                str(key): _coerce_cell(
+                    str(value), coerce_numbers=coerce_numbers, strip_cells=strip_cells
+                )
                 for key, value in row.items()
                 if key is not None
             }
@@ -55,7 +58,11 @@ def load_dataset(
     coerce_numbers: bool = True,
     strip_cells: bool = True,
 ) -> Rows:
-    return list(iter_dataset(name, root=root, limit=limit, coerce_numbers=coerce_numbers, strip_cells=strip_cells))
+    return list(
+        iter_dataset(
+            name, root=root, limit=limit, coerce_numbers=coerce_numbers, strip_cells=strip_cells
+        )
+    )
 
 
 __all__ = ["Row", "Rows", "iter_dataset", "load_dataset"]

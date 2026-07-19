@@ -1,4 +1,5 @@
 """Public developer-maintenance namespace."""
+
 from statline.app.dev.functions import (
     bootstrap_local_admin,
     rename_local_auth_identity,

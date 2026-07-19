@@ -1,4 +1,5 @@
 """Gateway error definitions."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -48,5 +49,11 @@ class InternalError(SlapiError):
 
 
 __all__ = [
-    "BadRequest", "Conflict", "Forbidden", "InternalError", "NotFound", "SlapiError", "Unauthorized",
+    "BadRequest",
+    "Conflict",
+    "Forbidden",
+    "InternalError",
+    "NotFound",
+    "SlapiError",
+    "Unauthorized",
 ]

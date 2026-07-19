@@ -36,9 +36,7 @@ def _set_default_value(path: str, value: str) -> None:
         with registry.CreateKey(registry.HKEY_CURRENT_USER, path) as key:
             registry.SetValueEx(key, "", 0, registry.REG_SZ, value)
     except OSError as exc:
-        raise FileAssociationError(
-            f"Unable to update Windows registry key {path!r}."
-        ) from exc
+        raise FileAssociationError(f"Unable to update Windows registry key {path!r}.") from exc
 
 
 def _set_named_value(path: str, name: str, value: str) -> None:
@@ -48,9 +46,7 @@ def _set_named_value(path: str, name: str, value: str) -> None:
         with registry.CreateKey(registry.HKEY_CURRENT_USER, path) as key:
             registry.SetValueEx(key, name, 0, registry.REG_SZ, value)
     except OSError as exc:
-        raise FileAssociationError(
-            f"Unable to update Windows registry key {path!r}."
-        ) from exc
+        raise FileAssociationError(f"Unable to update Windows registry key {path!r}.") from exc
 
 
 def register_windows_file_type(
@@ -137,9 +133,7 @@ def _delete_registry_tree(root: int, path: str) -> None:
     except FileNotFoundError:
         return
     except OSError as exc:
-        raise FileAssociationError(
-            f"Unable to remove Windows registry key {path!r}."
-        ) from exc
+        raise FileAssociationError(f"Unable to remove Windows registry key {path!r}.") from exc
 
 
 def _notify_shell() -> None:

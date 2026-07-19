@@ -3904,7 +3904,6 @@ def serve_cmd(
             "SLAPI serving requires uvicorn. Install with: pip install 'statline[remote]'"
         ) from e
 
-
     uvicorn.run(
         "statline.gateway.http.app:app",
         host=host,

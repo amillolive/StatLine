@@ -1,4 +1,5 @@
 """Structural invariants for the StatLine rebase."""
+
 from __future__ import annotations
 
 import ast
@@ -26,7 +27,9 @@ def _python_files() -> list[Path]:
 def _top_level_owners(
     tree: ast.Module,
 ) -> tuple[list[ast.FunctionDef | ast.AsyncFunctionDef], list[ast.ClassDef]]:
-    functions = [node for node in tree.body if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))]
+    functions = [
+        node for node in tree.body if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+    ]
     classes = [node for node in tree.body if isinstance(node, ast.ClassDef)]
     return functions, classes
 

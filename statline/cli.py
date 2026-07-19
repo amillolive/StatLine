@@ -1,4 +1,5 @@
 """StatLine command-line entry point."""
+
 from __future__ import annotations
 
 import sys
@@ -19,4 +20,3 @@ def main() -> None:
     except Exception as error:
         print(f"Error: {error}", file=sys.stderr)
         raise typer.Exit(code=1) from error
-

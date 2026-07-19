@@ -122,6 +122,14 @@ class EnrollIn(BaseModel):
 
 
 __all__ = [
-    "ApiKeyRequestDecisionIn", "ApiKeyRequestIn", "EnrollIn", "MapBatchIn", "MapRowIn",
-    "PriBatchIn", "PriSingleIn", "ScoreBatchIn", "ScoreRowIn", "SniffIn",
+    "ApiKeyRequestDecisionIn",
+    "ApiKeyRequestIn",
+    "EnrollIn",
+    "MapBatchIn",
+    "MapRowIn",
+    "PriBatchIn",
+    "PriSingleIn",
+    "ScoreBatchIn",
+    "ScoreRowIn",
+    "SniffIn",
 ]

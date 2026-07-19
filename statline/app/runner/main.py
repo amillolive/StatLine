@@ -25,4 +25,3 @@ def main() -> None:
         reload=False,  # keep False on servers
         workers=1,  # gunicorn handles workers in production; CLI should stay simple
     )
-

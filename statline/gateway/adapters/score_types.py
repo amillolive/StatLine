@@ -1,4 +1,5 @@
 """Gateway scoring request and response definitions."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -42,7 +43,17 @@ class ScoreBatchRequest:
 
 
 __all__ = [
-    "Caps", "Context", "Filters", "Output", "Penalties", "Row", "Rows",
-    "ScoreBatchRequest", "ScoreBatchResponse", "ScoreRowRequest", "ScoreRowResponse",
-    "Weights", "WeightsArg",
+    "Caps",
+    "Context",
+    "Filters",
+    "Output",
+    "Penalties",
+    "Row",
+    "Rows",
+    "ScoreBatchRequest",
+    "ScoreBatchResponse",
+    "ScoreRowRequest",
+    "ScoreRowResponse",
+    "Weights",
+    "WeightsArg",
 ]

@@ -1,4 +1,5 @@
 """Adapter validation functions."""
+
 from __future__ import annotations
 
 from typing import cast
@@ -24,17 +25,27 @@ def validate_adapter(spec: AdapterSpec) -> None:
             issues.append(ValidationIssue(f"{path}.key", f"Duplicate metric key '{metric.key}'."))
         seen_metrics.add(metric.key)
         if metric.bucket is not None and metric.bucket not in bucket_keys:
-            issues.append(ValidationIssue(f"{path}.bucket", f"Unknown bucket '{metric.bucket}'.", "Define it under buckets: or fix the metric.bucket."))
+            issues.append(
+                ValidationIssue(
+                    f"{path}.bucket",
+                    f"Unknown bucket '{metric.bucket}'.",
+                    "Define it under buckets: or fix the metric.bucket.",
+                )
+            )
         if metric.clamp is not None and not metric.clamp[0] < metric.clamp[1]:
             issues.append(ValidationIssue(f"{path}.clamp", "Clamp must be (lo, hi) with lo < hi."))
     seen_efficiency: set[str] = set()
     for index, efficiency in enumerate(spec.efficiency):
         path = f"efficiency[{index}]"
         if efficiency.key in seen_efficiency:
-            issues.append(ValidationIssue(f"{path}.key", f"Duplicate efficiency key '{efficiency.key}'."))
+            issues.append(
+                ValidationIssue(f"{path}.key", f"Duplicate efficiency key '{efficiency.key}'.")
+            )
         seen_efficiency.add(efficiency.key)
         if efficiency.bucket not in bucket_keys:
-            issues.append(ValidationIssue(f"{path}.bucket", f"Unknown bucket '{efficiency.bucket}'."))
+            issues.append(
+                ValidationIssue(f"{path}.bucket", f"Unknown bucket '{efficiency.bucket}'.")
+            )
         if efficiency.clamp is not None and not efficiency.clamp[0] < efficiency.clamp[1]:
             issues.append(ValidationIssue(f"{path}.clamp", "Clamp must be (lo, hi) with lo < hi."))
         if efficiency.min_den < 0:
@@ -42,7 +53,13 @@ def validate_adapter(spec: AdapterSpec) -> None:
     for name, profile in spec.score_profiles.items():
         path = f"score_profiles.{name}"
         if profile.weights_profile not in spec.weights:
-            issues.append(ValidationIssue(f"{path}.weights_profile", f"Unknown weights profile '{profile.weights_profile}'.", "Add it under weights: or correct the reference."))
+            issues.append(
+                ValidationIssue(
+                    f"{path}.weights_profile",
+                    f"Unknown weights profile '{profile.weights_profile}'.",
+                    "Add it under weights: or correct the reference.",
+                )
+            )
         if profile.kind == "affine":
             if profile.lo is None or profile.hi is None:
                 issues.append(ValidationIssue(path, "Affine profile requires lo and hi."))

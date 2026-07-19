@@ -171,7 +171,9 @@ def get_conn(
 
 
 @contextmanager
-def transaction(conn: sqlite3.Connection, name: Optional[str] = None) -> Generator[None, None, None]:
+def transaction(
+    conn: sqlite3.Connection, name: Optional[str] = None
+) -> Generator[None, None, None]:
     sp = name or f"sp_{id(conn)}_{os.getpid()}"
     try:
         conn.execute(f"SAVEPOINT {sp}")

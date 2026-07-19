@@ -1,4 +1,5 @@
 """Developer maintenance functions for local StatLine installations."""
+
 from __future__ import annotations
 
 import platform
@@ -31,7 +32,9 @@ def _quote_identifier(name: str) -> str:
 
 
 def _table_names(connection: sqlite3.Connection) -> list[str]:
-    rows = connection.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").fetchall()
+    rows = connection.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
+    ).fetchall()
     return [str(row[0]) for row in rows]
 
 
@@ -57,7 +60,11 @@ def _print_matching_rows(
     print(heading)
     for table in tables:
         cols = _columns(connection, table)
-        matches = [name for name in cols if column == name or (column == "prefix" and "prefix" in name.lower())]
+        matches = [
+            name
+            for name in cols
+            if column == name or (column == "prefix" and "prefix" in name.lower())
+        ]
         for match in matches:
             rows = connection.execute(
                 f"SELECT * FROM {_quote_identifier(table)} WHERE {_quote_identifier(match)} = ?",
@@ -120,7 +127,11 @@ def bootstrap_local_admin(
         user=user,
         email=email,
         device_pub_b64=device_public_key_b64(private_key),
-        meta={"hostname": platform.node(), "os": platform.platform(), "cli_version": "local-bootstrap"},
+        meta={
+            "hostname": platform.node(),
+            "os": platform.platform(),
+            "cli_version": "local-bootstrap",
+        },
     )
     request_id = enrollment["request_id"]
     device_id = enrollment["device_id"]
@@ -167,7 +178,9 @@ def rename_local_auth_identity(
     device_id, api_prefix = _current_auth()
     backup = database.with_suffix(f".before-rename-{datetime.now():%Y%m%d-%H%M%S}{database.suffix}")
     shutil.copy2(database, backup)
-    print(f"DB:        {database}\nBackup:    {backup}\nDEVICEID:  {device_id}\nAPI prefix:{api_prefix}\n")
+    print(
+        f"DB:        {database}\nBackup:    {backup}\nDEVICEID:  {device_id}\nAPI prefix:{api_prefix}\n"
+    )
 
     rename_map = {
         "org": (old_org, new_org),
@@ -182,7 +195,9 @@ def rename_local_auth_identity(
             cols = _columns(connection, table)
             selectors: list[tuple[str, tuple[object, ...], str]] = [("", (), "")]
             if target_current_auth and "device_id" in cols:
-                selectors.append((f"{_quote_identifier('device_id')} = ?", (device_id,), " on current device"))
+                selectors.append(
+                    (f"{_quote_identifier('device_id')} = ?", (device_id,), " on current device")
+                )
             selectors.extend(
                 (f"{_quote_identifier(column)} = ?", (api_prefix,), f" on API prefix {api_prefix}")
                 for column in cols
@@ -202,14 +217,18 @@ def rename_local_auth_identity(
                         where_params=params,
                     )
                     if count:
-                        changes.append(f"{table}.{column}{label}: {old!r} -> {new!r} ({count} row/s)")
+                        changes.append(
+                            f"{table}.{column}{label}: {old!r} -> {new!r} ({count} row/s)"
+                        )
 
     print("Applied changes:")
     for change in changes:
         print(f"  - {change}")
     if not changes:
         print("  none")
-    print("\nDone. Restart SLAPI, then check:\n  statline --mode auto auth whoami\n  statline --mode remote mod apikeys")
+    print(
+        "\nDone. Restart SLAPI, then check:\n  statline --mode auto auth whoami\n  statline --mode remote mod apikeys"
+    )
     return changes
 
 
@@ -228,8 +247,12 @@ def repair_local_device() -> list[tuple[str, str]]:
         print("\nTables:")
         for table in tables:
             print(f"  - {table}")
-        _print_matching_rows(connection, tables, "device_id", device_id, heading="\nDevice-like rows before repair:")
-        _print_matching_rows(connection, tables, "prefix", api_prefix, heading="\nAPI-key-like rows before repair:")
+        _print_matching_rows(
+            connection, tables, "device_id", device_id, heading="\nDevice-like rows before repair:"
+        )
+        _print_matching_rows(
+            connection, tables, "prefix", api_prefix, heading="\nAPI-key-like rows before repair:"
+        )
 
         for table in tables:
             cols = _columns(connection, table)
@@ -253,7 +276,9 @@ def repair_local_device() -> list[tuple[str, str]]:
             print(f"  - {table}: {update}")
         if not updates:
             print("  none")
-        _print_matching_rows(connection, tables, "device_id", device_id, heading="\nDevice-like rows after repair:")
+        _print_matching_rows(
+            connection, tables, "device_id", device_id, heading="\nDevice-like rows after repair:"
+        )
 
     print("\nDone. Restart SLAPI, then run:\n  statline --mode auto auth whoami")
     return updates
