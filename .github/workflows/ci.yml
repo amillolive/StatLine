@@ -243,7 +243,12 @@ jobs:
 
       - name: Import package
         working-directory: ${{ runner.temp }}
-        run: '"$PY" -c "import statline; print("Import OK", statline.__version__)"'
+        run: |
+          "$PY" - <<'PY'
+          import statline
+
+          print("Import OK", statline.__version__)
+          PY
 
       - name: CLI help (module entry point)
         working-directory: ${{ runner.temp }}
