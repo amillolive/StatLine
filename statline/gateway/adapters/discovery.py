@@ -5,14 +5,9 @@ import os
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Union, cast
 
+import yaml as yaml_module
+
 from statline.gateway.adapters.types import AdapterConfig, ResolvedYaml, YamlError
-
-# Try to import PyYAML, but keep types simple so linters don’t complain.
-try:  # pragma: no cover
-    import yaml as yaml_module
-except Exception:  # pragma: no cover
-    yaml_module = None
-
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Errors
@@ -76,22 +71,23 @@ _yaml_cache: Dict[Path, AdapterConfig] = {}
 
 
 def _yaml_load(text: str) -> AdapterConfig:
-    if yaml_module is None:
-        raise YamlError("PyYAML is not installed; cannot parse YAML.")
     try:
         obj = yaml_module.safe_load(text)
     except Exception as e:  # pragma: no cover
         raise YamlError(f"Failed to parse YAML: {e}") from e
+
     if obj is None:
         return {}
+
     if not isinstance(obj, dict):
         raise YamlError(f"YAML root must be a mapping/object, got {type(obj).__name__}")
 
-    # Normalize to Dict[str, Any] with explicit loop var types (for Pylance/MyPy)
     obj_map: Mapping[Any, Any] = cast(Mapping[Any, Any], obj)
     result: Dict[str, Any] = {}
+
     for k, v in obj_map.items():
         result[str(k)] = v
+
     return result
 
 
