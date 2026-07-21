@@ -2,42 +2,44 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 from threading import RLock
 from typing import Dict, List
 
 from statline.core.adapters.compile import compile_adapter
 from statline.core.adapters.load import load_spec
+from statline.core.adapters.paths import iter_adapter_paths, normalize_adapter_name
 from statline.core.types.adapters import CompiledAdapter
 
 _cache: Dict[str, CompiledAdapter] = {}
 _LOCK = RLock()
 
 
-def _normalize_name(value: object) -> str:
-    return str(value or "").strip().casefold()
+def _register_name(
+    found: Dict[str, CompiledAdapter],
+    name: object,
+    adapter: CompiledAdapter,
+    *,
+    source: str,
+) -> None:
+    normalized = normalize_adapter_name(name)
+    if not normalized:
+        return
+    existing = found.get(normalized)
+    if existing is not None and existing is not adapter:
+        raise ValueError(f"Adapter name '{name}' from {source} collides with '{existing.key}'")
+    found[normalized] = adapter
 
 
 def _build_cache() -> Dict[str, CompiledAdapter]:
-    base = Path(__file__).parent / "defs"
     found: Dict[str, CompiledAdapter] = {}
-    for path in sorted(base.glob("*.y*ml")):
+    for path in iter_adapter_paths():
         adapter = compile_adapter(load_spec(path))
-        primary = _normalize_name(adapter.key)
-        if not primary:
+        if not normalize_adapter_name(adapter.key):
             raise ValueError(f"Adapter in {path} has an empty key")
-        if primary in found:
-            raise ValueError(f"Duplicate adapter key '{adapter.key}' in {path}")
-        found[primary] = adapter
+        _register_name(found, adapter.key, adapter, source=str(path))
+        _register_name(found, path.stem, adapter, source=str(path))
         for alias in adapter.aliases:
-            normalized = _normalize_name(alias)
-            if not normalized:
-                continue
-            if normalized in found and found[normalized] is not adapter:
-                raise ValueError(
-                    f"Alias '{alias}' from {adapter.key} collides with another adapter"
-                )
-            found[normalized] = adapter
+            _register_name(found, alias, adapter, source=str(path))
     return found
 
 
@@ -56,12 +58,13 @@ def list_adapters() -> List[str]:
 
 def load_adapter(name: str) -> CompiledAdapter:
     _discover()
-    normalized = _normalize_name(name)
+    normalized = normalize_adapter_name(name)
     try:
         return _cache[normalized]
     except KeyError as error:
         available = ", ".join(list_adapters())
-        raise ValueError(f"Unknown adapter '{name}'. Available: {available}") from error
+        suffix = f" Available: {available}" if available else " No adapters were discovered."
+        raise ValueError(f"Unknown adapter '{name}'.{suffix}") from error
 
 
 def refresh_adapters() -> None:
@@ -70,11 +73,7 @@ def refresh_adapters() -> None:
 
 def supported_adapters() -> Dict[str, str]:
     _discover()
-    supported: Dict[str, str] = {}
-    for adapter in _cache.values():
-        supported[_normalize_name(adapter.key)] = adapter.key
-        supported.update({_normalize_name(alias): adapter.key for alias in adapter.aliases})
-    return dict(sorted(supported.items()))
+    return dict(sorted((name, adapter.key) for name, adapter in _cache.items()))
 
 
 __all__ = ["list_adapters", "load_adapter", "refresh_adapters", "supported_adapters"]

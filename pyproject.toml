@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "statline"
-version = "3.0.1"
+version = "4.0.0"
 description = "StatLine — weighted player scoring, efficiency modeling, CLI + adapter tooling"
 readme = "README.md"
 requires-python = ">=3.10,<3.15"

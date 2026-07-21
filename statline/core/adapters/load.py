@@ -4,15 +4,18 @@ from __future__ import annotations
 
 import math
 import os
+import re
 import warnings
 from collections.abc import Mapping as ABCMapping
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Mapping, Optional, Sequence, SupportsFloat, SupportsIndex, TypeAlias, cast
 
 import yaml
 
+from statline.core.adapters.paths import normalize_adapter_name, resolve_adapter_path
 from statline.core.adapters.validate import validate_adapter
 from statline.core.types.adapters import (
+    AdapterMetadata,
     AdapterSpec,
     BucketSpec,
     Clamp,
@@ -34,12 +37,13 @@ from statline.core.types.adapters import (
     TransformSpec,
 )
 
-_BASE = Path(__file__).parent / "defs"
-
 # Fail-fast by default:
 #   STATLINE_LOADER_STRICT="1" (default) -> raise on unknown keys / unknown buckets / invalid shapes
 #   STATLINE_LOADER_STRICT="0" -> warn-and-continue where possible
 _STRICT = os.environ.get("STATLINE_LOADER_STRICT", "1") not in ("0", "", "false", "False")
+
+_ADAPTER_ID_RE = re.compile(r"^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)*$")
+_WINDOWS_ABSOLUTE_RE = re.compile(r"^[A-Za-z]:/")
 
 
 def _warn(msg: str) -> None:
@@ -104,10 +108,7 @@ def _config_bool(value: object, *, ctx: str, default: bool = False) -> bool:
 
 # Allowed top-level keys in an adapter YAML (helps catch typos).
 _ALLOWED_TOP_KEYS: set[str] = {
-    "key",
-    "version",
-    "aliases",
-    "title",
+    "metadata",
     "dimensions",
     "sniff",
     "filters",
@@ -117,6 +118,16 @@ _ALLOWED_TOP_KEYS: set[str] = {
     "penalties",
     "efficiency",
     "score_profiles",
+}
+
+_ALLOWED_METADATA_KEYS: set[str] = {
+    "title",
+    "id",
+    "version",
+    "author",
+    "aliases",
+    "dataset",
+    "meta",
 }
 
 _ALLOWED_BUCKET_KEYS: set[str] = {"title", "description", "tags", "hidden", "meta"}
@@ -356,19 +367,81 @@ def _coerce_meta_map(obj: object, *, ctx: str) -> dict[str, MetaValue]:
     return out
 
 
-def _read_yaml_for(source: str | Path) -> dict[str, object]:
-    if isinstance(source, Path):
-        path = source
-        name = path.stem
-    else:
-        name = str(source).strip()
-        path = _BASE / f"{name}.yaml"
-        if not path.exists():
-            path = _BASE / f"{name}.yml"
-    if not path.is_file():
-        raise FileNotFoundError(
-            f"Adapter spec not found: {name} (expected {name}.yaml or {name}.yml)"
+def _coerce_dataset_reference(value: object, *, ctx: str) -> Optional[str]:
+    """Normalize one portable dataset reference without touching the filesystem."""
+    if value is None:
+        return None
+
+    reference = str(value).strip().replace("\\", "/")
+    if not reference:
+        return None
+
+    path = PurePosixPath(reference)
+    if path.is_absolute() or _WINDOWS_ABSOLUTE_RE.match(reference):
+        raise ValueError(f"{ctx} must be a relative path")
+    if ".." in path.parts:
+        raise ValueError(f"{ctx} cannot leave its dataset root")
+    if any(part in {"", "."} for part in path.parts):
+        raise ValueError(f"{ctx} must identify a concrete relative file")
+
+    return path.as_posix()
+
+
+def _coerce_metadata(value: object, name: str) -> AdapterMetadata:
+    """Load the required adapter identity and optional descriptive metadata."""
+    metadata = _as_str_dict(value, ctx=f"Adapter '{name}': metadata")
+    unknown = set(metadata).difference(_ALLOWED_METADATA_KEYS)
+    if unknown:
+        message = f"Adapter '{name}': metadata has unknown key(s): {', '.join(sorted(unknown))}"
+        if _STRICT:
+            raise KeyError(message)
+        _warn(message + " — ignoring.")
+        for key in unknown:
+            metadata.pop(key, None)
+
+    _require_keys(metadata, name, "title", "id", "version", "author")
+
+    title = str(metadata["title"]).strip()
+    adapter_id = str(metadata["id"]).strip().casefold()
+    version = str(metadata["version"]).strip()
+    author = str(metadata["author"]).strip()
+
+    if not title:
+        raise ValueError(f"Adapter '{name}': metadata.title cannot be empty")
+    if not 2 <= len(adapter_id) <= 64 or not _ADAPTER_ID_RE.fullmatch(adapter_id):
+        raise ValueError(
+            f"Adapter '{name}': metadata.id must be a 2–64 character "
+            "lowercase dotted identifier, such as 'eba.players'"
         )
+    if not version:
+        raise ValueError(f"Adapter '{name}': metadata.version cannot be empty")
+    if not author:
+        raise ValueError(f"Adapter '{name}': metadata.author cannot be empty")
+
+    return AdapterMetadata(
+        title=title,
+        id=adapter_id,
+        version=version,
+        author=author,
+        aliases=_coerce_aliases(
+            metadata.get("aliases"),
+            key=adapter_id,
+            ctx=f"Adapter '{name}': metadata.aliases",
+        ),
+        dataset=_coerce_dataset_reference(
+            metadata.get("dataset"),
+            ctx=f"Adapter '{name}': metadata.dataset",
+        ),
+        meta=_coerce_meta_map(
+            metadata.get("meta"),
+            ctx=f"Adapter '{name}': metadata.meta",
+        ),
+    )
+
+
+def _read_yaml_for(source: str | Path) -> dict[str, object]:
+    path = resolve_adapter_path(source)
+    name = path.stem
 
     try:
         loaded: object = yaml.safe_load(path.read_text(encoding="utf-8"))
@@ -376,6 +449,17 @@ def _read_yaml_for(source: str | Path) -> dict[str, object]:
         raise ValueError(f"Invalid YAML in '{path.name}': {error}") from error
 
     data = _as_str_dict(loaded, ctx=f"Top-level YAML for '{path.name}'")
+    legacy_keys = {"key", "title", "version", "aliases", "author", "dataset"}
+    if "metadata" not in data and "key" in data:
+        legacy = {key: data.pop(key) for key in tuple(legacy_keys) if key in data}
+        data["metadata"] = {
+            "id": normalize_adapter_name(legacy.get("key")),
+            "title": legacy.get("title") or legacy.get("key"),
+            "version": legacy.get("version") or "1.0.0",
+            "author": legacy.get("author") or "StatLine",
+            "aliases": legacy.get("aliases") or [],
+            **({"dataset": legacy["dataset"]} if legacy.get("dataset") else {}),
+        }
     unknown = set(data).difference(_ALLOWED_TOP_KEYS)
     if unknown:
         message = (
@@ -940,18 +1024,12 @@ def _uniform_weights(bucket_names: Sequence[str]) -> dict[str, dict[str, float]]
 
 def load_spec(source: str | Path) -> AdapterSpec:
     """Load one packaged adapter by name or one explicitly discovered YAML path."""
-    name = source.stem if isinstance(source, Path) else str(source).strip()
+    source_name = source.stem if isinstance(source, Path) else str(source).strip()
     data = _read_yaml_for(source)
-    _require_keys(data, name, "key", "version", "buckets", "metrics")
+    _require_keys(data, source_name, "metadata", "buckets", "metrics")
 
-    key = str(data["key"]).strip()
-    version = str(data["version"]).strip()
-    if not key:
-        raise ValueError(f"Adapter '{name}': key cannot be empty")
-    if not version:
-        raise ValueError(f"Adapter '{name}': version cannot be empty")
-    title = str(data.get("title", key)).strip() or key
-    aliases = _coerce_aliases(data.get("aliases"), key=key, ctx=f"Adapter '{name}': aliases")
+    metadata = _coerce_metadata(data["metadata"], source_name)
+    name = metadata.id
 
     dimensions = _coerce_dimensions(data.get("dimensions"), name)
     sniff = _coerce_sniff(data.get("sniff"), name)
@@ -1157,10 +1235,7 @@ def load_spec(source: str | Path) -> AdapterSpec:
         )
 
     spec = AdapterSpec(
-        key=key,
-        version=version,
-        aliases=aliases,
-        title=title,
+        metadata=metadata,
         dimensions=dimensions,
         sniff=sniff,
         filters=filters,

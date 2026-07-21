@@ -13,6 +13,8 @@ class Principal:
     device_id: str
     api_prefix: str
     scopes: Set[str]
+    auth_mode: str = "api_key"
+    device_verified: bool = False
 
 
 __all__ = ["Principal"]

@@ -41,6 +41,22 @@ MetricEvaluator: TypeAlias = Callable[[RowContext], float]
 
 
 @dataclass(frozen=True, slots=True)
+class AdapterMetadata:
+    title: str
+    id: str
+    version: str
+    author: str
+    aliases: tuple[str, ...] = ()
+    dataset: Optional[str] = None
+    meta: Mapping[str, MetaValue] = dc_field(
+        default_factory=cast(
+            Callable[[], dict[str, MetaValue]],
+            dict,
+        )
+    )
+
+
+@dataclass(frozen=True, slots=True)
 class DimensionSpec:
     values: tuple[str, ...] = ()
     description: str = ""
@@ -134,10 +150,7 @@ class ScoreProfileSpec:
 
 @dataclass(frozen=True, slots=True)
 class AdapterSpec:
-    key: str
-    version: str
-    aliases: tuple[str, ...] = ()
-    title: str = ""
+    metadata: AdapterMetadata
     dimensions: dict[str, DimensionSpec] = dc_field(
         default_factory=cast(Callable[[], dict[str, DimensionSpec]], dict)
     )
@@ -214,10 +227,7 @@ class CompiledEfficiency:
 
 @dataclass(frozen=True, slots=True)
 class CompiledAdapter:
-    key: str
-    version: str
-    aliases: tuple[str, ...]
-    title: str
+    metadata: AdapterMetadata
     dimensions: Mapping[str, DimensionSpec]
     sniff: SniffSpec
     filters: Mapping[str, FilterSpec]
@@ -229,6 +239,34 @@ class CompiledAdapter:
     efficiency: tuple[EffSpec, ...]
     metric_plan: tuple[CompiledMetric, ...]
     efficiency_plan: tuple[CompiledEfficiency, ...]
+
+    @property
+    def key(self) -> str:
+        return self.metadata.id
+
+    @property
+    def version(self) -> str:
+        return self.metadata.version
+
+    @property
+    def aliases(self) -> tuple[str, ...]:
+        return self.metadata.aliases
+
+    @property
+    def title(self) -> str:
+        return self.metadata.title
+
+    @property
+    def author(self) -> str:
+        return self.metadata.author
+
+    @property
+    def dataset(self) -> Optional[str]:
+        return self.metadata.dataset
+
+    @property
+    def meta(self) -> Mapping[str, MetaValue]:
+        return self.metadata.meta
 
     def map_raw(self, raw: Mapping[str, object]) -> dict[str, float]:
         from statline.core.adapters.compile import map_raw

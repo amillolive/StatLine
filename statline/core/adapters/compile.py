@@ -277,7 +277,7 @@ def _freeze_nested(table: Mapping[str, Mapping[str, float]]) -> Mapping[str, Map
 
 def map_raw(adapter: CompiledAdapter, raw: Mapping[str, object]) -> dict[str, float]:
     """Map one raw row through an adapter's precompiled execution plan."""
-    hooks = get_hooks(adapter.key)
+    hooks = get_hooks(adapter.metadata.id)
     raw_row = dict(raw)
     pre = getattr(hooks, "pre_map", None)
     row = (
@@ -316,10 +316,7 @@ def compile_adapter(spec: AdapterSpec) -> CompiledAdapter:
     metrics = tuple(spec.metrics)
     efficiency = tuple(spec.efficiency)
     return CompiledAdapter(
-        key=spec.key,
-        version=spec.version,
-        aliases=spec.aliases,
-        title=spec.title or spec.key,
+        metadata=spec.metadata,
         dimensions=MappingProxyType(dict(spec.dimensions)),
         sniff=spec.sniff,
         filters=MappingProxyType(dict(spec.filters)),

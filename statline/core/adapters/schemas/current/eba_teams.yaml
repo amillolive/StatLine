@@ -2,10 +2,12 @@
 # StatLine Adapter Schema (v3.0.0rc3)
 # ─────────────────────────────────────────────────────────────────────────────
 
-key: eba_teams
-version: 1.0.0
-aliases: [eba_teams, eba_power, eba_t, ebat, eba_team]
-title: EBA Teams (GP + form weighted)
+metadata:
+  id: eba.teams
+  title: EBA Teams (GP + form weighted)
+  version: 4.0.0
+  author: StatLine, EBA
+  aliases: [eba_power, eba_t, ebat, eba_team]
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Dimensions

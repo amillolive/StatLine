@@ -33,12 +33,11 @@ from statline.gateway.auth.types import Principal
 # - DEVKEY (Ed25519) is the "admin authority" used to mint enrollment tokens.
 # - Enrollment tokens ("reg_...") are one-time redeemable and create PENDING enrollments.
 # - Admin approval activates a device (stores its public key + metadata).
-# - API access requires BOTH:
-#     (1) Authorization: Bearer api_...
-#     (2) Device proof headers (device_id + ed25519 signature) from an approved device file.
-#
-# Devices are NOT hard-locked to hardware: the "device identity" is a file (private key)
-# that can be copied intentionally. Gating is done via server-side approval + revocation.
+# - API keys are portable bearer credentials so bots and server clients can authenticate
+#   without copying a device private key.
+# - Device proof remains required for enrollment and API-key issuance/management flows.
+# - When normal API requests include device-proof headers, the proof is verified and the
+#   API key is required to match that enrolled device.
 #
 # Inactivity policy:
 # - If a device has not been seen for INACTIVE_UNENROLL_SECONDS, it becomes UNENROLLED.
@@ -51,6 +50,13 @@ from statline.gateway.auth.types import Principal
 INACTIVE_UNENROLL_SECONDS: int = 30 * 86400  # 30 days
 SIG_SKEW_SECONDS: int = 120  # allowed clock skew for device signatures
 NONCE_TTL_SECONDS: int = 300  # replay cache window
+REQUIRE_DEVICE_PROOF: bool = os.getenv("STATLINE_REQUIRE_DEVICE_PROOF", "0") in {
+    "1",
+    "true",
+    "True",
+    "yes",
+    "on",
+}
 
 # Recommended header names for device proof
 HDR_DEVICE_ID = "X-SL-Device"
@@ -1244,19 +1250,35 @@ def require_api_key(
 
 
 async def require_principal(request: Request) -> Principal:
-    d = await require_device(request)
-    a = require_api_key(request, expect_org=str(d["org"]), expect_device_id=str(d["device_id"]))
+    device_headers = (HDR_DEVICE_ID, HDR_TIMESTAMP, HDR_NONCE, HDR_SIGNATURE)
+    has_device_proof = any(str(request.headers.get(name, "")).strip() for name in device_headers)
 
-    raw_scopes = set(json.loads(str(a["scopes_json"])))
+    if REQUIRE_DEVICE_PROOF or has_device_proof:
+        device = await require_device(request)
+        api = require_api_key(
+            request,
+            expect_org=str(device["org"]),
+            expect_device_id=str(device["device_id"]),
+        )
+        auth_mode = "api_key+device"
+        device_verified = True
+    else:
+        api = require_api_key(request)
+        auth_mode = "api_key"
+        device_verified = False
+
+    raw_scopes = set(json.loads(str(api["scopes_json"])))
     raw_scopes = validate_scopes(raw_scopes)
     scopes = expand_scopes(raw_scopes)
 
     return Principal(
-        org=str(a["org"]),
-        subject=str(a["owner"]),
-        device_id=str(a["device_id"]),
-        api_prefix=str(a["prefix8"]),
+        org=str(api["org"]),
+        subject=str(api["owner"]),
+        device_id=str(api["device_id"]),
+        api_prefix=str(api["prefix8"]),
         scopes=scopes,
+        auth_mode=auth_mode,
+        device_verified=device_verified,
     )
 
 

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import ast
-from pathlib import Path
 from typing import Annotated, Any, Callable, Dict, List, Mapping, Optional, Sequence, TypeAlias
 
 try:
@@ -239,7 +238,7 @@ app: FastAPI = FastAPI(
 )
 
 
-# Auth dependency for protected endpoints (requires BOTH device proof + api key)
+# Auth dependency for protected endpoints (portable API key; optional verified device proof)
 AuthDep = Annotated[Principal, Depends(require_principal)]
 
 # Device-only dependency for issuance endpoints (device-proof only)
@@ -410,12 +409,15 @@ def admin_apikey_request_deny(request_id: str, body: ApiKeyRequestDecisionIn) ->
 # (Optional) Debug endpoints are ADMIN-only in V3
 @admin_router.get("/debug/core-adapters")  # pyright: ignore[reportUnknownMemberType]
 def debug_core_adapters() -> Dict[str, Any]:
-    base = Path(__file__).resolve().parents[2] / "core" / "adapters" / "defs"
-    names: List[str] = []
+    from statline.core.adapters.paths import adapter_schema_dirs, current_adapter_dir
+
+    base = current_adapter_dir()
     try:
-        for p in sorted(base.glob("*.y*ml")):
-            names.append(p.stem)
-        return {"defs_dir": str(base), "adapters": names}
+        return {
+            "defs_dir": str(base),
+            "schema_dirs": [str(path) for path in adapter_schema_dirs()],
+            "adapters": _list_adapters(),
+        }
     except Exception as e:
         return {"defs_dir": str(base), "error": str(e)}
 
@@ -527,13 +529,14 @@ def apikey_revoke(prefix: str, device: DeviceRowDep) -> Dict[str, bool]:
 
 @auth_router.get("/whoami")  # pyright: ignore[reportUnknownMemberType]
 def whoami(auth: AuthDep) -> Dict[str, Any]:
-    # This is full auth (device + api key), so CLI can introspect capabilities.
     return {
         "org": auth.org,
         "subject": auth.subject,
         "device_id": auth.device_id,
         "api_prefix": auth.api_prefix,
         "scopes": sorted(auth.scopes),
+        "auth_mode": auth.auth_mode,
+        "device_verified": auth.device_verified,
     }
 
 

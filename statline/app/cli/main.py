@@ -21,6 +21,7 @@ from os import getenv
 from pathlib import Path
 from typing import (
     Any,
+    Callable,
     DefaultDict,
     Dict,
     Generator,
@@ -40,6 +41,7 @@ from urllib.parse import urlencode
 import click  # Typer is built on Click
 import typer
 
+from statline.app.cli.presentation import render_table_text, render_timing
 from statline.app.cli.types import (
     BannerFilter,
     CsvWriterProtocol,
@@ -47,8 +49,10 @@ from statline.app.cli.types import (
     YamlLikeProtocol,
 )
 from statline.core.adapters import load_adapter
+from statline.core.adapters.match import resolve_scoring_target
 from statline.core.datasets import dataset_root, list_datasets
 from statline.core.scoring.map import score_rows_from_raw
+from statline.core.types.timing import StageTimes
 
 # ── CLI versioning ────────────────────────────────────────────────────────────
 
@@ -94,17 +98,38 @@ Mode = Literal["auto", "local", "remote"]
 _mode: Mode = cast(Mode, os.getenv("STATLINE_MODE", "auto").strip().lower() or "auto")
 _mode = "auto" if _mode not in ("auto", "local", "remote") else _mode
 
-app = typer.Typer(no_args_is_help=True)
+app = typer.Typer(
+    no_args_is_help=True,
+    rich_markup_mode="rich",
+    pretty_exceptions_enable=True,
+    pretty_exceptions_show_locals=False,
+)
 
 # Subcommands
-auth_app = typer.Typer(no_args_is_help=True, help="Device enrollment + API key management (v3+)")
-mod_app = typer.Typer(no_args_is_help=True, help="Moderation tools (requires 'moderation' scope)")
-admin_app = typer.Typer(no_args_is_help=True, help="Admin tools (requires 'admin' scope)")
-sys_app = typer.Typer(no_args_is_help=True, help="System/status helpers")
+auth_app = typer.Typer(
+    no_args_is_help=True,
+    rich_markup_mode="rich",
+    help="Device enrollment + API key management (v3+)",
+)
+mod_app = typer.Typer(
+    no_args_is_help=True,
+    rich_markup_mode="rich",
+    help="Moderation tools (requires 'moderation' scope)",
+)
+admin_app = typer.Typer(
+    no_args_is_help=True, rich_markup_mode="rich", help="Admin tools (requires 'admin' scope)"
+)
+sys_app = typer.Typer(no_args_is_help=True, rich_markup_mode="rich", help="System/status helpers")
+statpack_app = typer.Typer(
+    no_args_is_help=True,
+    rich_markup_mode="rich",
+    help="Create, inspect, render, and unpack StatPacks",
+)
 app.add_typer(auth_app, name="auth")
 app.add_typer(mod_app, name="mod")
 app.add_typer(admin_app, name="admin")
 app.add_typer(sys_app, name="sys")
+app.add_typer(statpack_app, name="statpack")
 
 _BANNER_LINE: str = f"=== {CLI_NAME} v{CLI_VERSION} — Adapter-Driven Scoring ==="
 _BANNER_REGEX = re.compile(r"^===\s*StatLine\b.*===\s*$")
@@ -313,8 +338,18 @@ def _describe_device() -> str:
         return f"{DEVICEID_PATH}: error reading ({e!r})"
 
 
+def _api_key_value() -> str:
+    env_key = (os.getenv("STATLINE_API_KEY") or os.getenv("SLAPI_API_KEY") or "").strip()
+    if env_key:
+        return env_key
+    return (_read_text(APIKEY_PATH) or "").strip()
+
+
 def _describe_apikey() -> str:
     try:
+        env_key = (os.getenv("STATLINE_API_KEY") or os.getenv("SLAPI_API_KEY") or "").strip()
+        if env_key:
+            return "STATLINE_API_KEY/SLAPI_API_KEY: present (portable bearer client)"
         k = (_read_text(APIKEY_PATH) or "").strip()
         return f"{APIKEY_PATH}: {'present' if k else 'empty'}"
     except Exception as e:
@@ -349,8 +384,8 @@ def _has_device() -> bool:
 
 
 def _has_apikey() -> bool:
-    s = (_read_text(APIKEY_PATH) or "").strip()
-    return bool(s) and s.startswith("api_")
+    value = _api_key_value()
+    return bool(value) and value.startswith("api_")
 
 
 def _has_device_id() -> bool:
@@ -368,14 +403,15 @@ def _read_device_id() -> str:
 
 
 def _read_apikey() -> str:
-    s = (_read_text(APIKEY_PATH) or "").strip()
-    if not s:
+    value = _api_key_value()
+    if not value:
         raise typer.BadParameter(
-            f"Missing APIKEY at {APIKEY_PATH}. Run: statline auth apikey-request"
+            "Missing API key. Set STATLINE_API_KEY for a portable/server client, "
+            f"or claim one into {APIKEY_PATH}."
         )
-    if not s.startswith("api_"):
-        raise typer.BadParameter(f"{APIKEY_PATH} doesn’t look like an api_ token.")
-    return s
+    if not value.startswith("api_"):
+        raise typer.BadParameter("The configured API key does not look like an api_ token.")
+    return value
 
 
 def _load_ed25519_private() -> Any:
@@ -463,8 +499,8 @@ def _device_proof_headers(method: str, target: str, body: bytes) -> Dict[str, st
 
 
 def _best_auth_mode(*, guarded: bool) -> Literal["principal", "none"]:
-    """Choose the auth scheme available on this machine for SLAPI v3."""
-    if guarded and _has_device() and _has_apikey() and _has_device_id():
+    """Choose bearer authentication when an API key is available."""
+    if guarded and _has_apikey():
         return "principal"
     return "none"
 
@@ -500,7 +536,7 @@ def _headers(
 ) -> Dict[str, str]:
     h: Dict[str, str] = {"Content-Type": "application/json"}
 
-    if auth in {"device", "principal"}:
+    if auth == "device" or (auth == "principal" and _has_device() and _has_device_id()):
         h.update(_device_proof_headers(method, target, body))
 
     if auth == "principal":
@@ -1265,42 +1301,8 @@ def _render_audit_pages(rows: List[Dict[str, Any]], *, per_page: int = 50) -> st
 
 
 def _render_table(rows: Rows, cols: List[Tuple[str, str]], limit: int = 0) -> str:
-    view = rows[: (limit or len(rows))]
-
-    matrix: List[Dict[str, str]] = []
-    for i, r in enumerate(view, 1):
-        out: Dict[str, str] = {}
-        for hdr, key in cols:
-            if key == "__rank__":
-                out[hdr] = str(i)
-            else:
-                v = r.get(key, "")
-                out[hdr] = _format_cell(key, v)
-        matrix.append(out)
-
-    widths: Dict[str, int] = {hdr: len(hdr) for hdr, _ in cols}
-    for row in matrix:
-        for hdr, _ in cols:
-            w = len(row.get(hdr, ""))
-            if w > widths[hdr]:
-                widths[hdr] = w
-
-    def line(ch: str) -> str:
-        parts: List[str] = []
-        for hdr, _ in cols:
-            parts.append(ch * (widths[hdr] + 2))
-        return "+" + "+".join(parts) + "+"
-
-    out_lines: List[str] = []
-    out_lines.append(line("-"))
-    out_lines.append("| " + " | ".join(hdr.ljust(widths[hdr]) for hdr, _ in cols) + " |")
-    out_lines.append(line("="))
-    for row in matrix:
-        out_lines.append(
-            "| " + " | ".join(row.get(hdr, "").ljust(widths[hdr]) for hdr, _ in cols) + " |"
-        )
-    out_lines.append(line("-"))
-    return "\n".join(out_lines)
+    """Render command tables through the shared rounded Rich renderer."""
+    return render_table_text(rows, cols, limit=limit).rstrip("\n")
 
 
 def _render_md(rows: Rows, cols: List[Tuple[str, str]], limit: int = 0) -> str:
@@ -1580,6 +1582,7 @@ def _local_fallback_score_batch(
     context: Optional[Dict[str, Dict[str, float]]],
     caps_override: Optional[Dict[str, float]],
     filters: Optional[Dict[str, Any]],
+    timing: Optional[StageTimes] = None,
 ) -> Rows:
     # Local core scoring currently doesn't take "filters" at the CLI layer;
     # we pass through if calculator supports it via kwargs (best-effort).
@@ -1593,7 +1596,7 @@ def _local_fallback_score_batch(
             weights_override=w,
             context=context,
             caps_override=caps_override,
-            timing=None,
+            timing=timing,
             filters=filters,
         )
     except TypeError:
@@ -1604,7 +1607,7 @@ def _local_fallback_score_batch(
             weights_override=w,
             context=context,
             caps_override=caps_override,
-            timing=None,
+            timing=timing,
         )
 
     return res
@@ -1617,9 +1620,10 @@ def _local_fallback_score_row(
     context: Optional[Dict[str, Dict[str, float]]],
     caps_override: Optional[Dict[str, float]],
     filters: Optional[Dict[str, Any]],
+    timing: Optional[StageTimes] = None,
 ) -> Row:
     res = _local_fallback_score_batch(
-        adapter, [row], weights_override, context, caps_override, filters
+        adapter, [row], weights_override, context, caps_override, filters, timing
     )
     return res[0] if res else {"pri": 99, "pri_raw": 1.0, "context_used": "local-fallback"}
 
@@ -1662,10 +1666,11 @@ def api_score_batch(
     context: Optional[Dict[str, Dict[str, float]]],
     caps_override: Optional[Dict[str, float]],
     filters: Optional[Dict[str, Any]],
+    timing: Optional[StageTimes] = None,
 ) -> Rows:
     if not _online or _mode == "local":
         return _local_fallback_score_batch(
-            adapter, rows, weights_override, context, caps_override, filters
+            adapter, rows, weights_override, context, caps_override, filters, timing
         )
 
     payload = {
@@ -1677,7 +1682,8 @@ def api_score_batch(
         "filters": filters,
     }
     try:
-        data = _post_v3("/v3/score/batch", payload)
+        with timing.stage("remote_request") if timing else contextlib.nullcontext():
+            data = _post_v3("/v3/score/batch", payload)
         if isinstance(data, list):
             return cast(Rows, data)
         return cast(Rows, data.get("results", []))
@@ -1685,19 +1691,19 @@ def api_score_batch(
         _log_note(BUG_NOTES, f"[score-batch auth] {_describe_auth_state()} :: {e}")
         _fallback_banner("Auth to host refused")
         return _local_fallback_score_batch(
-            adapter, rows, weights_override, context, caps_override, filters
+            adapter, rows, weights_override, context, caps_override, filters, timing
         )
     except ConnectionError as e:
         _log_note(BUG_NOTES, f"[score-batch connect] {_slapi_url} :: {e}")
         _fallback_banner("Connection failed; treating as offline")
         return _local_fallback_score_batch(
-            adapter, rows, weights_override, context, caps_override, filters
+            adapter, rows, weights_override, context, caps_override, filters, timing
         )
     except Exception as e:
         _log_note(BUG_NOTES, f"[score-batch unexpected] {e!r}")
         _fallback_banner("Unexpected API error")
         return _local_fallback_score_batch(
-            adapter, rows, weights_override, context, caps_override, filters
+            adapter, rows, weights_override, context, caps_override, filters, timing
         )
 
 
@@ -1829,6 +1835,7 @@ def api_pri_batch(
     filters: Optional[Dict[str, Any]],
     *,
     caps_mode: str = "batch",
+    timing: Optional[StageTimes] = None,
 ) -> Rows:
     """
     Correct RAW -> MAPPED -> PRI batch path.
@@ -1840,10 +1847,12 @@ def api_pri_batch(
     if not _online or _mode == "local":
         if caps == "clamps":
             return [
-                _local_fallback_score_row(adapter, r, weights_override, None, None, filters)
+                _local_fallback_score_row(adapter, r, weights_override, None, None, filters, timing)
                 for r in rows
             ]
-        return _local_fallback_score_batch(adapter, rows, weights_override, None, None, filters)
+        return _local_fallback_score_batch(
+            adapter, rows, weights_override, None, None, filters, timing
+        )
 
     payload = {
         "adapter": adapter,
@@ -1852,7 +1861,8 @@ def api_pri_batch(
         "filters": filters,
     }
     try:
-        data = _post_v3("/v3/pri/batch", payload, params={"caps_mode": caps})
+        with timing.stage("remote_request") if timing else contextlib.nullcontext():
+            data = _post_v3("/v3/pri/batch", payload, params={"caps_mode": caps})
         if isinstance(data, list):
             return cast(Rows, data)
         return cast(Rows, data.get("results", []))
@@ -1861,28 +1871,34 @@ def api_pri_batch(
         _fallback_banner("Auth to host refused")
         if caps == "clamps":
             return [
-                _local_fallback_score_row(adapter, r, weights_override, None, None, filters)
+                _local_fallback_score_row(adapter, r, weights_override, None, None, filters, timing)
                 for r in rows
             ]
-        return _local_fallback_score_batch(adapter, rows, weights_override, None, None, filters)
+        return _local_fallback_score_batch(
+            adapter, rows, weights_override, None, None, filters, timing
+        )
     except ConnectionError as e:
         _log_note(BUG_NOTES, f"[pri-batch connect] {_slapi_url} :: {e}")
         _fallback_banner("Connection failed; treating as offline")
         if caps == "clamps":
             return [
-                _local_fallback_score_row(adapter, r, weights_override, None, None, filters)
+                _local_fallback_score_row(adapter, r, weights_override, None, None, filters, timing)
                 for r in rows
             ]
-        return _local_fallback_score_batch(adapter, rows, weights_override, None, None, filters)
+        return _local_fallback_score_batch(
+            adapter, rows, weights_override, None, None, filters, timing
+        )
     except Exception as e:
         _log_note(BUG_NOTES, f"[pri-batch unexpected] {e!r}")
         _fallback_banner("Unexpected API error")
         if caps == "clamps":
             return [
-                _local_fallback_score_row(adapter, r, weights_override, None, None, filters)
+                _local_fallback_score_row(adapter, r, weights_override, None, None, filters, timing)
                 for r in rows
             ]
-        return _local_fallback_score_batch(adapter, rows, weights_override, None, None, filters)
+        return _local_fallback_score_batch(
+            adapter, rows, weights_override, None, None, filters, timing
+        )
 
 
 # ── root options & helpers ────────────────────────────────────────────────────
@@ -1898,6 +1914,19 @@ def _resolve_timing(ctx: typer.Context, local: Optional[bool]) -> bool:
     except Exception:
         pass
     return STATLINE_DEBUG_TIMING
+
+
+def _emit_timing(times: Optional[StageTimes]) -> None:
+    """Write timing to stderr so JSON, JSONL, and CSV stdout remain valid."""
+    if times is not None and times.items:
+        typer.echo("\n" + render_timing(times), err=True, nl=False)
+
+
+def _mark_timing_emitted(ctx: typer.Context) -> None:
+    root = ctx.find_root()
+    if root.obj is None:
+        root.obj = {}
+    root.obj["timing_emitted"] = True
 
 
 def _eager_version_callback(value: bool) -> None:
@@ -1945,6 +1974,27 @@ def _root(
         root.obj = {}
     root.obj["timing"] = timing
     root.obj["mode"] = _mode
+    root.obj["timing_emitted"] = False
+    root.obj["timing_suppressed"] = False
+    command_started = time.perf_counter()
+
+    def emit_command_total() -> None:
+        root_obj = cast(Dict[str, Any], root.obj or {})
+        if (
+            not timing
+            or bool(root_obj.get("timing_emitted"))
+            or bool(root_obj.get("timing_suppressed"))
+        ):
+            return
+        command_times = StageTimes()
+        command_times.items.append(
+            ("command_total", (time.perf_counter() - command_started) * 1000.0)
+        )
+        if root.obj is not None:
+            root.obj["timing_emitted"] = True
+        _emit_timing(command_times)
+
+    root.call_on_close(emit_command_total)
 
     _banner_shown = False
     ensure_banner()
@@ -1972,7 +2022,7 @@ def _root(
             _log_note(BUG_NOTES, f"[startup-health] {e!r}")
 
         # authenticated? (requires principal)
-        if _has_device() and _has_apikey() and _has_device_id():
+        if _has_apikey():
             try:
                 _get_v3("/v3/auth/whoami")
                 authed = True
@@ -1992,10 +2042,10 @@ def _root(
             )
         if not _online:
             raise typer.BadParameter(
-                "SLAPI remote mode requires a fully authenticated principal.\n"
+                "SLAPI remote mode requires a valid API key.\n"
                 f"{_describe_auth_state()}\n"
-                "Fix: statline auth device-init  -> statline auth enroll --token reg_... --user <name>\n"
-                "Then have an admin approve, request an API key, and claim it."
+                "For server clients, set STATLINE_API_KEY=api_... .\n"
+                "For device enrollment, use statline auth status."
             )
 
     if _reachable and not _online and _mode == "auto":
@@ -2051,7 +2101,7 @@ def auth_status() -> None:
     typer.echo(_describe_auth_state())
     if _mode == "local" or not _reachable:
         return
-    if _has_apikey() and _has_device() and _has_device_id():
+    if _has_apikey():
         try:
             me = _get_v3("/v3/auth/whoami")
             typer.secho("\nPrincipal", bold=True)
@@ -2893,19 +2943,26 @@ def launch() -> None:
     """Open the StatLine HomeShell."""
     from statline.app.tui.app import LauncherConfig, StatLineHomeShell
 
-    StatLineHomeShell(
+    shell = StatLineHomeShell(
         typer_app=app,
         config=LauncherConfig(title="StatLine UX"),
-    ).run()
+    )
+    run_shell = cast(Callable[[], object], getattr(shell, "run"))
+    run_shell()
 
 
 @app.command("score")
 def score(
     ctx: typer.Context,
-    adapter: str = typer.Option(..., "--adapter", help="Adapter key (e.g., rbw5 or name@1.2.3)"),
-    input_path: Path = typer.Argument(
-        Path("stats.csv"),
-        help="YAML/CSV understood by your adapter mapping (server-side), or '-' for CSV from stdin.",
+    adapter: Optional[str] = typer.Option(
+        None,
+        "--adapter",
+        "-a",
+        help=("Adapter ID or alias. Omit to select the adapter from the supplied dataset."),
+    ),
+    input_path: Optional[Path] = typer.Argument(
+        None,
+        help=("CSV dataset. Omit when the selected adapter declares metadata.dataset."),
     ),
     weights: Optional[Path] = typer.Option(
         None, "--weights", help="YAML mapping of {bucket: weight}"
@@ -2971,8 +3028,16 @@ def score(
 ) -> None:
     """Batch score via SLAPI (remote) or StatLine core (local)."""
     ensure_banner()
-    _ = _resolve_timing(ctx, timing) or STATLINE_DEBUG_TIMING
+    timing_enabled = _resolve_timing(ctx, timing) or STATLINE_DEBUG_TIMING
+    stage_times = StageTimes() if timing_enabled else None
+    if not timing_enabled and ctx.find_root().obj is not None:
+        ctx.find_root().obj["timing_suppressed"] = True
+    selected_adapter, resolved_input = resolve_scoring_target(
+        adapter=adapter,
+        dataset=input_path,
+    )
 
+    adapter_id = selected_adapter.metadata.id
     fmt_lower = (fmt or "table").lower()
     caps_mode = (caps or "batch").lower()
     if caps_mode not in {"batch", "clamps"}:
@@ -2980,7 +3045,8 @@ def score(
     if fmt_lower not in {"csv", "table", "md", "json", "jsonl"}:
         raise typer.BadParameter("--fmt must be one of: csv, table, md, json, jsonl")
 
-    raw_rows: Rows = list(_read_rows(input_path))
+    with stage_times.stage("read_dataset") if stage_times else contextlib.nullcontext():
+        raw_rows: Rows = list(_read_rows(resolved_input))
 
     weights_override: Optional[Union[Dict[str, float], str]] = None
     if weights and weights_preset:
@@ -2996,12 +3062,12 @@ def score(
     filters_dict = _parse_kv_items(_split_csvish(filters))
     # Adapter-only enforcement: if adapter doesn't declare filters, silently drop them in interactive;
     # for CLI flags we keep them (power-user), but if we can detect declared keys, validate.
-    declared_keys = _coerce_filter_keys(api_adapter_traits(adapter))
+    declared_keys = _coerce_filter_keys(api_adapter_traits(adapter_id))
     if declared_keys and filters_dict:
         unknown = sorted([k for k in filters_dict.keys() if k not in set(declared_keys)])
         if unknown:
             typer.secho(
-                f"Warning: adapter '{adapter}' did not declare filter(s): {', '.join(unknown)} (sending anyway).",
+                f"Warning: adapter '{adapter_id}' did not declare filter(s): {', '.join(unknown)} (sending anyway).",
                 fg=typer.colors.YELLOW,
             )
 
@@ -3009,10 +3075,23 @@ def score(
 
     if caps_mode == "clamps":
         results = api_pri_batch(
-            adapter, raw_rows, weights_override, score_filters, caps_mode="clamps"
+            adapter_id,
+            raw_rows,
+            weights_override,
+            score_filters,
+            caps_mode="clamps",
+            timing=stage_times,
         )
     else:
-        results = api_score_batch(adapter, raw_rows, weights_override, None, None, score_filters)
+        results = api_score_batch(
+            adapter_id,
+            raw_rows,
+            weights_override,
+            None,
+            None,
+            score_filters,
+            timing=stage_times,
+        )
 
     prof_in = _split_csvish(profiles)
     prof_norm = [p for p in prof_in if p.strip()]
@@ -3131,11 +3210,19 @@ def score(
             sys.stdout.write(s)
 
     if fmt_lower == "table":
-        _write_out_text(_render_table(view, cols_table, 0) + "\n")
+        with stage_times.stage("render_output") if stage_times else contextlib.nullcontext():
+            rendered_table = _render_table(view, cols_table, 0) + "\n"
+        _write_out_text(rendered_table)
+        _mark_timing_emitted(ctx)
+        _emit_timing(stage_times)
         return
 
     if fmt_lower == "md":
-        _write_out_text(_render_md(view, cols_table, 0))
+        with stage_times.stage("render_output") if stage_times else contextlib.nullcontext():
+            rendered_md = _render_md(view, cols_table, 0)
+        _write_out_text(rendered_md)
+        _mark_timing_emitted(ctx)
+        _emit_timing(stage_times)
         return
 
     if fmt_lower == "csv":
@@ -3147,6 +3234,8 @@ def score(
                 w.writerow(out_fields)
             for row in view:
                 w.writerow([str(row.get(k, "")) for k in out_fields])
+        _mark_timing_emitted(ctx)
+        _emit_timing(stage_times)
         return
 
     if fmt_lower in {"json", "jsonl"}:
@@ -3156,6 +3245,8 @@ def score(
                 payload = {k: row.get(k, None) for k in out_fields if k in row}
                 lines.append(json.dumps(payload, ensure_ascii=False))  # pyright: ignore[reportUnknownMemberType]
             _write_out_text("\n".join(lines) + ("\n" if lines else ""))  # pyright: ignore[reportUnknownArgumentType]
+            _mark_timing_emitted(ctx)
+            _emit_timing(stage_times)
             return
 
         payload_list = [{k: row.get(k, None) for k in out_fields if k in row} for row in view]
@@ -3163,6 +3254,8 @@ def score(
             _write_out_text(json.dumps(payload_list, ensure_ascii=False, indent=2) + "\n")
         else:
             _write_out_text(json.dumps(payload_list, ensure_ascii=False) + "\n")
+        _mark_timing_emitted(ctx)
+        _emit_timing(stage_times)
         return
 
 
@@ -3171,15 +3264,27 @@ def score(
 # ─────────────────────────────────────────────────────────────────────────────
 
 adapter_app = typer.Typer(
-    no_args_is_help=True, help="Adapter metadata, registry, sniffing, and spec inspection"
+    no_args_is_help=True,
+    rich_markup_mode="rich",
+    help="Adapter metadata, registry, sniffing, and spec inspection",
 )
-map_app = typer.Typer(no_args_is_help=True, help="Map raw rows through adapters without scoring")
-calc_app = typer.Typer(no_args_is_help=True, help="Score already-mapped metric rows")
+map_app = typer.Typer(
+    no_args_is_help=True,
+    rich_markup_mode="rich",
+    help="Map raw rows through adapters without scoring",
+)
+calc_app = typer.Typer(
+    no_args_is_help=True, rich_markup_mode="rich", help="Score already-mapped metric rows"
+)
 cache_app = typer.Typer(
-    no_args_is_help=True, help="Local SLAPI cache inspection and refresh helpers"
+    no_args_is_help=True,
+    rich_markup_mode="rich",
+    help="Local SLAPI cache inspection and refresh helpers",
 )
-storage_app = typer.Typer(no_args_is_help=True, help="CSV/storage utilities")
-weights_app = typer.Typer(no_args_is_help=True, help="Weight utilities")
+storage_app = typer.Typer(
+    no_args_is_help=True, rich_markup_mode="rich", help="CSV/storage utilities"
+)
+weights_app = typer.Typer(no_args_is_help=True, rich_markup_mode="rich", help="Weight utilities")
 
 app.add_typer(adapter_app, name="adapter")
 app.add_typer(map_app, name="map")
@@ -4182,3 +4287,165 @@ def weights_resolve_cmd(
     base = dict(pick_profile(profiles, preset))
     base.update({k: float(v) for k, v in _parse_kv_items(_split_csvish(override)).items()})
     _print_payload({"weights": base, "normalized": normalize_weights(base)})
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# StatPack lifecycle
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+@statpack_app.command("manifest")
+def statpack_manifest_cmd(
+    source: Path = typer.Argument(..., exists=True, readable=True),
+    out: Optional[Path] = typer.Option(None, "--out", "-o"),
+    force: bool = typer.Option(False, "--force", help="Replace an existing .statpack."),
+) -> None:
+    """Create a StatPack from an unpacked source directory or adapter YAML."""
+    ensure_banner()
+    from statline.core.statpacks import manifest_statpack
+
+    result = manifest_statpack(source, out, overwrite=force)
+    typer.secho(f"Manifested: {result}", fg=typer.colors.GREEN, bold=True)
+
+
+@statpack_app.command("pack")
+def statpack_pack_cmd(
+    source: Path = typer.Argument(..., exists=True, file_okay=False, readable=True),
+    out: Optional[Path] = typer.Option(None, "--out", "-o"),
+    force: bool = typer.Option(False, "--force", help="Replace an existing .statpack."),
+) -> None:
+    """Rebuild an edited StatPack source directory."""
+    ensure_banner()
+    from statline.core.statpacks import pack_statpack
+
+    result = pack_statpack(source, out, overwrite=force)
+    typer.secho(f"Packed: {result}", fg=typer.colors.GREEN, bold=True)
+
+
+@statpack_app.command("render")
+def statpack_render_cmd(
+    pack: Path = typer.Argument(..., exists=True, dir_okay=False, readable=True),
+    out: Optional[Path] = typer.Option(None, "--out", "-o"),
+    force: bool = typer.Option(False, "--force", help="Replace an existing runtime YAML."),
+) -> None:
+    """Render a StatPack into a generated runtime adapter YAML."""
+    ensure_banner()
+    from statline.core.statpacks import render_statpack
+
+    result = render_statpack(pack, out, overwrite=force)
+    typer.secho(f"Rendered: {result}", fg=typer.colors.GREEN, bold=True)
+
+
+@statpack_app.command("unpack")
+def statpack_unpack_cmd(
+    pack: Path = typer.Argument(..., exists=True, dir_okay=False, readable=True),
+    out: Optional[Path] = typer.Option(None, "--out", "-o"),
+    force: bool = typer.Option(False, "--force", help="Replace the destination directory."),
+) -> None:
+    """Safely extract a StatPack for editing."""
+    ensure_banner()
+    from statline.core.statpacks import unpack_statpack
+
+    result = unpack_statpack(pack, out, overwrite=force)
+    typer.secho(f"Unpacked: {result}", fg=typer.colors.GREEN, bold=True)
+
+
+@statpack_app.command("inspect")
+def statpack_inspect_cmd(
+    pack: Path = typer.Argument(..., exists=True, dir_okay=False, readable=True),
+) -> None:
+    """Inspect StatPack metadata and contents without executing runner.py."""
+    ensure_banner()
+    from statline.core.statpacks import inspect_statpack
+
+    typer.echo(json.dumps(inspect_statpack(pack), ensure_ascii=False, indent=2))
+
+
+@statpack_app.command("register")
+def statpack_register_cmd(
+    executable: Optional[Path] = typer.Option(
+        None, "--executable", help="StatLine executable to associate with .statpack files."
+    ),
+) -> None:
+    """Register .statpack with StatLine for the current Windows user."""
+    ensure_banner()
+    import shutil
+
+    from statline.manifest.statpack import register_statpack_file_type
+
+    selected = executable or Path(shutil.which("statline") or sys.argv[0])
+    register_statpack_file_type(selected)
+    typer.secho(
+        'Registered .statpack -> statline run --pause "%1"',
+        fg=typer.colors.GREEN,
+        bold=True,
+    )
+
+
+@statpack_app.command("unregister")
+def statpack_unregister_cmd() -> None:
+    """Remove the current-user Windows .statpack association."""
+    ensure_banner()
+    from statline.manifest.statpack import unregister_statpack_file_type
+
+    unregister_statpack_file_type()
+    typer.secho("Unregistered .statpack.", fg=typer.colors.GREEN, bold=True)
+
+
+@app.command(
+    "run",
+    context_settings={"allow_extra_args": True, "ignore_unknown_options": True},
+)
+def statpack_run_cmd(
+    ctx: typer.Context,
+    pack: Path = typer.Argument(..., exists=True, dir_okay=False, readable=True),
+    inherit_secrets: bool = typer.Option(
+        False,
+        "--inherit-secrets",
+        help="Allow the untrusted runner process to inherit API keys and secret-like variables.",
+    ),
+    pause: bool = typer.Option(
+        False,
+        "--pause",
+        help="Wait for a key press before closing the terminal.",
+        hidden=True,
+    ),
+    timing: Optional[bool] = typer.Option(
+        None,
+        "--timing/--no-timing",
+        help="Show per-stage StatPack timing (inherits the root setting).",
+    ),
+    output: Optional[Path] = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Write table output or a Rich .html/.svg/.ansi report.",
+    ),
+) -> None:
+    """Run a trusted .statpack through its included runner.py and the StatLine SDK."""
+    ensure_banner()
+    from statline.core.statpacks import execute_statpack
+
+    timing_enabled = _resolve_timing(ctx, timing)
+    root_obj = ctx.find_root().obj
+    if root_obj is not None:
+        root_obj["timing_emitted"] = timing_enabled
+        root_obj["timing_suppressed"] = not timing_enabled
+
+    forwarded = list(ctx.args)
+    forwarded.append("--timing" if timing_enabled else "--no-timing")
+    if output is not None:
+        forwarded.extend(("--output", str(output.expanduser().resolve())))
+
+    exit_code = 1
+    try:
+        exit_code = execute_statpack(pack, forwarded, inherit_secrets=inherit_secrets)
+    except Exception as error:
+        typer.secho(f"Error: {error}", fg=typer.colors.RED, err=True)
+    finally:
+        if pause:
+            typer.echo()
+            click.pause("Press any key to close...")
+
+    if exit_code:
+        raise typer.Exit(exit_code)

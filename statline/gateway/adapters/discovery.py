@@ -45,6 +45,9 @@ def _default_adapter_dirs() -> List[Path]:
         os.getenv("STATLINE_ADAPTERS_DIR")
     )
     out.extend(env)
+    from statline.core.adapters.paths import adapter_schema_dirs
+
+    out.extend(adapter_schema_dirs())
     out.append(Path.cwd() / "adapters")
     out.append(Path.home() / ".config" / "statline" / "adapters")
     out.append(Path.cwd() / "config")

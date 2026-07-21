@@ -18,10 +18,10 @@ def require_any(*scopes: str) -> Callable[[Request], Awaitable[Principal]]:
     """
     FastAPI dependency factory.
 
-    Auth model (v2.1+):
-      - Requires BOTH device proof headers and Authorization: Bearer api_...
-      - Produces a Principal
-      - Enforces at least one of the provided scopes (or '*')
+    Auth model (v3.1+):
+      - Accepts a portable Authorization: Bearer api_... credential.
+      - Verifies optional device proof when supplied.
+      - Produces a Principal and enforces the requested scopes.
     """
 
     async def dep(request: Request) -> Principal:

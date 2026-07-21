@@ -27,7 +27,7 @@ def render_statline_desktop_entry(
 Type=Application
 Name=StatLine
 Comment=Open {manifest.friendly_name} files
-Exec={executable} %f
+Exec={executable} run %f
 Icon={icon}
 Terminal=false
 MimeType={manifest.mime_type};

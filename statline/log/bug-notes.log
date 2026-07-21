@@ -54,3 +54,12 @@
 [startup-whoami] PermissionError('Unauthorized (403): Device not active: UNENROLLED')
 [startup-whoami] PermissionError('Unauthorized (403): Device not active: UNENROLLED')
 [startup-whoami] PermissionError('Unauthorized (403): Device not active: UNENROLLED')
+[startup-whoami] PermissionError('Unauthorized (403): Device unenrolled due to inactivity')
+[startup-whoami] PermissionError('Unauthorized (403): Device not active: UNENROLLED')
+[startup-whoami] PermissionError('Unauthorized (403): Device not active: UNENROLLED')
+[startup-whoami] PermissionError('Unauthorized (403): Device not active: UNENROLLED')
+[startup-whoami] PermissionError('Unauthorized (403): Device not active: UNENROLLED')
+[startup-whoami] PermissionError('Unauthorized (403): Device not active: UNENROLLED')
+[startup-whoami] PermissionError('Unauthorized (403): Device not active: UNENROLLED')
+[score-batch connect] http://127.0.0.1:8000 :: Connection failed to http://127.0.0.1:8000/v3/score/batch: Server/network error (404): {"message": "Unknown adapter: eba_players", "detail": "\"Unknown top-level key(s) in adapter 'demo' (C:\\\\Users\\\\amillo\\\\Documents\\\\Python Projects\\\\StatLine\\\\statline\\\\core\\\\adapters\\\\defs\\\\demo.yaml): aliases, key, title, version\""}
+[score-batch connect] http://127.0.0.1:8000 :: Connection failed to http://127.0.0.1:8000/v3/score/batch: Server/network error (404): {"message": "Unknown adapter: eba.players", "detail": "\"Unknown top-level key(s) in adapter 'demo' (C:\\\\Users\\\\amillo\\\\Documents\\\\Python Projects\\\\StatLine\\\\statline\\\\core\\\\adapters\\\\defs\\\\demo.yaml): aliases, key, title, version\""}

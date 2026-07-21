@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import List, Optional, Union
 
 PathLike = Union[str, Path]
-_DATASET_ROOT = Path(__file__).resolve().parent / "data" / "stats"
+_DATASET_ROOT = Path(__file__).resolve().parent
 
 
 def dataset_root() -> Path:

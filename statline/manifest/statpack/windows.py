@@ -16,12 +16,14 @@ def register_statpack_file_type(
     """
     Register `.statpack` as a StatLine file type for the current user.
 
-    Windows will launch the supplied executable when a `.statpack` file is
-    opened. This function does not define how the executable handles the file.
+    Explorer launches StatLine with ``--pause`` so a double-clicked package
+    keeps its temporary console open after the runner succeeds or fails.
+    Normal terminal and automation calls remain non-interactive.
     """
     association = WindowsFileAssociation(
         manifest=STATPACK_FILE_TYPE,
         executable=Path(executable),
+        arguments=("run", "--pause"),
     )
 
     register_windows_file_type(association)

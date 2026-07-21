@@ -13,16 +13,47 @@ from statline.core.types.adapters import (
 
 def validate_adapter(spec: AdapterSpec) -> None:
     issues: list[ValidationIssue] = []
-    if not spec.key.strip():
-        issues.append(ValidationIssue("key", "Missing or empty key."))
-    if not spec.version.strip():
-        issues.append(ValidationIssue("version", "Missing or empty version."))
+    metadata = spec.metadata
+
+    if not metadata.title.strip():
+        issues.append(ValidationIssue("metadata.title", "Missing or empty title."))
+    if not metadata.id.strip():
+        issues.append(ValidationIssue("metadata.id", "Missing or empty adapter ID."))
+    if not metadata.version.strip():
+        issues.append(ValidationIssue("metadata.version", "Missing or empty version."))
+    if not metadata.author.strip():
+        issues.append(ValidationIssue("metadata.author", "Missing or empty author."))
+
+    primary = metadata.id.casefold()
+    seen_aliases: set[str] = set()
+    for index, alias in enumerate(metadata.aliases):
+        normalized = alias.strip().casefold()
+        path = f"metadata.aliases[{index}]"
+        if not normalized:
+            issues.append(ValidationIssue(path, "Alias cannot be empty."))
+        elif normalized == primary:
+            issues.append(
+                ValidationIssue(
+                    path,
+                    "Alias duplicates the primary adapter ID.",
+                    "Remove the primary ID from metadata.aliases.",
+                )
+            )
+        elif normalized in seen_aliases:
+            issues.append(ValidationIssue(path, f"Duplicate alias '{alias}'."))
+        seen_aliases.add(normalized)
+
     bucket_keys = set(spec.buckets)
     seen_metrics: set[str] = set()
     for index, metric in enumerate(spec.metrics):
         path = f"metrics[{index}]"
         if metric.key in seen_metrics:
-            issues.append(ValidationIssue(f"{path}.key", f"Duplicate metric key '{metric.key}'."))
+            issues.append(
+                ValidationIssue(
+                    f"{path}.key",
+                    f"Duplicate metric key '{metric.key}'.",
+                )
+            )
         seen_metrics.add(metric.key)
         if metric.bucket is not None and metric.bucket not in bucket_keys:
             issues.append(
@@ -33,23 +64,53 @@ def validate_adapter(spec: AdapterSpec) -> None:
                 )
             )
         if metric.clamp is not None and not metric.clamp[0] < metric.clamp[1]:
-            issues.append(ValidationIssue(f"{path}.clamp", "Clamp must be (lo, hi) with lo < hi."))
+            issues.append(
+                ValidationIssue(
+                    f"{path}.clamp",
+                    "Clamp must be (lo, hi) with lo < hi.",
+                )
+            )
+
     seen_efficiency: set[str] = set()
     for index, efficiency in enumerate(spec.efficiency):
         path = f"efficiency[{index}]"
         if efficiency.key in seen_efficiency:
             issues.append(
-                ValidationIssue(f"{path}.key", f"Duplicate efficiency key '{efficiency.key}'.")
+                ValidationIssue(
+                    f"{path}.key",
+                    f"Duplicate efficiency key '{efficiency.key}'.",
+                )
             )
         seen_efficiency.add(efficiency.key)
+        if efficiency.key in seen_metrics:
+            issues.append(
+                ValidationIssue(
+                    f"{path}.key",
+                    f"Output key '{efficiency.key}' duplicates a metric key.",
+                )
+            )
         if efficiency.bucket not in bucket_keys:
             issues.append(
-                ValidationIssue(f"{path}.bucket", f"Unknown bucket '{efficiency.bucket}'.")
+                ValidationIssue(
+                    f"{path}.bucket",
+                    f"Unknown bucket '{efficiency.bucket}'.",
+                )
             )
         if efficiency.clamp is not None and not efficiency.clamp[0] < efficiency.clamp[1]:
-            issues.append(ValidationIssue(f"{path}.clamp", "Clamp must be (lo, hi) with lo < hi."))
-        if efficiency.min_den < 0:
-            issues.append(ValidationIssue(f"{path}.min_den", "min_den must be >= 0."))
+            issues.append(
+                ValidationIssue(
+                    f"{path}.clamp",
+                    "Clamp must be (lo, hi) with lo < hi.",
+                )
+            )
+        if efficiency.min_den <= 0:
+            issues.append(
+                ValidationIssue(
+                    f"{path}.min_den",
+                    "min_den must be > 0.",
+                )
+            )
+
     for name, profile in spec.score_profiles.items():
         path = f"score_profiles.{name}"
         if profile.weights_profile not in spec.weights:
@@ -75,8 +136,9 @@ def validate_adapter(spec: AdapterSpec) -> None:
                     issues.append(ValidationIssue(path, "Window requires out_lo < out_hi."))
                 if not cast(float, profile.pct_lo) < cast(float, profile.pct_hi):
                     issues.append(ValidationIssue(path, "Window requires pct_lo < pct_hi."))
+
     if issues:
-        raise AdapterValidationError(spec.key or "<unknown>", issues)
+        raise AdapterValidationError(metadata.id or "<unknown>", issues)
 
 
 __all__ = ["validate_adapter"]

@@ -58,7 +58,7 @@ def test_removed_namespaces_are_not_present() -> None:
 
 def test_packaged_dataset_registry_is_canonical() -> None:
     names = list_datasets()
-    assert dataset_root() == ROOT / "statline" / "core" / "datasets" / "data" / "stats"
+    assert dataset_root() == ROOT / "statline" / "core" / "datasets"
     assert names
     assert all((dataset_root() / name).is_file() for name in names)
 
@@ -75,5 +75,7 @@ def test_moved_modules_resolve_package_paths() -> None:
 
     assert LOG_DIR.parent == ROOT / "statline"
     debug = debug_core_adapters()
-    assert Path(debug["defs_dir"]) == ROOT / "statline" / "core" / "adapters" / "defs"
-    assert "demo" in debug["adapters"]
+    assert (
+        Path(debug["defs_dir"]) == ROOT / "statline" / "core" / "adapters" / "schemas" / "current"
+    )
+    assert "eba.players" in debug["adapters"]
