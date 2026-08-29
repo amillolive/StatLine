@@ -38,7 +38,8 @@ def test_manifest_render_unpack_and_run_round_trip(tmp_path: Path) -> None:
     text = rendered.read_text(encoding="utf-8")
 
     assert "AUTO-GENERATED RUNTIME ADAPTER — DO NOT EDIT DIRECTLY" in text
-    assert "# Version: 3.0.1" in text
+    assert f"# Version: {info['metadata']['version']}" in text
+
     assert load_spec(rendered).metadata.id == load_spec(EBA_PLAYERS).metadata.id == "eba.players"
 
     stdout = io.StringIO()
@@ -49,6 +50,7 @@ def test_manifest_render_unpack_and_run_round_trip(tmp_path: Path) -> None:
         stdout=stdout,
         stderr=stderr,
     )
+
     payload = json.loads(stdout.getvalue())
 
     assert exit_code == 0, stderr.getvalue()

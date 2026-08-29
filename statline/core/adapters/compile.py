@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import ast
 import math
-from collections.abc import Mapping
+import statistics
+from collections.abc import Iterable, Mapping
 from functools import lru_cache
 from types import MappingProxyType
 from typing import Callable, Optional, SupportsFloat, SupportsIndex, TypeAlias, cast
@@ -72,6 +73,90 @@ def _safe_max(values: tuple[float, ...]) -> float:
     return max(values, default=0.0)
 
 
+_DATASET_AGGREGATES_KEY = "__statline_dataset_aggregates__"
+_DATASET_FUNCTIONS = {
+    "dataset_max": "max",
+    "dataset_min": "min",
+    "dataset_mean": "mean",
+    "dataset_median": "median",
+    "dataset_sum": "sum",
+    "dataset_count": "count",
+}
+
+
+def _numeric_or_none(value: object) -> Optional[float]:
+    """Return one finite numeric value without coercing arbitrary text to zero."""
+    try:
+        if value is None or isinstance(value, bool):
+            return None
+        if isinstance(value, str):
+            stripped = value.strip().replace(",", ".")
+            if not stripped:
+                return None
+            number = float(stripped)
+        else:
+            number = float(cast(_ConvertibleToFloat, value))
+    except Exception:
+        return None
+    return number if math.isfinite(number) else None
+
+
+def build_dataset_context(rows: Iterable[Mapping[str, object]]) -> Mapping[str, object]:
+    """Precompute case-insensitive per-header aggregates for one submitted dataset."""
+    numeric: dict[str, list[float]] = {}
+    counts: dict[str, int] = {}
+
+    for row in rows:
+        for raw_key, raw_value in row.items():
+            key = str(raw_key).strip().casefold()
+            if not key:
+                continue
+            if raw_value is not None and (not isinstance(raw_value, str) or raw_value.strip()):
+                counts[key] = counts.get(key, 0) + 1
+            number = _numeric_or_none(raw_value)
+            if number is not None:
+                numeric.setdefault(key, []).append(number)
+
+    aggregates: dict[str, Mapping[str, float]] = {}
+    for key in set(counts) | set(numeric):
+        values = numeric.get(key, [])
+        total = math.fsum(values) if values else 0.0
+        aggregates[key] = MappingProxyType(
+            {
+                "max": max(values, default=0.0),
+                "min": min(values, default=0.0),
+                "mean": total / len(values) if values else 0.0,
+                "median": statistics.median(values) if values else 0.0,
+                "sum": total,
+                "count": float(counts.get(key, 0)),
+            }
+        )
+
+    return MappingProxyType({_DATASET_AGGREGATES_KEY: MappingProxyType(aggregates)})
+
+
+def _dataset_aggregate(
+    context: Mapping[str, object],
+    operation: str,
+    header: str,
+) -> float:
+    table_obj = context.get(_DATASET_AGGREGATES_KEY)
+
+    if not isinstance(table_obj, Mapping):
+        return 0.0
+
+    table = cast(Mapping[str, object], table_obj)
+
+    values_obj = table.get(str(header).strip().casefold())
+
+    if not isinstance(values_obj, Mapping):
+        return 0.0
+
+    values = cast(Mapping[str, object], values_obj)
+
+    return _finite(_num(values.get(operation, 0.0)))
+
+
 def _lower_expr_node(node: ast.AST) -> ast.expr:
     """Lower the restricted expression DSL into a safe Python expression."""
     if isinstance(node, ast.Expression):
@@ -101,6 +186,24 @@ def _lower_expr_node(node: ast.AST) -> ast.expr:
         else:
             return ast.BinOp(left, node.op, right)
         return ast.Call(ast.Name(helper, ast.Load()), [left, right], [])
+    if (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id in _DATASET_FUNCTIONS
+        and not node.keywords
+        and len(node.args) == 1
+        and isinstance(node.args[0], ast.Constant)
+        and isinstance(node.args[0].value, str)
+    ):
+        return ast.Call(
+            ast.Name("_dataset_aggregate", ast.Load()),
+            [
+                ast.Name("__ctx", ast.Load()),
+                ast.Constant(_DATASET_FUNCTIONS[node.func.id]),
+                ast.Constant(node.args[0].value),
+            ],
+            [],
+        )
     if (
         isinstance(node, ast.Call)
         and isinstance(node.func, ast.Name)
@@ -141,6 +244,7 @@ def _compile_expr(expr: str) -> ExpressionEvaluator:
         "_safe_mod": _safe_mod,
         "_safe_min": _safe_min,
         "_safe_max": _safe_max,
+        "_dataset_aggregate": _dataset_aggregate,
     }
     code = compile(function_ast, "<statline-adapter-expression>", "eval")
     return cast(ExpressionEvaluator, eval(code, namespace, {}))
@@ -275,7 +379,12 @@ def _freeze_nested(table: Mapping[str, Mapping[str, float]]) -> Mapping[str, Map
     )
 
 
-def map_raw(adapter: CompiledAdapter, raw: Mapping[str, object]) -> dict[str, float]:
+def map_raw(
+    adapter: CompiledAdapter,
+    raw: Mapping[str, object],
+    *,
+    dataset_context: Optional[Mapping[str, object]] = None,
+) -> dict[str, float]:
     """Map one raw row through an adapter's precompiled execution plan."""
     hooks = get_hooks(adapter.metadata.id)
     raw_row = dict(raw)
@@ -286,6 +395,8 @@ def map_raw(adapter: CompiledAdapter, raw: Mapping[str, object]) -> dict[str, fl
         else raw_row
     )
     context = _sanitize_row(row)
+    if dataset_context:
+        context.update(dataset_context)
     output: dict[str, float] = {}
 
     for metric in adapter.metric_plan:
@@ -331,4 +442,5 @@ def compile_adapter(spec: AdapterSpec) -> CompiledAdapter:
     )
 
 
-__all__ = ["compile_adapter", "map_raw"]
+compile_expr = _compile_expr
+__all__ = ["build_dataset_context", "compile_adapter", "map_raw", "compile_expr"]

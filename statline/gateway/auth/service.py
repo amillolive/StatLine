@@ -24,6 +24,7 @@ from starlette.status import HTTP_400_BAD_REQUEST, HTTP_401_UNAUTHORIZED, HTTP_4
 
 from statline.gateway.auth.permissions import expand_scopes, validate_scopes
 from statline.gateway.auth.types import Principal
+from statline.gateway.storage.sqlite import connect as _sqlite_connect
 
 # =============================================================================
 # High-level model
@@ -168,13 +169,13 @@ def _json_canon(obj: Any) -> bytes:
 
 
 def _connect() -> sqlite3.Connection:
-    conn = sqlite3.connect(str(DB_PATH), check_same_thread=False)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL;")
-    conn.execute("PRAGMA synchronous=NORMAL;")
-    conn.execute("PRAGMA foreign_keys=ON;")
-    conn.execute("PRAGMA busy_timeout=3000;")
-    return conn
+    """Open the auth store through the gateway's shared SQLite policy."""
+    return _sqlite_connect(
+        DB_PATH,
+        check_same_thread=False,
+        timeout=30.0,
+        isolation_level="DEFERRED",
+    )
 
 
 def _init_db() -> None:

@@ -32,6 +32,7 @@ from typing import (
     Optional,
     TextIO,
     Tuple,
+    TypeGuard,
     Union,
     cast,
 )
@@ -41,6 +42,7 @@ from urllib.parse import urlencode
 import click  # Typer is built on Click
 import typer
 
+from statline.app import __release__
 from statline.app.cli.presentation import render_table_text, render_timing
 from statline.app.cli.types import (
     BannerFilter,
@@ -56,7 +58,7 @@ from statline.core.types.timing import StageTimes
 
 # ── CLI versioning ────────────────────────────────────────────────────────────
 
-CLI_VERSION = "3.0.1"
+CLI_VERSION = __release__
 CLI_NAME = "StatLine UX"
 
 # ── HTTP backend (quiet for type checkers) ────────────────────────────────────
@@ -79,7 +81,7 @@ except Exception:  # pragma: no cover
 # ── banner & timing defaults ──────────────────────────────────────────────────
 
 STATLINE_DEBUG_TIMING: bool = os.getenv("STATLINE_DEBUG") == "1"
-DEFAULT_SLAPI_URL: str = os.getenv("SLAPI_URL", "http://127.0.0.1:8000").rstrip("/")
+DEFAULT_SLAPI_URL: str = os.getenv("SLAPI_URL", "https://api.statline.dev").rstrip("/")
 
 
 # mutable runtime config (don’t mutate ALL-CAPS constants)
@@ -131,7 +133,7 @@ app.add_typer(admin_app, name="admin")
 app.add_typer(sys_app, name="sys")
 app.add_typer(statpack_app, name="statpack")
 
-_BANNER_LINE: str = f"=== {CLI_NAME} v{CLI_VERSION} — Adapter-Driven Scoring ==="
+_BANNER_LINE: str = f"{CLI_NAME} v{CLI_VERSION} — Adapter-Driven Scoring"
 _BANNER_REGEX = re.compile(r"^===\s*StatLine\b.*===\s*$")
 
 
@@ -307,12 +309,12 @@ def _resolve_secrets_dir() -> Path:
 
 SECRETS_DIR: Path = _resolve_secrets_dir()
 
-# v3+ auth secrets
+# v4 auth secrets
 DEVICEKEY_PATH: Path = SECRETS_DIR / "DEVICEKEY"  # Ed25519 private key (PEM)
-DEVICEID_PATH: Path = SECRETS_DIR / "DEVICEID"  # UUID assigned by /v3/auth/enroll
+DEVICEID_PATH: Path = SECRETS_DIR / "DEVICEID"  # UUID assigned by /v4/auth/enroll
 APIKEY_PATH: Path = SECRETS_DIR / "APIKEY"  # api_ token (bearer)
 
-# legacy admin helper file (not required by v3; still useful for local tooling)
+# legacy admin helper file (not required by v4; still useful for local tooling)
 DEVKEY_PATH: Path = SECRETS_DIR / "DEVKEY"
 
 KEYS_DIR: Path = SECRETS_DIR / "keys"
@@ -421,7 +423,7 @@ def _load_ed25519_private() -> Any:
         from cryptography.hazmat.primitives.asymmetric import ed25519
     except Exception as e:
         raise typer.BadParameter(
-            "Missing dependency: cryptography (required for v3 auth).\n"
+            "Missing dependency: cryptography (required for v4 auth).\n"
             "Install with: pip install 'statline[remote]'  (or)  pip install cryptography"
         ) from e
 
@@ -449,7 +451,7 @@ def ensure_device_keypair(*, force: bool = False) -> Any:
         from cryptography.hazmat.primitives.asymmetric import ed25519
     except Exception as e:
         raise typer.BadParameter(
-            "Missing dependency: cryptography (required for v3 auth).\n"
+            "Missing dependency: cryptography (required for v4 auth).\n"
             "Install with: pip install 'statline[remote]'  (or)  pip install cryptography"
         ) from e
 
@@ -469,7 +471,7 @@ def ensure_device_keypair(*, force: bool = False) -> Any:
 
 def device_public_key_b64(priv: Any) -> str:
     """
-    Return base64url(raw_public_key_bytes) (no padding) expected by v3 /auth/enroll.
+    Return base64url(raw_public_key_bytes) (no padding) expected by v4 /auth/enroll.
     IMPORTANT: server uses urlsafe b64 decoding.
     """
     from cryptography.hazmat.primitives import serialization
@@ -482,7 +484,7 @@ def device_public_key_b64(priv: Any) -> str:
 
 
 def _device_proof_headers(method: str, target: str, body: bytes) -> Dict[str, str]:
-    """Build v3+ device proof headers (Ed25519 signature over canonical envelope)."""
+    """Build v4 device proof headers (Ed25519 signature over canonical envelope)."""
     priv = _load_ed25519_private()
     device_id = _read_device_id()
     ts = str(int(time.time()))
@@ -506,22 +508,22 @@ def _best_auth_mode(*, guarded: bool) -> Literal["principal", "none"]:
 
 
 def _auth_for_path(path: str) -> Literal["none", "device", "principal"]:
-    """Select the SLAPI v3 auth mode for a request path."""
-    if path.startswith("/v2/"):
-        raise RuntimeError("SLAPI v2 endpoints are no longer supported; use /v3 endpoints.")
-    if path.startswith("/v3/admin") or path.startswith("/v3/mod"):
+    """Select the StatLine v4 auth mode for a request path."""
+    if path.startswith(("/v2/", "/v3/")):
+        raise RuntimeError("Legacy API endpoints are not supported by the transport; use v4.")
+    if path.startswith("/v4/admin") or path.startswith("/v4/moderation"):
         return "principal"
-    if path.startswith("/v3/auth/enroll") or path.startswith("/v3/health") or path == "/":
+    if path.startswith("/v4/auth/enroll") or path.startswith("/v4/health") or path == "/":
         return "none"
-    if path.startswith("/v3/auth/whoami"):
+    if path.startswith("/v4/auth/whoami"):
         return "principal"
     if (
-        path.startswith("/v3/auth/apikey-requests")
-        or path.startswith("/v3/auth/apikeys")
-        or path.startswith("/v3/auth/device")
+        path.startswith("/v4/auth/api-key-requests")
+        or path.startswith("/v4/auth/api-keys")
+        or path.startswith("/v4/auth/device")
     ):
         return "device"
-    if path.startswith("/v3/"):
+    if path.startswith("/v4/"):
         return _best_auth_mode(guarded=True)
     return _best_auth_mode(guarded=True)
 
@@ -840,19 +842,203 @@ def request_json(
         raise
 
 
-# ── v3 request wrappers ───────────────────────────────────────────────────────
+# ── v4 request wrappers with local legacy-call translation ───────────────────
+
+
+def _translate_v4_path(path: str) -> str:
+    replacements = (
+        ("/v3/auth/apikey-requests", "/v4/auth/api-key-requests"),
+        ("/v3/auth/apikeys", "/v4/auth/api-keys"),
+        ("/v3/mod/apikeys", "/v4/moderation/api-keys"),
+        ("/v3/mod/audit", "/v4/moderation/audit"),
+        ("/v3/mod/devices", "/v4/moderation/devices"),
+        ("/v3/admin/devkey/init", "/v4/admin/developer-key"),
+        ("/v3/admin/devkey", "/v4/admin/developer-key"),
+        ("/v3/admin/mint-regtoken", "/v4/admin/registration-tokens"),
+        ("/v3/admin/regtoken/inspect", "/v4/admin/registration-tokens/inspect"),
+        ("/v3/admin/apikey-requests", "/v4/admin/api-key-requests"),
+        ("/v3/admin/enrollments", "/v4/admin/enrollments"),
+        ("/v3/auth", "/v4/auth"),
+        ("/v3/health", "/v4/health"),
+    )
+    for old, new_path in replacements:
+        if path.startswith(old):
+            return new_path + path[len(old) :]
+    return path.replace("/v3/", "/v4/", 1) if path.startswith("/v3/") else path
+
+
+def _adapter_document_for_legacy(path: str) -> Optional[Tuple[str, str]]:
+    match = re.fullmatch(r"/v3/adapter/([^/]+)/(.+)", path)
+    if match is None:
+        return None
+    return match.group(1), match.group(2)
+
+
+def _legacy_adapter_projection(document: Dict[str, Any], resource: str) -> Dict[str, Any]:
+    if resource == "weights":
+        return {"weights": document.get("weights", {})}
+    if resource in {"metric-keys", "metric-keys/probe"}:
+        return {"keys": document.get("metrics", [])}
+    if resource in {"inputs", "inputs/raw", "prompt-keys"}:
+        keys = document.get("inputs", [])
+        return {"inputs": keys, "keys": keys}
+    if resource in {"dimensions", "dims"}:
+        dimensions = document.get("dimensions", {})
+        return {"dimensions": dimensions, "keys": list(dimensions)}
+    if resource == "filters":
+        filters = document.get("filters", {})
+        return {"filters": filters, "keys": list(filters)}
+    return document
+
+
+def _is_any_list(value: object) -> TypeGuard[List[Any]]:
+    return isinstance(value, list)
+
+
+def _score_response_data(response: Any, *, one: bool, mapped: bool = False) -> Any:
+    if not isinstance(response, dict):
+        return response
+
+    typed_response = cast(Dict[str, Any], response)
+    raw_values: object = typed_response.get("mapped" if mapped else "results", [])
+
+    if not _is_any_list(raw_values):
+        return {} if one else []
+
+    values: List[Any] = raw_values
+
+    if one:
+        return values[0] if values else {}
+
+    return values
 
 
 def _get_v3(path_v3: str, *, params: Optional[Dict[str, Any]] = None) -> Any:
-    return request_json("GET", path_v3, params=params)
+    adapter_request = _adapter_document_for_legacy(path_v3)
+    if adapter_request is not None:
+        adapter, resource = adapter_request
+        raw_document = request_json("GET", f"/v4/adapters/{adapter}")
+        if not isinstance(raw_document, dict):
+            return raw_document
+
+        document = cast(Dict[str, Any], raw_document)
+        return _legacy_adapter_projection(document, resource)
+
+    if path_v3 == "/v3/adapters":
+        raw_response = request_json("GET", "/v4/adapters", params=params)
+        if not isinstance(raw_response, dict):
+            return raw_response
+
+        response = cast(Dict[str, Any], raw_response)
+
+        raw_adapter_items: object = response.get("adapters", [])
+        adapter_items: List[Any] = raw_adapter_items if _is_any_list(raw_adapter_items) else []
+
+        adapter_names: List[str] = []
+
+        for raw_item in adapter_items:
+            if isinstance(raw_item, dict):
+                item = cast(Dict[str, Any], raw_item)
+                key = item.get("key")
+                if key is not None:
+                    adapter_names.append(str(key))
+            else:
+                adapter_names.append(str(raw_item))
+
+        return {
+            "adapters": adapter_names,
+            "cache": response.get("cache", {}),
+        }
+
+    if path_v3 == "/v3/datasets":
+        raw_response = request_json("GET", "/v4/datasets", params=params)
+        if not isinstance(raw_response, dict):
+            return raw_response
+
+        response = cast(Dict[str, Any], raw_response)
+
+        raw_dataset_items: object = response.get("datasets", [])
+        dataset_items: List[Any] = raw_dataset_items if _is_any_list(raw_dataset_items) else []
+
+        dataset_names: List[str] = []
+
+        for raw_item in dataset_items:
+            if isinstance(raw_item, dict):
+                item = cast(Dict[str, Any], raw_item)
+                dataset_path = item.get("path")
+                if dataset_path is not None:
+                    dataset_names.append(str(dataset_path))
+            else:
+                dataset_names.append(str(raw_item))
+
+        return {"datasets": dataset_names}
+
+    if path_v3 in {
+        "/v3/admin/debug/core-adapters",
+        "/v3/admin/debug/registry-list",
+    }:
+        raw_response = request_json("GET", "/v4/adapters")
+        if not isinstance(raw_response, dict):
+            return {"adapters": []}
+
+        response = cast(Dict[str, Any], raw_response)
+
+        raw_debug_items: object = response.get("adapters", [])
+        debug_items: List[Any] = raw_debug_items if _is_any_list(raw_debug_items) else []
+
+        debug_adapter_names: List[str] = []
+
+        for raw_item in debug_items:
+            if not isinstance(raw_item, dict):
+                continue
+
+            item = cast(Dict[str, Any], raw_item)
+            key = item.get("key")
+            if key is not None:
+                debug_adapter_names.append(str(key))
+
+        return {"adapters": debug_adapter_names}
+
+    return request_json("GET", _translate_v4_path(path_v3), params=params)
 
 
 def _post_v3(path_v3: str, payload: Any, *, params: Optional[Dict[str, Any]] = None) -> Any:
-    return request_json("POST", path_v3, payload, params=params)
+    if path_v3 == "/v3/adapters/sniff":
+        return request_json("POST", "/v4/adapters/sniff", payload, params=params)
+
+    score_routes = {
+        "/v3/score/row": ("raw", True, False),
+        "/v3/score/batch": ("raw", False, False),
+        "/v3/pri/row": ("raw", True, False),
+        "/v3/pri/batch": ("raw", False, False),
+        "/v3/calc/pri": ("mapped", True, False),
+        "/v3/calc/pri/batch": ("mapped", False, False),
+        "/v3/map/row": ("raw", True, True),
+        "/v3/map/batch": ("raw", False, True),
+    }
+    route = score_routes.get(path_v3)
+    if route is not None:
+        input_kind, one, mapped = route
+        body = dict(payload or {})
+        body["input_kind"] = input_kind
+        if mapped:
+            body["include_mapped"] = True
+        caps = str((params or {}).get("caps_mode") or body.pop("caps_mode", "batch")).lower()
+        body["caps_mode"] = "row" if caps in {"clamps", "row"} else "batch"
+        legacy_weights = body.pop("weights_override", None)
+        if body.get("weights") is None and legacy_weights is not None:
+            body["weights"] = legacy_weights
+        response = request_json("POST", "/v4/score", body)
+        return _score_response_data(response, one=one, mapped=mapped)
+
+    translated = _translate_v4_path(path_v3)
+    if path_v3.startswith("/v3/mod/apikeys/") and path_v3.endswith("/access"):
+        return request_json("PATCH", translated, payload, params=params)
+    return request_json("POST", translated, payload, params=params)
 
 
 def _delete_v3(path_v3: str, *, params: Optional[Dict[str, Any]] = None) -> Any:
-    return request_json("DELETE", path_v3, params=params)
+    return request_json("DELETE", _translate_v4_path(path_v3), params=params)
 
 
 # ── Reachability probe & runtime banner ───────────────────────────────────────
@@ -924,7 +1110,7 @@ def _print_mode_banner(*, reachable: bool, authed: bool, url: str, mode: Mode) -
 
 
 def api_list_datasets() -> List[Dict[str, str]]:
-    """GET /v3/datasets -> {"datasets": ["file.csv", ...]}."""
+    """Read the packaged dataset catalog from GET /v4/datasets."""
     try:
         data = _get_v3("/v3/datasets")
         ds = data.get("datasets", [])
@@ -1355,11 +1541,8 @@ def api_adapter_traits(adapter: str) -> Dict[str, Any]:
     Best-effort adapter-defined knobs.
     The server may or may not expose these; we probe multiple shapes.
 
-    Expected shapes (any of these):
-      - GET /v3/adapter/{adapter}/traits -> {"filters": {...}, "dimensions": {...}}
-      - GET /v3/adapter/{adapter}/filters -> {"filters": {...}} or {"keys":[...]}
-      - GET /v3/adapter/{adapter}/dimensions -> {"dimensions": {...}} or {"keys":[...]}
-      - GET /v3/adapter/{adapter}/spec -> may include 'filters'/'dimensions' in some builds
+    Remote mode reads the consolidated GET /v4/adapters/{adapter} document.
+    The internal projections below keep older CLI helper functions stable.
     """
     if not _online or _mode == "local":
         try:
@@ -1761,10 +1944,8 @@ def api_calc_pri_single(
         return _local_fallback_score_row(adapter, row, weights_override, None, None, filters)
 
     try:
-        # IMPORTANT:
-        # /v3/calc/pri is a mapped-metrics endpoint and may NOT accept "filters".
-        # If filters are present, or the row is raw-ish, use /v3/pri/row instead
-        # (RAW -> MAPPED -> PRI in one call) which *does* accept ScoreRowIn shape.
+        # The v4 transport converts both raw and mapped legacy helper calls into
+        # POST /v4/score. Raw rows retain adapter filters; mapped rows skip mapping.
         if filters:
             payload = {
                 "adapter": adapter,
@@ -1799,8 +1980,7 @@ def api_pri_row(
     filters: Optional[Dict[str, Any]],
 ) -> Row:
     """
-    Correct RAW -> MAPPED -> PRI path (server-side).
-    Uses /v3/pri/row which takes ScoreRowIn (supports filters and weights).
+    Score one raw row through the unified server-side v4 pipeline.
     """
     if not _online or _mode == "local":
         return _local_fallback_score_row(adapter, row, weights_override, None, None, filters)
@@ -1838,8 +2018,7 @@ def api_pri_batch(
     timing: Optional[StageTimes] = None,
 ) -> Rows:
     """
-    Correct RAW -> MAPPED -> PRI batch path.
-    POST /v3/pri/batch?caps_mode=batch|clamps
+    Score raw rows through POST /v4/score with shared or per-row caps.
     """
     caps = (caps_mode or "batch").strip().lower()
     caps = "clamps" if caps == "clamps" else "batch"
@@ -3474,10 +3653,10 @@ def _local_adapter_traits_payload(adapter: str) -> Dict[str, Any]:
 
 
 def _local_map_batch(adapter: str, rows: Rows) -> List[Dict[str, Any]]:
-    from statline.core.scoring.map import safe_map_raw
+    from statline.core.scoring.map import safe_map_batch
 
     adp = load_adapter(adapter)
-    return [safe_map_raw(adp, r) for r in rows]
+    return safe_map_batch(adp, rows)
 
 
 def _local_map_row(adapter: str, row: Row) -> Dict[str, Any]:
@@ -3828,7 +4007,7 @@ def calc_row_cmd(
     source: str = typer.Option("auto", "--source", help="auto|local|remote", case_sensitive=False),
     fmt: str = typer.Option("json", "--fmt", help="json|clean", case_sensitive=False),
 ) -> None:
-    """Score one already-mapped metric row. This mirrors /v3/calc/pri."""
+    """Score one already-mapped metric row through POST /v4/score."""
     ensure_banner()
     mapped = _merge_row_items(row, kv)
     if not mapped:
@@ -3878,7 +4057,7 @@ def calc_batch_cmd(
     out: Optional[Path] = typer.Option(None, "--out"),
     fmt: str = typer.Option("json", "--fmt", help="json|jsonl|csv|clean", case_sensitive=False),
 ) -> None:
-    """Score already-mapped metric rows. This mirrors /v3/calc/pri/batch."""
+    """Score mapped metric rows through POST /v4/score."""
     ensure_banner()
     rows = list(_read_rows(input_path))
     weights_arg = _load_weights_arg(weights, weights_preset)

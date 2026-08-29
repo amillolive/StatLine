@@ -1,0 +1,20 @@
+sniff:
+  require_all_headers:
+  - PLAYER
+  - TEAM
+  - CONFERENCE
+  - POSITION
+  - LEAGUE
+  - GP
+  - PPG
+  - RPG
+  - APG
+  - SPG
+  - BPG
+  - TPG
+  - 3PMPG
+  - 3PAPG
+  - FGMPG
+  - FGAPG
+  - WIN
+  - LOSS

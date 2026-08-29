@@ -151,6 +151,9 @@ filters:
 # ─────────────────────────────────────────────────────────────────────────────
 
 buckets:
+  gp:
+    title: Games Played
+    description: Relative sample size and season participation.
   scoring_gravity:
     title: Scoring Gravity
     description: High-volume efficient scoring with turnover control.
@@ -227,13 +230,13 @@ metrics:
   - 1.0
   source:
     expr: 1.0 - real_gp1
-- key: rel4
+- key: rel_gp
   bucket: telem
   clamp:
   - 0.0
   - 1.0
   source:
-    expr: min(1.0, real_gp / 4.0)
+    expr: min(1.0, real_gp / max(1.0, dataset_max("GP") * 0.65))
 - key: ppg
   bucket: telem
   clamp:
@@ -366,6 +369,14 @@ metrics:
 # ─────────────────────────────────────────────────────────────────────────────
 
 efficiency:
+- key: gp_share
+  bucket: gp
+  clamp:
+  - 0.0
+  - 1.0
+  min_den: 1
+  make: scoreable * rel_gp
+  attempt: '1'
 - key: scoring_gravity
   bucket: scoring_gravity
   clamp:
@@ -542,7 +553,8 @@ weights:
     stocks: 0.05
     spg_sig: 0.02
     bpg_sig: 0.02
-    wl: 0.0
+    wl: 0.025
+    gp: 0.025
     telem: 0.0
   pri_alt:
     aefg: 0.24
@@ -556,7 +568,8 @@ weights:
     stocks: 0.05
     spg_sig: 0.02
     bpg_sig: 0.03
-    wl: 0.0
+    wl: 0.025
+    gp: 0.025
     telem: 0.0
 
 # ─────────────────────────────────────────────────────────────────────────────

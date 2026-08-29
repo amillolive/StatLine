@@ -1,4 +1,4 @@
-"""Dataset discovery and path resolution functions."""
+"""Dataset discovery and safe path resolution functions."""
 
 from __future__ import annotations
 
@@ -13,8 +13,20 @@ def dataset_root() -> Path:
     return _DATASET_ROOT
 
 
+def _resolved_root(root: Optional[PathLike]) -> Path:
+    return (Path(root) if root is not None else _DATASET_ROOT).expanduser().resolve()
+
+
+def _inside_root(path: Path, root: Path) -> bool:
+    try:
+        path.resolve().relative_to(root)
+        return True
+    except ValueError:
+        return False
+
+
 def list_datasets(*, root: Optional[PathLike] = None) -> List[str]:
-    base = Path(root) if root is not None else _DATASET_ROOT
+    base = _resolved_root(root)
     if not base.exists():
         return []
     return sorted(
@@ -22,38 +34,60 @@ def list_datasets(*, root: Optional[PathLike] = None) -> List[str]:
     )
 
 
-def _candidate_dataset_paths(name: str, *, root: Optional[PathLike] = None) -> List[Path]:
-    base = Path(root) if root is not None else _DATASET_ROOT
+def _candidate_dataset_paths(
+    name: str,
+    *,
+    root: Optional[PathLike] = None,
+    allow_external: bool = True,
+) -> List[Path]:
+    base = _resolved_root(root)
     raw = str(name or "").strip()
     if not raw:
         raise ValueError("dataset name/path is required")
+
+    candidates: List[Path] = []
     explicit = Path(raw).expanduser()
-    if explicit.exists():
-        return [explicit]
-    relative = Path(raw)
-    candidates = [base / relative]
-    if relative.suffix.lower() != ".csv":
-        candidates.append(base / f"{raw}.csv")
-    normalized = raw.replace("\\", "/").lower().removesuffix(".csv")
+    if explicit.is_file():
+        resolved_explicit = explicit.resolve()
+        if allow_external or _inside_root(resolved_explicit, base):
+            candidates.append(resolved_explicit)
+
+    relative = Path(raw.replace("\\", "/"))
+    packaged = (base / relative).resolve()
+    if _inside_root(packaged, base):
+        candidates.append(packaged)
+        if relative.suffix.lower() != ".csv":
+            candidates.append((base / f"{relative.as_posix()}.csv").resolve())
+
+    normalized = relative.as_posix().casefold().removesuffix(".csv").strip("/")
     for item in base.rglob("*.csv"):
         relative_name = item.relative_to(base).as_posix()
         if (
-            relative_name.lower().removesuffix(".csv") == normalized
-            or item.stem.lower() == normalized
+            relative_name.casefold().removesuffix(".csv") == normalized
+            or item.stem.casefold() == normalized
         ):
-            candidates.append(item)
+            candidates.append(item.resolve())
+
     seen: set[Path] = set()
     matches: List[Path] = []
     for candidate in candidates:
-        identity = candidate.resolve() if candidate.exists() else candidate
-        if identity not in seen and candidate.is_file():
-            seen.add(identity)
-            matches.append(candidate)
+        if candidate in seen or not candidate.is_file():
+            continue
+        if not allow_external and not _inside_root(candidate, base):
+            continue
+        seen.add(candidate)
+        matches.append(candidate)
     return matches
 
 
-def resolve_dataset(name: str, *, root: Optional[PathLike] = None) -> Path:
-    matches = _candidate_dataset_paths(name, root=root)
+def resolve_dataset(
+    name: str,
+    *,
+    root: Optional[PathLike] = None,
+    allow_external: bool = True,
+) -> Path:
+    """Resolve a dataset name, with optional packaged-root confinement."""
+    matches = _candidate_dataset_paths(name, root=root, allow_external=allow_external)
     if len(matches) == 1:
         return matches[0]
     if len(matches) > 1:

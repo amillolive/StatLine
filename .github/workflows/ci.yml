@@ -258,6 +258,28 @@ jobs:
         working-directory: ${{ runner.temp }}
         run: '"$STATLINE" --mode local --help'
 
+
+      - name: Public API smoke
+        working-directory: ${{ runner.temp }}
+        run: |
+          "$PY" - <<'PY'
+          from statline import list_adapters, list_datasets, load_adapter, load_dataset, score_row
+
+          adapters = list_adapters()
+          assert adapters, "No adapters discovered"
+          assert "demo" in adapters, f"demo adapter missing; got {adapters!r}"
+          datasets = list_datasets()
+          assert "DEMO/demo.csv" in datasets, f"demo dataset missing; got {datasets!r}"
+
+          adapter = load_adapter("demo")
+          row = load_dataset("demo", limit=1)[0]
+          result = score_row(adapter, row)
+
+          assert isinstance(result["pri"], int), result
+          assert "scores" in result, result
+          print("Smoke OK:", adapter.key, result["pri"])
+          PY
+
       - name: Adapter registry smoke
         working-directory: ${{ runner.temp }}
         run: |

@@ -522,7 +522,20 @@ Expression:
 source: { expr: "steals + blocks" }
 ```
 
-Expressions are intentionally safe and small. Use arithmetic, parentheses, `min(...)`, `max(...)`, and variable names. Metric order matters: expressions can reference values computed earlier in the adapter.
+Expressions are intentionally safe and small. Use arithmetic, parentheses, `min(...)`, `max(...)`, variable names, and dataset aggregate functions. Metric order matters: expressions can reference values computed earlier in the adapter.
+
+Dataset aggregate functions accept any raw input header as a quoted string and are case-insensitive:
+
+```yaml
+source: { expr: 'dataset_max("GP")' }
+source: { expr: 'dataset_mean("PPG")' }
+source: { expr: 'dataset_median("APG")' }
+source: { expr: 'dataset_min("WIN")' }
+source: { expr: 'dataset_sum("WIN")' }
+source: { expr: 'dataset_count("PLAYER")' }
+```
+
+Aggregates are computed once from the submitted raw batch (after raw filters) and shared by every row during mapping. `max`, `min`, `mean`, `median`, and `sum` ignore non-numeric values; `count` counts non-blank values. A single-row score treats that row as a one-row dataset.
 
 ---
 

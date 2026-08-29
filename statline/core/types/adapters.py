@@ -268,10 +268,15 @@ class CompiledAdapter:
     def meta(self) -> Mapping[str, MetaValue]:
         return self.metadata.meta
 
-    def map_raw(self, raw: Mapping[str, object]) -> dict[str, float]:
+    def map_raw(
+        self,
+        raw: Mapping[str, object],
+        *,
+        dataset_context: Optional[Mapping[str, object]] = None,
+    ) -> dict[str, float]:
         from statline.core.adapters.compile import map_raw
 
-        return map_raw(self, raw)
+        return map_raw(self, raw, dataset_context=dataset_context)
 
 
 __all__ = [

@@ -1,68 +1,117 @@
+"""Shared SQLite connection and transaction utilities for the gateway."""
+
 from __future__ import annotations
 
 import os
+import platform
+import re
 import sqlite3
-import sys
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Generator, Optional
+from threading import RLock
+from typing import Generator, Literal, Optional
+
+_SAVEPOINT_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+_MEMORY_URI = "file:statline-gateway-memory?mode=memory&cache=shared"
+_MEMORY_LOCK = RLock()
+_memory_anchor_conn: sqlite3.Connection | None = None
+IsolationLevel = Literal["DEFERRED", "IMMEDIATE", "EXCLUSIVE"] | None
 
 
-# -----------------------------------------------------------------------------
-# Platform-aware default path (no extra deps)
-# -----------------------------------------------------------------------------
 def _default_data_dir() -> Path:
-    # Respect override first
     env = os.getenv("STATLINE_DATA_DIR")
     if env:
         return Path(env).expanduser()
 
-    if sys.platform.startswith("win"):
+    system = platform.system()
+
+    if system == "Windows":
         base = Path(os.getenv("LOCALAPPDATA", Path.home() / "AppData" / "Local"))
         return base / "StatLine"
-    elif sys.platform == "darwin":
+
+    if system == "Darwin":
         return Path.home() / "Library" / "Application Support" / "StatLine"
-    else:
-        # Linux / *nix: XDG if set, else ~/.local/share
-        xdg = os.getenv("XDG_DATA_HOME")
-        base = Path(xdg).expanduser() if xdg else Path.home() / ".local" / "share"
-        return base / "statline"
+
+    xdg = os.getenv("XDG_DATA_HOME")
+    base = Path(xdg).expanduser() if xdg else Path.home() / ".local" / "share"
+    return base / "statline"
 
 
-_DEFAULT_DIR = _default_data_dir()
-_DEFAULT_DB = _DEFAULT_DIR / "statline.db"
+_DEFAULT_DB = _default_data_dir() / "statline.db"
 
 
 def get_db_path() -> Path | str:
     env = os.getenv("STATLINE_DB")
     if not env:
         return _DEFAULT_DB
-    # allow special handles/URIs
     if env == ":memory:" or env.startswith("file:"):
         return env
     return Path(env).expanduser()
 
 
-def _ensure_parent(path: Path) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
+def _execute_pragma(conn: sqlite3.Connection, statement: str) -> None:
+    try:
+        conn.execute(statement)
+    except sqlite3.DatabaseError:
+        # Optional/version-specific PRAGMAs should never prevent a connection.
+        pass
 
 
 def _apply_pragmas(conn: sqlite3.Connection, *, read_only: bool, timeout_s: float) -> None:
-    conn.execute("PRAGMA foreign_keys = ON")
-    conn.execute(f"PRAGMA busy_timeout = {int(timeout_s * 1000)}")
-    conn.execute("PRAGMA temp_store = MEMORY")
-    conn.execute("PRAGMA trusted_schema = OFF")
+    _execute_pragma(conn, "PRAGMA foreign_keys = ON")
+    _execute_pragma(conn, f"PRAGMA busy_timeout = {max(0, int(timeout_s * 1000))}")
+    _execute_pragma(conn, "PRAGMA temp_store = MEMORY")
+    _execute_pragma(conn, "PRAGMA trusted_schema = OFF")
     if read_only:
-        conn.execute("PRAGMA query_only = ON")
-    else:
-        conn.execute("PRAGMA journal_mode = WAL")
-        conn.execute("PRAGMA synchronous = NORMAL")
-        conn.execute(f"PRAGMA journal_size_limit = {32 * 1024 * 1024}")  # 33554432 bytes
+        _execute_pragma(conn, "PRAGMA query_only = ON")
+        return
+    _execute_pragma(conn, "PRAGMA journal_mode = WAL")
+    _execute_pragma(conn, "PRAGMA synchronous = NORMAL")
+    _execute_pragma(conn, f"PRAGMA journal_size_limit = {32 * 1024 * 1024}")
 
 
-def _is_special_path(s: str) -> bool:
-    """True for SQLite specials we shouldn't Path-ify."""
-    return s == ":memory:" or s.startswith("file:")
+def _append_query(uri: str, query: str) -> str:
+    return f"{uri}{'&' if '?' in uri else '?'}{query}"
+
+
+def _memory_anchor(timeout: float) -> None:
+    global _memory_anchor_conn
+
+    with _MEMORY_LOCK:
+        if _memory_anchor_conn is not None:
+            return
+
+        anchor = sqlite3.connect(
+            _MEMORY_URI,
+            uri=True,
+            isolation_level=None,
+            check_same_thread=False,
+            timeout=timeout,
+        )
+        anchor.row_factory = sqlite3.Row
+        _apply_pragmas(anchor, read_only=False, timeout_s=timeout)
+        _memory_anchor_conn = anchor
+
+
+def _connection_target(base: Path | str, *, read_only: bool, timeout: float) -> tuple[str, bool]:
+    if isinstance(base, str) and base == ":memory:":
+        _memory_anchor(timeout)
+        return _MEMORY_URI, True
+
+    if isinstance(base, str) and base.startswith("file:"):
+        uri = base
+        if read_only and "mode=" not in uri:
+            uri = _append_query(uri, "mode=ro")
+        return uri, True
+
+    path = (base if isinstance(base, Path) else Path(base)).expanduser().resolve()
+    if read_only:
+        if not path.is_file():
+            raise FileNotFoundError(f"SQLite database does not exist: {path}")
+        return _append_query(path.as_uri(), "mode=ro"), True
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    return str(path), False
 
 
 def connect(
@@ -71,84 +120,19 @@ def connect(
     read_only: bool = False,
     check_same_thread: bool = True,
     timeout: float = 30.0,
+    isolation_level: IsolationLevel = None,
 ) -> sqlite3.Connection:
-    """
-    Create a new SQLite connection with sane defaults.
-    - RW: regular filesystem path or special targets (file: URI, :memory:)
-    - RO: uses URI with mode=ro; tries immutable=1 and falls back to plain ro
-    """
-    # Resolve base target from arg or env/default
-    base: Path | str = path if path is not None else get_db_path()
-
-    if not read_only:
-        # Writable connections
-        if isinstance(base, str) and _is_special_path(base):
-            # Special targets
-            if base.startswith("file:"):
-                conn = sqlite3.connect(
-                    base,
-                    uri=True,
-                    isolation_level=None,
-                    detect_types=sqlite3.PARSE_DECLTYPES,
-                    check_same_thread=check_same_thread,
-                    timeout=timeout,
-                )
-            else:  # ":memory:"
-                conn = sqlite3.connect(
-                    base,
-                    isolation_level=None,
-                    detect_types=sqlite3.PARSE_DECLTYPES,
-                    check_same_thread=check_same_thread,
-                    timeout=timeout,
-                )
-        else:
-            # Filesystem path
-            p: Path = base if isinstance(base, Path) else Path(base).expanduser()
-            _ensure_parent(p)
-            conn = sqlite3.connect(
-                p,
-                isolation_level=None,
-                detect_types=sqlite3.PARSE_DECLTYPES,
-                check_same_thread=check_same_thread,
-                timeout=timeout,
-            )
-    else:
-        # Read-only connections (always via URI)
-        if isinstance(base, str) and base.startswith("file:"):
-            uri = base
-            p_for_fallback: Optional[Path] = None
-        elif isinstance(base, str) and base == ":memory:":
-            # RO memory → shared cache alias; still a URI
-            uri = "file::memory:?cache=shared&mode=ro"
-            p_for_fallback = None
-        else:
-            p_ro: Path = base if isinstance(base, Path) else Path(base).expanduser()
-            uri = f"file:{p_ro.as_posix()}?mode=ro&immutable=1"
-            p_for_fallback = p_ro
-
-        try:
-            conn = sqlite3.connect(
-                uri,
-                uri=True,
-                isolation_level=None,
-                detect_types=sqlite3.PARSE_DECLTYPES,
-                check_same_thread=check_same_thread,
-                timeout=timeout,
-            )
-        except sqlite3.OperationalError:
-            # Some builds don't support immutable=1 → retry plain ro (only for FS paths)
-            if p_for_fallback is None:
-                raise
-            uri2 = f"file:{p_for_fallback.as_posix()}?mode=ro"
-            conn = sqlite3.connect(
-                uri2,
-                uri=True,
-                isolation_level=None,
-                detect_types=sqlite3.PARSE_DECLTYPES,
-                check_same_thread=check_same_thread,
-                timeout=timeout,
-            )
-
+    """Create a configured SQLite connection for file, URI, or shared-memory targets."""
+    base = path if path is not None else get_db_path()
+    target, uri = _connection_target(base, read_only=read_only, timeout=timeout)
+    conn = sqlite3.connect(
+        target,
+        uri=uri,
+        isolation_level=isolation_level,
+        detect_types=sqlite3.PARSE_DECLTYPES,
+        check_same_thread=check_same_thread,
+        timeout=timeout,
+    )
     conn.row_factory = sqlite3.Row
     _apply_pragmas(conn, read_only=read_only, timeout_s=timeout)
     return conn
@@ -161,28 +145,42 @@ def get_conn(
     read_only: bool = False,
     check_same_thread: bool = True,
     timeout: float = 30.0,
+    isolation_level: IsolationLevel = None,
 ) -> Generator[sqlite3.Connection, None, None]:
-    """Context-managed connection that always closes."""
-    conn = connect(path, read_only=read_only, check_same_thread=check_same_thread, timeout=timeout)
+    conn = connect(
+        path,
+        read_only=read_only,
+        check_same_thread=check_same_thread,
+        timeout=timeout,
+        isolation_level=isolation_level,
+    )
     try:
         yield conn
+    except Exception:
+        if conn.in_transaction:
+            conn.rollback()
+        raise
     finally:
         conn.close()
 
 
 @contextmanager
 def transaction(
-    conn: sqlite3.Connection, name: Optional[str] = None
+    conn: sqlite3.Connection,
+    name: Optional[str] = None,
 ) -> Generator[None, None, None]:
-    sp = name or f"sp_{id(conn)}_{os.getpid()}"
+    savepoint = name or f"sp_{id(conn)}_{os.getpid()}"
+    if not _SAVEPOINT_RE.fullmatch(savepoint):
+        raise ValueError("savepoint name must be a SQL identifier")
+    conn.execute(f'SAVEPOINT "{savepoint}"')
     try:
-        conn.execute(f"SAVEPOINT {sp}")
         yield
-        conn.execute(f"RELEASE SAVEPOINT {sp}")
     except Exception:
-        conn.execute(f"ROLLBACK TO SAVEPOINT {sp}")
-        conn.execute(f"RELEASE SAVEPOINT {sp}")
+        conn.execute(f'ROLLBACK TO SAVEPOINT "{savepoint}"')
+        conn.execute(f'RELEASE SAVEPOINT "{savepoint}"')
         raise
+    else:
+        conn.execute(f'RELEASE SAVEPOINT "{savepoint}"')
 
 
 __all__ = ["connect", "get_conn", "get_db_path", "transaction"]

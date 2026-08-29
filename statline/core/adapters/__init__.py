@@ -3,8 +3,11 @@
 from statline.core.adapters.compile import compile_adapter, map_raw
 from statline.core.adapters.hooks import available, clear, get, register
 from statline.core.adapters.registry import (
+    adapter_cache_info,
+    adapter_source,
     list_adapters,
     load_adapter,
+    load_adapter_spec,
     refresh_adapters,
     supported_adapters,
 )
@@ -26,12 +29,15 @@ __all__ = [
     "CompiledAdapter",
     "NoOpHooks",
     "ValidationIssue",
+    "adapter_cache_info",
+    "adapter_source",
     "available",
     "clear",
     "compile_adapter",
     "get",
     "list_adapters",
     "load_adapter",
+    "load_adapter_spec",
     "map_raw",
     "refresh_adapters",
     "register",

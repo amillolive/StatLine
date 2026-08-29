@@ -1,12 +1,20 @@
+"""Gateway scoring façade over the process-wide core adapter registry."""
+
 from __future__ import annotations
 
-from threading import RLock
-from typing import Any, Dict, List, Mapping, Optional, Union, cast
+from contextlib import nullcontext
+from typing import Any, Dict, List, Literal, Mapping, Optional, Sequence, Union, cast
 
+from statline.core.adapters import list_adapters as _list_adapters
 from statline.core.adapters import load_adapter as _load_adapter
-from statline.core.scoring.map import score_row_from_raw as _core_score_row_from_raw
-from statline.core.scoring.map import score_rows_from_raw as _core_score_rows_from_raw
-from statline.core.types.timing import StageTimes  # optional: callers may pass in
+from statline.core.scoring import (
+    calculate_pri,
+    passes_mapped_filters,
+    passes_raw_filters,
+    safe_map_batch,
+)
+from statline.core.types.adapters import CompiledAdapter
+from statline.core.types.timing import StageTimes
 from statline.gateway.adapters.score_types import (
     ScoreBatchRequest,
     ScoreBatchResponse,
@@ -16,123 +24,187 @@ from statline.gateway.adapters.score_types import (
 from statline.gateway.http.errors import BadRequest, NotFound
 
 Row = Mapping[str, Any]
-Rows = List[Row]
-
-Weights = Dict[str, float]  # bucket -> weight
-WeightsArg = Union[str, Weights]  # preset name OR bucket->weight override
-Penalties = Dict[str, float]  # bucket -> penalty
+Weights = Dict[str, float]
+WeightsArg = Union[str, Weights]
+Penalties = Dict[str, float]
 Output = Dict[str, Any]
 Filters = Dict[str, Any]
-
 Context = Dict[str, Dict[str, float]]
 Caps = Dict[str, float]
+InputKind = Literal["raw", "mapped"]
+CapsMode = Literal["batch", "row"]
 
 
-_adapter_cache: Dict[str, Any] = {}
-_adapter_lock = RLock()
-
-
-def _cache_key(adapter_key: str) -> str:
-    return (adapter_key or "").strip().lower()
-
-
-def _get_adapter(adapter_key: str) -> Any:
-    key_raw = (adapter_key or "").strip()
-    if not key_raw:
+def get_adapter(adapter_key: str) -> CompiledAdapter:
+    """Resolve one adapter from the core registry; no gateway-local cache exists."""
+    key = (adapter_key or "").strip()
+    if not key:
         raise BadRequest("adapter key is required")
-
-    key = _cache_key(key_raw)
-    with _adapter_lock:
-        cached = _adapter_cache.get(key)
-        if cached is not None:
-            return cached
-
     try:
-        adp = _load_adapter(key_raw)
-    except Exception as e:
-        # Treat adapter load failures as a 404 at the SLAPI layer.
-        raise NotFound(f"Unknown adapter: {key_raw}", detail=str(e)) from e
-
-    with _adapter_lock:
-        _adapter_cache[key] = adp
-    return adp
+        return _load_adapter(key)
+    except (FileNotFoundError, KeyError, ValueError) as error:
+        raise NotFound(f"Unknown adapter: {key}", detail=str(error)) from error
 
 
 def _ensure_rows(rows: object) -> List[Mapping[str, Any]]:
-    # Be strict: our API contract is "list of objects" (JSON array of dict-like rows).
-    if not isinstance(rows, list):
-        raise BadRequest("rows must be a List[Mapping[str, Any]] (e.g., a list of dicts)")
+    if not isinstance(rows, Sequence) or isinstance(rows, (str, bytes, bytearray)):
+        raise BadRequest("rows must be a JSON array of objects")
+    checked: List[Mapping[str, Any]] = []
+    for row in cast(Sequence[object], rows):
+        if not isinstance(row, Mapping):
+            raise BadRequest("each row must be a JSON object")
+        checked.append(cast(Mapping[str, Any], row))
+    return checked
 
-    rows_obj = cast(List[object], rows)
-    for r in rows_obj:
-        if not isinstance(r, Mapping):
-            raise BadRequest("each row must be a Mapping[str, Any]")
 
-    return cast(List[Mapping[str, Any]], rows_obj)
+def _score_mapped_rows(
+    rows: List[Dict[str, Any]],
+    adapter: CompiledAdapter,
+    *,
+    weights: Optional[WeightsArg],
+    penalties_override: Optional[Penalties],
+    output: Optional[Output],
+    context: Optional[Context],
+    caps_override: Optional[Caps],
+    caps_mode: CapsMode,
+    timing: Optional[StageTimes],
+) -> List[Dict[str, Any]]:
+    if not rows:
+        return []
+
+    if caps_mode == "row":
+        results: List[Dict[str, Any]] = []
+
+        for row in rows:
+            row_result = calculate_pri(
+                row,
+                adapter,
+                weights=weights,
+                penalties_override=penalties_override,
+                output=output,
+                context=context,
+                caps_override=caps_override,
+                timing=timing,
+            )
+            results.append(dict(row_result))
+
+        return results
+
+    batch_results = calculate_pri(
+        rows,
+        adapter,
+        weights=weights,
+        penalties_override=penalties_override,
+        output=output,
+        context=context,
+        caps_override=caps_override,
+        timing=timing,
+    )
+
+    return [dict(item) for item in batch_results]
+
+
+def score_rows(
+    adapter_key: str,
+    rows: object,
+    *,
+    input_kind: InputKind = "raw",
+    weights: Optional[WeightsArg] = None,
+    penalties_override: Optional[Penalties] = None,
+    output: Optional[Output] = None,
+    filters: Optional[Filters] = None,
+    context: Optional[Context] = None,
+    caps_override: Optional[Caps] = None,
+    caps_mode: CapsMode = "batch",
+    timing: Optional[StageTimes] = None,
+) -> tuple[CompiledAdapter, List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """Map/filter/score rows through one canonical gateway pipeline."""
+    checked = _ensure_rows(rows)
+    adapter = get_adapter(adapter_key)
+
+    try:
+        if input_kind == "raw":
+            raw_rows = checked
+            if filters:
+                raw_rows = [
+                    row for row in raw_rows if passes_raw_filters(row, filters, adapter=adapter)
+                ]
+            stage = timing.stage("map_raw") if timing else nullcontext()
+            with stage:
+                mapped = [dict(row) for row in safe_map_batch(adapter, raw_rows)]
+        elif input_kind == "mapped":
+            mapped = [dict(row) for row in checked]
+        else:
+            raise BadRequest("input_kind must be 'raw' or 'mapped'")
+
+        if filters:
+            mapped = [row for row in mapped if passes_mapped_filters(row, filters, adapter=adapter)]
+
+        results = _score_mapped_rows(
+            mapped,
+            adapter,
+            weights=weights,
+            penalties_override=penalties_override,
+            output=output,
+            context=context,
+            caps_override=caps_override,
+            caps_mode=caps_mode,
+            timing=timing,
+        )
+    except BadRequest:
+        raise
+    except (KeyError, ValueError, TypeError) as error:
+        raise BadRequest("Could not score input", detail=str(error)) from error
+
+    return adapter, mapped, results
 
 
 def score_row(req: ScoreRowRequest, *, timing: Optional[StageTimes] = None) -> ScoreRowResponse:
-    adp = _get_adapter(req.adapter)
-
-    try:
-        res = _core_score_row_from_raw(
-            req.row,
-            adp,
-            weights=req.weights,
-            output=req.output,
-            filters=req.filters,
-            penalties_override=req.penalties_override,
-            context=req.context,
-            caps_override=req.caps_override,
-            timing=timing,
-        )
-    except (KeyError, ValueError, TypeError) as e:
-        # Scoring failures that are almost always caller input issues
-        raise BadRequest("Could not score row", detail=str(e)) from e
-    except Exception:
-        # Let truly unexpected exceptions bubble; app can map to 500.
-        raise
-
-    return dict(res)
+    _adapter, _mapped, results = score_rows(
+        req.adapter,
+        [req.row],
+        weights=req.weights,
+        penalties_override=req.penalties_override,
+        output=req.output,
+        filters=req.filters,
+        context=req.context,
+        caps_override=req.caps_override,
+        caps_mode="row",
+        timing=timing,
+    )
+    if not results:
+        raise BadRequest("row did not match filters; no score was produced")
+    return results[0]
 
 
 def score_batch(
     req: ScoreBatchRequest, *, timing: Optional[StageTimes] = None
 ) -> ScoreBatchResponse:
-    rows_checked = _ensure_rows(req.rows)
-    adp = _get_adapter(req.adapter)
-
-    try:
-        res_list = _core_score_rows_from_raw(
-            rows_checked,
-            adp,
-            weights=req.weights,
-            output=req.output,
-            filters=req.filters,
-            penalties_override=req.penalties_override,
-            context=req.context,
-            caps_override=req.caps_override,
-            timing=timing,
-        )
-    except (KeyError, ValueError, TypeError) as e:
-        raise BadRequest("Could not score batch", detail=str(e)) from e
-    except Exception:
-        raise
-
-    return [dict(r) for r in res_list]
+    _adapter, _mapped, results = score_rows(
+        req.adapter,
+        req.rows,
+        weights=req.weights,
+        penalties_override=req.penalties_override,
+        output=req.output,
+        filters=req.filters,
+        context=req.context,
+        caps_override=req.caps_override,
+        caps_mode="batch",
+        timing=timing,
+    )
+    return results
 
 
 def adapters_available() -> List[str]:
-    """
-    Best-effort list of adapter names. If the registry fails for any reason,
-    fall back to whatever we've already loaded into the cache.
-    """
-    try:
-        from statline.core.adapters import list_adapters as _list_adapters
+    return [str(name) for name in _list_adapters()]
 
-        return [str(n) for n in _list_adapters()]
-    except Exception:
-        pass
 
-    with _adapter_lock:
-        return sorted(_adapter_cache.keys())
+__all__ = [
+    "CapsMode",
+    "InputKind",
+    "adapters_available",
+    "get_adapter",
+    "score_batch",
+    "score_row",
+    "score_rows",
+]

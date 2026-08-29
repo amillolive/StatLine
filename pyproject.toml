@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "statline"
-version = "4.0.0"
+version = "4.0.0rc1"
 description = "StatLine — weighted player scoring, efficiency modeling, CLI + adapter tooling"
 readme = "README.md"
 requires-python = ">=3.10,<3.15"
@@ -87,7 +87,7 @@ devpack = [
   "textual>=8.0,<9.0",
   "gspread>=6.0,<7.0",
   "google-auth>=2.0,<3.0",
-  "pytest>=8.1,<9.0",
+  "pytest>=8.1",
   "pytest-cov>=4.1,<7.0",
   "coverage[toml]>=7.5,<8.0",
   "hypothesis>=6.100,<7.0",
@@ -102,6 +102,12 @@ devpack = [
   "twine>=5.0,<7.0",
   "pip-audit>=2.7,<3.0",
 ]
+
+[tool.statline.release]
+generation = 4
+core = 1
+gateway = 1
+app = 1
 
 [project.scripts]
 statline = "statline.cli:main"

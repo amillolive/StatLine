@@ -13,7 +13,12 @@ class AdapterProtocol(Protocol):
     @property
     def metrics(self) -> Sequence[Any] | Any: ...
 
-    def map_raw(self, raw: Mapping[str, Any]) -> Mapping[str, Any]: ...
+    def map_raw(
+        self,
+        raw: Mapping[str, Any],
+        *,
+        dataset_context: Mapping[str, object] | None = None,
+    ) -> Mapping[str, Any]: ...
 
 
 __all__ = ["AdapterProtocol"]

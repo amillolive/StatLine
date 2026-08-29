@@ -14,7 +14,12 @@ from statline.core.adapters import CompiledAdapter
 from statline.core.adapters import list_adapters as _list_adapters
 from statline.core.adapters import load_adapter as _load_adapter
 from statline.core.datasets import list_datasets, load_dataset
-from statline.core.scoring.map import safe_map_raw, score_row_from_raw, score_rows_from_raw
+from statline.core.scoring.map import (
+    safe_map_batch,
+    safe_map_raw,
+    score_row_from_raw,
+    score_rows_from_raw,
+)
 
 Row = Dict[str, Any]
 Rows = List[Row]
@@ -49,7 +54,7 @@ def map_row(adapter: AdapterLike, row: Mapping[str, Any]) -> Row:
 def map_batch(adapter: AdapterLike, rows: Iterable[Mapping[str, Any]]) -> Rows:
     """Map many raw rows into adapter canonical metrics."""
     adp = _resolve_adapter(adapter)
-    return [dict(safe_map_raw(adp, row)) for row in rows]
+    return [dict(row) for row in safe_map_batch(adp, rows)]
 
 
 def score_row(

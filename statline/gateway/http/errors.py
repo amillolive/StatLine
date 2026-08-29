@@ -75,12 +75,9 @@ def to_http_status(err: Exception) -> tuple[int, str]:
                 return _STATUS_MAP[cls], err.message
         return 500, err.message
 
-    # Common Python errors → BadRequest
+    # Caller-shape and lookup errors are bad requests at the HTTP boundary.
     if isinstance(err, (KeyError, ValueError, TypeError)):
-        if isinstance(err, SlapiError):
-            return 400, str(err) or err.__class__.__name__
-        else:
-            return 500, str(err)
+        return 400, str(err) or err.__class__.__name__
 
     # Common permission-ish errors
     if isinstance(err, PermissionError):

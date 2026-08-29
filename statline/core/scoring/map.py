@@ -13,6 +13,7 @@ from typing import (
     cast,
 )
 
+from statline.core.adapters.compile import build_dataset_context
 from statline.core.types.scoring import AdapterProtocol
 from statline.core.types.timing import StageTimes
 
@@ -45,21 +46,29 @@ def _sanitize_numeric_metrics(raw_metrics: Mapping[str, Any]) -> Dict[str, Any]:
     return numeric_metrics
 
 
-def _get_mapper(adapter: AdapterProtocol) -> Callable[[Mapping[str, Any]], Mapping[str, Any]]:
+def _get_mapper(adapter: AdapterProtocol) -> Callable[..., Mapping[str, Any]]:
     mapper = getattr(adapter, "map_raw", None)
     if callable(mapper):
-        return cast(Callable[[Mapping[str, Any]], Mapping[str, Any]], mapper)
+        return cast(Callable[..., Mapping[str, Any]], mapper)
     raise RuntimeError("Adapter has no map_raw function.")
 
 
-def safe_map_raw(adapter: AdapterProtocol, raw_metrics: Mapping[str, Any]) -> Dict[str, Any]:
-    """
-    Map a raw row through the adapter after tolerant numeric sanitization.
+def safe_map_raw(
+    adapter: AdapterProtocol,
+    raw_metrics: Mapping[str, Any],
+    *,
+    dataset_context: Optional[Mapping[str, object]] = None,
+) -> Dict[str, Any]:
+    """Map one raw row after tolerant numeric sanitization.
+
+    If no batch context is supplied, the row is treated as a one-row dataset so
+    dataset aggregate expressions remain well-defined.
     """
     mapper = _get_mapper(adapter)
+    aggregate_context = dataset_context or build_dataset_context([raw_metrics])
     numeric_metrics = _sanitize_numeric_metrics(raw_metrics)
     try:
-        mapped_any = mapper(numeric_metrics)
+        mapped_any = mapper(numeric_metrics, dataset_context=aggregate_context)
         mapped = dict(mapped_any)
 
         sanity = getattr(adapter, "sanity", None)
@@ -77,6 +86,15 @@ def safe_map_raw(adapter: AdapterProtocol, raw_metrics: Mapping[str, Any]) -> Di
             print("Eval expression:", eval_expr)
         print("============================\n")
         raise
+
+
+def safe_map_batch(
+    adapter: AdapterProtocol, raw_rows: Iterable[Mapping[str, Any]]
+) -> List[Dict[str, Any]]:
+    """Map a raw batch with one shared, precomputed dataset aggregate context."""
+    rows = list(raw_rows)
+    dataset_context = build_dataset_context(rows)
+    return [safe_map_raw(adapter, row, dataset_context=dataset_context) for row in rows]
 
 
 def score_rows_from_raw(
@@ -101,9 +119,9 @@ def score_rows_from_raw(
 
     if timing:
         with timing.stage("map_raw"):
-            mapped_rows: List[Dict[str, Any]] = [safe_map_raw(adapter, r) for r in raw_list]
+            mapped_rows = safe_map_batch(adapter, raw_list)
     else:
-        mapped_rows = [safe_map_raw(adapter, r) for r in raw_list]
+        mapped_rows = safe_map_batch(adapter, raw_list)
 
     if filters:
         mapped_rows = [
@@ -154,6 +172,7 @@ def score_row_from_raw(
 
 
 __all__ = [
+    "safe_map_batch",
     "safe_map_raw",
     "score_rows_from_raw",
     "score_row_from_raw",

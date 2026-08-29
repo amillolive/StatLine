@@ -31,14 +31,27 @@ def iter_dataset(
     name: PathLike,
     *,
     root: Optional[PathLike] = None,
+    offset: int = 0,
     limit: Optional[int] = None,
     coerce_numbers: bool = True,
     strip_cells: bool = True,
     encoding: str = "utf-8-sig",
+    allow_external: bool = True,
 ) -> Iterable[Row]:
-    path = resolve_dataset(str(name), root=root)
+    """Stream CSV rows with stable offset/limit pagination."""
+    if offset < 0:
+        raise ValueError("offset must be >= 0")
+    if limit is not None and limit < 0:
+        raise ValueError("limit must be >= 0")
+    if limit == 0:
+        return
+
+    path = resolve_dataset(str(name), root=root, allow_external=allow_external)
     with path.open("r", encoding=encoding, newline="") as handle:
-        for index, row in enumerate(csv.DictReader(handle), start=1):
+        emitted = 0
+        for index, row in enumerate(csv.DictReader(handle)):
+            if index < offset:
+                continue
             yield {
                 str(key): _coerce_cell(
                     str(value), coerce_numbers=coerce_numbers, strip_cells=strip_cells
@@ -46,7 +59,8 @@ def iter_dataset(
                 for key, value in row.items()
                 if key is not None
             }
-            if limit is not None and index >= limit:
+            emitted += 1
+            if limit is not None and emitted >= limit:
                 break
 
 
@@ -54,13 +68,21 @@ def load_dataset(
     name: PathLike,
     *,
     root: Optional[PathLike] = None,
+    offset: int = 0,
     limit: Optional[int] = None,
     coerce_numbers: bool = True,
     strip_cells: bool = True,
+    allow_external: bool = True,
 ) -> Rows:
     return list(
         iter_dataset(
-            name, root=root, limit=limit, coerce_numbers=coerce_numbers, strip_cells=strip_cells
+            name,
+            root=root,
+            offset=offset,
+            limit=limit,
+            coerce_numbers=coerce_numbers,
+            strip_cells=strip_cells,
+            allow_external=allow_external,
         )
     )
 
