@@ -149,9 +149,10 @@ def dataset_catalog() -> Dict[str, Any]:
     }
 
 
-def _csv_columns(path: Path) -> List[str]:
+def _csv_columns(path: Path) -> list[str]:
     with path.open("r", encoding="utf-8-sig", newline="") as handle:
-        return [str(column) for column in (next(csv.reader(handle), []) or [])]
+        row = next(csv.reader(handle), None)
+        return [] if row is None else list(row)
 
 
 def dataset_page(

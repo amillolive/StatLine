@@ -180,7 +180,7 @@ jobs:
         run: uv venv --python 3.14
 
       - name: Install build backend
-        run: uv pip install "build>=1.2,<2.0" "twine>=5.0,<7.0"
+        run: uv pip install "build>=1.2,<2.0" "twine>=7.0,<8.0"
 
       - name: Build sdist & wheel
         run: uv run --no-sync python -m build

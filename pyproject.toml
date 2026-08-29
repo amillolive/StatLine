@@ -158,6 +158,7 @@ exclude = [
   "typings/fastapi",
   "**/node_modules",
   "**/.*",
+  "installer/payload/runtime/**",
 ]
 
 [tool.pytest.ini_options]

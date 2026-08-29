@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import AsyncIterator
 
 try:
     from fastapi import FastAPI
@@ -47,7 +47,7 @@ _TAGS = [
 
 
 @asynccontextmanager
-async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Parse and compile every packaged adapter once before serving traffic.
     list_adapters()
     yield
