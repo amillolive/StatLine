@@ -32,11 +32,11 @@ from statline.gateway.auth.service import (
     revoke_apikey_for_device,
 )
 from statline.gateway.http.dependencies import (
-    AuthDep,
-    DeviceRowDep,
     SCOPE_ADMIN,
     SCOPE_MODERATION,
     SCOPE_USERBASE,
+    AuthDep,
+    DeviceRowDep,
     require_scope,
 )
 from statline.gateway.http.models import (
