@@ -1,0 +1,42 @@
+dimensions:
+  PLAYER:
+    values: []
+    strict: false
+    description: Player name / handle
+    meta:
+      display: Player
+  TEAM:
+    values: []
+    strict: false
+    description: Team identifier
+    meta:
+      display: Team
+  CONFERENCE:
+    values:
+    - Frontier
+    - Eastern
+    - Western
+    - N/A
+    strict: true
+    description: Conference identifier
+    meta:
+      display: Conference
+  POSITION:
+    values:
+    - GUARD
+    - WING
+    - FORWARD
+    - BIG
+    - N/A
+    strict: true
+    description: Player position
+    meta:
+      display: Position
+  LEAGUE:
+    values:
+    - EBA
+    - Elevate302
+    strict: true
+    description: League identifier
+    meta:
+      display: League

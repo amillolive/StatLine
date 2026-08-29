@@ -1,0 +1,386 @@
+PLAYER,TEAM,CONFERENCE,POSITION,LEAGUE,GP,PPG,RPG,APG,SPG,BPG,TPG,PA,PF,3PMPG,3PAPG,FGMPG,FGAPG,WIN,LOSS
+Lord,Toronto Terror,Eastern,N/A,EBA,5,9.4,1.2,0.6,0.2,0,0.6,0,0.6,2.6,3.6,3.4,4.8,5,0
+GeeSelm,Toronto Terror,Eastern,N/A,EBA,9,13.889,2.667,11.889,0.444,0,2,0,0.222,2.667,5,4.556,7.778,9,0
+chris,Toronto Terror,Eastern,N/A,EBA,5,7.6,1.2,0.8,0.2,0,0.4,0,0.6,1.2,1.6,3.2,3.6,5,0
+Nesh,Toronto Terror,Eastern,N/A,EBA,2,0,0,0,0,0,0,0,0,0,0,0,0,2,0
+skys,Toronto Terror,Eastern,N/A,EBA,1,8,0,0,0,0,0,0,0,2,3,3,4,1,0
+CorporalFlash,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+Kdd,Free Agents,N/A,N/A,EBA,2,3,0.5,1,0,0,0.5,0,0,0,0,1.5,1.5,2,0
+CardiBFan41,Free Agents,N/A,N/A,EBA,3,2.667,0.333,0,0,0,0.333,0,0,0.667,2,1,2.333,2,1
+valk,Free Agents,N/A,N/A,EBA,4,3.5,1,0.5,0,0.25,0.5,0,0,1,1,1.25,1.5,0,4
+vecolt,Toronto Terror,Eastern,N/A,EBA,5,23.6,2.4,7,0.4,0,1,0,0.2,5.4,6.6,8,10,5,0
+Jama,Houston Hornets,Western,N/A,EBA,9,16.333,3.889,1.222,0.111,1.333,1.778,0,0.333,4,5.222,6,7.778,6,3
+nehi,Washington Volt,Western,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+SenseiNeo,Houston Hornets,Western,N/A,EBA,3,9,0.667,0.333,0,0.667,0.333,0,0,3,3,3,3.333,2,1
+menoish,Chicago Aces,Eastern,N/A,EBA,4,5.5,1.5,2.75,0,0.5,1.25,0,1.75,1,1.25,2,3.25,4,0
+yso,Free Agents,N/A,N/A,EBA,8,15.5,1.875,1.875,0.375,0,1.375,0,0.625,3.625,6,5.5,8.625,5,3
+xpk,Chicago Aces,Eastern,N/A,EBA,3,26.667,2,6.333,0,1,1,0,1.333,4.333,5.333,10,13,2,1
+des,Free Agents,N/A,N/A,EBA,1,0,2,4,0,2,6,0,1,0,1,0,1,0,1
+zam,Las Vegas Thrill,Western,N/A,EBA,10,16.5,2.4,2,3.9,0.1,0.6,0,1.3,4.4,5.2,5.9,7.7,7,3
+9xrlem,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+trevonism,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+Imagine,Toronto Terror,Eastern,N/A,EBA,8,9.5,1,1.75,1.5,0.125,1.375,0,1.25,2,3.25,3.375,5.25,8,0
+SplashyyV2,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+Walter,Free Agents,N/A,N/A,EBA,3,14.333,6.333,2,0,0,1.667,0,0.333,3,6,5.667,10.667,1,2
+ephesiansVI,Free Agents,N/A,N/A,EBA,2,18.5,3,5.5,2,1,1.5,0,0.5,3,6.5,7,14,1,1
+tnbn,Free Agents,N/A,N/A,EBA,2,15,3,0.5,0.5,2,2,0,1.5,3,4,6,8,1,1
+jaxx,Free Agents,N/A,N/A,EBA,2,30,5.5,3,0,0,3.5,0,0,7,13,11,20,1,1
+xay,Nashville Anthem,Western,N/A,EBA,5,14.4,3,4,2.8,0.4,0.6,0,3,3,4,5.6,7.4,3,2
+TaxEvasion2008,Free Agents,N/A,N/A,EBA,1,8,4,1,0,5,1,0,1,0,1,4,5,1,0
+ledevoirkaisle,Sacramento Rage,Western,N/A,EBA,3,14.667,3.333,4.667,0.333,0,1.333,0,0,2,3,6,9.333,1,2
+Bryce,Free Agents,N/A,N/A,EBA,3,36.667,0.667,3.333,0.667,0,2.333,0,0.333,8.333,11.333,14,21,1,2
+joeylawliet,Free Agents,N/A,N/A,EBA,3,8.667,3.667,17.333,0,1,2.333,0,0,2,3,3.333,5.333,1,2
+Soss,Free Agents,N/A,N/A,EBA,2,16,1,6,0,0,2,0,0,3.5,7,6,9.5,1,1
+Brady,Free Agents,N/A,N/A,EBA,3,28.667,1.333,5.333,0,0,4.667,0,0.333,5,6,11.667,15.667,1,2
+joh,Philadelphia Glory,Eastern,N/A,EBA,3,26.333,3.667,9,2.333,0,3.333,0,1.333,5.667,7.333,9.667,13.667,2,1
+lorslime,Free Agents,N/A,N/A,EBA,3,24,2.333,3,0,0,1.667,0,1,5.667,7,9,12.667,1,2
+Soldier Boy,Indiana Bandits,Eastern,N/A,EBA,5,16,3,5,0,1.6,1.2,0,0.8,1.6,2.8,7,11,1,4
+Paragon,Sacramento Rage,Western,N/A,EBA,4,6.5,2.75,2,0,0.5,0.25,0,1.75,1,1.5,2.75,5.5,2,2
+sehctn,Washington Volt,Western,N/A,EBA,5,36.6,3.2,10.2,0.2,1,3.6,0,1,7.4,12.6,14,23,2,3
+Amir,Sacramento Rage,Western,N/A,EBA,2,6.5,7.5,8,0,0,4,0,0,1.5,5,2,6,0,2
+RatherCallMeChris,Oregon Skyhawks,Western,N/A,EBA,3,11.333,2,4.333,0,0,1,0,1.667,2.333,5.333,4.333,9,1,2
+Keen,Toronto Terror,Eastern,N/A,EBA,9,21.556,4.667,2.556,0,1.444,1.111,0,0.333,3,3.778,9.222,11.333,9,0
+zCxsmic,Free Agents,N/A,N/A,EBA,5,27.8,2.2,6.8,0,0,3.2,0,0.4,8,11.8,9.6,15.2,3,2
+pa1n,Portland Vipers,Western,N/A,EBA,4,15,1.25,6.5,0,0.5,1,0,0.25,2,4.75,5.25,9.75,2,2
+lil von,Portland Vipers,Western,N/A,EBA,3,4.333,2.333,1,0,0,1.333,0,1.333,1,1.667,1.667,2.667,0,3
+Shady,Free Agents,N/A,N/A,EBA,3,9,3.667,1.667,1.667,0,0.667,0,1.667,1.333,2,3.667,6.333,1,2
+Silent Comedic,Miami Beach Kings,Eastern,N/A,EBA,3,9.333,3.333,1.667,0.667,0.333,2.333,0,0.667,0.667,1.667,4,5.667,0,3
+Boom,Mexico City Aztecs,Western,N/A,EBA,5,9.2,3.4,1,0.2,3.6,0.6,0,1.6,2.8,3.4,3.2,4.2,1,4
+fr0stss,Portland Vipers,Western,N/A,EBA,3,6.667,2,2.333,0,1.333,1,0,0.667,2,3,2.333,4.333,0,3
+writhe,Atlanta Breeze,Eastern,N/A,EBA,2,3,0.5,2.5,0,1,0.5,0,1,1,1,1,1,1,1
+nixogen,Mexico City Aztecs,Western,N/A,EBA,7,19.571,2.429,6.857,1.286,0,3.286,0,1.571,3.143,5.857,7.286,11.143,3,4
+therighster,Mexico City Aztecs,Western,N/A,EBA,7,25,4,4.571,0,1,1.143,0,0.571,2.714,4.286,10.857,15.286,3,4
+andre,Detroit Bullets,Eastern,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+4sammy,Charlotte Empire,Eastern,N/A,EBA,6,5,5.5,3.333,0,1,1.667,0,1,1,2.167,2,4.5,3,3
+SupremityXO,Miami Beach Kings,Eastern,N/A,EBA,4,24.5,1,8.5,3.5,0,2.75,0,1.75,2.25,3.75,11,15.5,0,4
+3xCarti,Miami Beach Kings,Eastern,N/A,EBA,5,30.2,1,4.2,0,0,1.6,0,0.6,8.2,12.2,10.6,15.8,0,5
+pinkpuppyprincess222,Free Agents,N/A,N/A,EBA,3,28.667,3,7.667,1,0.333,2,0,1,3.333,6,12.667,19,1,2
+Hector,Detroit Bullets,Eastern,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+ace,Free Agents,N/A,N/A,EBA,3,4.667,7,2,0,0.667,2.333,0,0.667,0.667,1.333,2,4.667,1,2
+OneManBackcourt,Free Agents,N/A,N/A,EBA,1,23,1,4,1,0,2,0,2,5,8,9,14,1,0
+twiz,Atlanta Breeze,Eastern,N/A,EBA,6,9.667,1.833,1.833,0.167,2.167,0.833,0,1.5,2.333,3.667,3.667,6.167,4,2
+gau,Free Agents,N/A,N/A,EBA,1,2,3,4,0,1,2,0,1,0,1,1,3,0,1
+PizzaClub82,Free Agents,N/A,N/A,EBA,1,12,3,0,0,0,1,0,1,2,2,5,6,1,0
+vipe,Free Agents,N/A,N/A,EBA,2,15,1.5,9,0,0,0.5,0,0,1,1.5,7,9,1,1
+BewareOfThe12th,Free Agents,N/A,N/A,EBA,1,7,2,0,0,6,3,0,3,1,1,3,3,0,1
+hostilesuper,Atlanta Breeze,Eastern,N/A,EBA,6,15,6.167,2.667,0,0,1.667,0,1.167,2,2.667,6.667,9.5,4,2
+Breezy,Free Agents,N/A,N/A,EBA,1,12,3,1,0,0,0,0,0,0,0,6,6,0,1
+ashton,Detroit Bullets,Eastern,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+kqco,Free Agents,N/A,N/A,EBA,3,42.667,1.667,5.333,0,0,2,0,0,6.333,9,18,27.333,1,2
+Tw1n_glocks,Free Agents,N/A,N/A,EBA,1,12,6,4,0,0,3,0,0,0,3,5,13,0,1
+Granvaleria,New York Knights,Eastern,N/A,EBA,4,7.75,3,0.5,0,1,0.25,0,0.75,1.25,1.25,3.25,4.75,3,1
+Keeper,Free Agents,N/A,N/A,EBA,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1
+feared,Free Agents,N/A,N/A,EBA,2,3.5,3,0.5,0,1,1.5,0,1,0.5,0.5,1.5,1.5,1,1
+meow,Free Agents,N/A,N/A,EBA,2,20,3.5,5,0,1.5,2,0,0.5,3,3,8.5,13,1,1
+lit,Free Agents,N/A,N/A,EBA,1,6,1,2,0,0,0,0,1,2,4,2,6,0,1
+prime2k17,Atlanta Breeze,Eastern,N/A,EBA,2,5,2.5,1,0,0.5,0.5,0,0,1.5,2.5,1.5,2.5,1,1
+94fe3t,Sacramento Rage,Western,N/A,EBA,3,9.333,1.667,1.667,0.333,1,0.667,0,1,2,3.333,3.667,6.667,1,2
+Key0nteGeorge,Free Agents,N/A,N/A,EBA,1,2,4,1,0,1,2,0,3,0,0,1,1,0,1
+king,Free Agents,N/A,N/A,EBA,2,17,3,0,0,0.5,1,0,0.5,4,4.5,6.5,8.5,1,1
+carriedbygreens,Free Agents,N/A,N/A,EBA,1,6,0,2,0,0,1,0,0,1,3,2,6,0,1
+nine,Free Agents,N/A,N/A,EBA,3,3,0.667,0.333,0,0.333,0.667,0,0,1,1,1,1,1,2
+guapfee,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+openthevauIts,Free Agents,N/A,N/A,EBA,3,23.333,3.667,3,0,1.333,2,0,1.667,3.333,6,9.667,14.667,2,1
+royal,Baltimore Nighthawks,Eastern,N/A,EBA,3,21.667,2.333,6,0,0,1.333,0,0,3,4.333,9,14.333,1,2
+KANYEISRIGHT,Baltimore Nighthawks,Eastern,N/A,EBA,5,8.6,3.6,1.6,0.4,1.4,2,0,0.8,1.6,2.4,3.2,4.8,2,3
+Dashia,Miami Beach Kings,Eastern,N/A,EBA,1,11,0,2,0,0,1,0,0,3,5,4,6,0,1
+hootwe,Orlando Supernovas,Eastern,N/A,EBA,6,5.833,3.333,2.667,1.833,1.167,0.333,0,0.667,0.833,1,2.5,3.5,3,3
+Shoota,Chicago Aces,Eastern,N/A,EBA,4,24.5,1,2.75,1.5,0,1.25,0,1.5,5.25,8,9.25,14.5,3,1
+Doyo,Sacramento Rage,Western,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+revive,Baltimore Nighthawks,Eastern,N/A,EBA,5,5.6,3.6,3,0.8,0.2,1.8,0,0.8,1.6,3.4,2,5.4,2,3
+SmallLeron,Baltimore Nighthawks,Eastern,N/A,EBA,4,23.5,2,8.25,0.25,0,2.25,0,0.5,7,9.5,8.25,11.5,2,2
+klowry7,Orlando Supernovas,Eastern,N/A,EBA,8,34,1.375,6.875,1.625,0,3.375,0,1.125,8.375,11.625,12.625,18.125,4,4
+Drayy,Oregon Skyhawks,Western,N/A,EBA,2,1.5,0,1,0,0,0,0,0.5,0.5,0.5,0.5,1,1,1
+josh,Las Vegas Thrill,Western,N/A,EBA,2,27,2,4,1,0.5,2,0,1,2.5,3,10.5,14.5,2,0
+Vioo,Free Agents,N/A,N/A,EBA,1,6,1,3,1,0,2,0,0,2,6,2,6,0,1
+zornage,Detroit Bullets,Eastern,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+DeliciousDarkSkin,Mexico City Aztecs,Western,N/A,EBA,1,11,3,1,0,0,0,0,0,3,3,4,4,1,0
+Dyla,Detroit Bullets,Eastern,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+revian2,Free Agents,N/A,N/A,EBA,3,1.333,0,0,0,0,0.667,0,0,0,0,0.667,1,0,3
+KingFendi,Orlando Supernovas,Eastern,N/A,EBA,8,17.125,5,4.125,0.125,0,1,0,0.375,1.5,2.5,7.75,11.5,4,4
+Bludlinton,Free Agents,N/A,N/A,EBA,2,8.5,2,13,0,0,3,0,0,2,3.5,3,5.5,1,1
+ShadeyTre,Free Agents,N/A,N/A,EBA,1,18,2,2,0,0,1,0,1,6,9,6,9,0,1
+deathy,Nashville Anthem,Western,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+Lustedd,Baltimore Nighthawks,Eastern,N/A,EBA,2,31.5,4.5,3,0,1.5,1,0,2,5,7.5,13,23,1,1
+Ewonke,Free Agents,N/A,N/A,EBA,2,14,1.5,7.5,0,0,2,0,0,3,6,5.5,9,1,1
+kson,San Diego Storm,Western,N/A,EBA,4,21.5,2,12.25,1.75,0,3.75,0,1.25,4.25,5.75,8.5,11.5,2,2
+shiestylyfe000,Orlando Supernovas,Eastern,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+Elijah,Charlotte Empire,Eastern,N/A,EBA,4,18,3.75,0.5,0,0,1.5,0,0.25,1.75,2.25,8,11.5,2,2
+SQUAAX,Minnesota Huskies,Eastern,N/A,EBA,1,0,6,4,0,0,4,0,0,0,0,0,0,0,1
+BOARDIIII,San Diego Storm,Western,N/A,EBA,3,11.667,4,4,0.333,1.333,0.333,0,0,1,2,5.333,8.667,2,1
+dante,Minnesota Huskies,Eastern,N/A,EBA,1,9,5,4,0,0,5,0,1,1,10,4,13,0,1
+moon,San Diego Storm,Western,N/A,EBA,4,9,1.25,0.75,1.5,1.75,1,0,0,1,1.5,4,6.25,2,2
+jon,San Diego Storm,Western,N/A,EBA,3,20.333,2,3.333,2.333,0,1.667,0,0.333,5,7.333,7,11,2,1
+juicose,Free Agents,N/A,N/A,EBA,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1
+Rat,Free Agents,N/A,N/A,EBA,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1
+GODTOWN42,Free Agents,N/A,N/A,EBA,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1
+druskl,Mexico City Aztecs,Western,N/A,EBA,6,16.333,2.5,5.167,3.5,0,0.833,0,1.833,4.333,6,6,8.333,2,4
+innon,Nashville Anthem,Western,N/A,EBA,4,4,0.5,1.25,0,0.75,0.5,0,0.5,1,1.5,1.5,2.25,1,3
+Pluds,Philadelphia Glory,Eastern,N/A,EBA,3,13,1.333,1.333,0,0,0.333,0,0.333,3.667,4.667,4.667,5.667,2,1
+austin,Free Agents,N/A,N/A,EBA,3,12,0.667,0.667,0.333,0,0,0,0,3.333,5,4,6,1,2
+kevJT,Free Agents,N/A,N/A,EBA,1,23,1,5,0,0,8,0,1,7,9,8,13,0,1
+OPLockdownDefender,Atlanta Breeze,Eastern,N/A,EBA,6,25.833,1.667,1,0.167,0,0.667,0,0,7,9.5,8.667,11.167,4,2
+Kazout_3,Free Agents,N/A,N/A,EBA,1,12,4,2,0,0,0,0,1,0,0,6,8,0,1
+red,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+Mic_Hawk,Free Agents,N/A,N/A,EBA,1,13,1,2,0,0,2,0,1,4,5,4,5,0,1
+sentinel,Free Agents,N/A,N/A,EBA,1,13,4,4,0,2,4,0,5,3,5,5,9,0,1
+noisy boy,Free Agents,N/A,N/A,EBA,3,13,3.667,4.667,1.667,1.667,2.667,0,1,1.667,1.667,5.333,5.667,2,1
+m6ly,Free Agents,N/A,N/A,EBA,2,5,4,3.5,0,1.5,0.5,0,1.5,1,1,2,2.5,1,1
+Shonen,Miami Beach Kings,Eastern,N/A,EBA,1,12,0,7,0,0,1,0,0,2,3,4,7,0,1
+91pts,Philadelphia Glory,Eastern,N/A,EBA,4,15,4.5,4.5,0,4.5,1.75,0,1.5,2.25,3.75,6,10.25,3,1
+mpjy,Free Agents,N/A,N/A,EBA,2,19.5,0.5,4.5,0.5,0,0.5,0,0.5,5.5,7.5,7,9.5,1,1
+splash,Free Agents,N/A,N/A,EBA,4,8.75,4,6.25,1.25,1.25,1.5,0,0.75,0.75,1,4,4.75,1,3
+fallentruthonspotify,Free Agents,N/A,N/A,EBA,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1
+Sensei_Mario,Sacramento Rage,Western,N/A,EBA,1,13,5,1,0,0,1,0,0,3,5,5,7,1,0
+mere_humn,Free Agents,N/A,N/A,EBA,3,2,0.667,8.333,0.333,0,1,0,0.667,0.667,1,0.667,1.667,0,3
+timer,Free Agents,N/A,N/A,EBA,2,10.5,0.5,0,0,0,0,0,0,3.5,3.5,3.5,3.5,0,2
+V1L1E,Free Agents,N/A,N/A,EBA,2,14,0.5,7.5,0.5,0,3,0,0,1.5,1.5,6,8.5,0,2
+jonathan,Charlotte Empire,Eastern,N/A,EBA,1,32,1,9,0,0,4,0,0,8,13,12,19,0,1
+Uni,Sacramento Rage,Western,N/A,EBA,2,19.5,2,2.5,0,0,0.5,0,0,5.5,5.5,7,8.5,1,1
+Jj234091,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+wraith,Free Agents,N/A,N/A,EBA,2,24,4,11,0.5,0,1,0,0.5,5,7.5,9,13,1,1
+zhari,Free Agents,N/A,N/A,EBA,2,10,4,1.5,0,1.5,1,0,0,2,2,4,4,1,1
+BasicHuman,Minnesota Huskies,Eastern,N/A,EBA,3,10.333,1.333,1,0.667,0.333,0,0,0,1.667,2,4.333,6,1,2
+Smoov1e,Portland Vipers,Western,N/A,EBA,2,6,1,1,0,0,0.5,0,0,1,2.5,2.5,6,0,2
+rocko,Minnesota Huskies,Eastern,N/A,EBA,3,28.333,2.333,11.667,1,0,1.333,0,1.667,6.333,8,11,14.333,1,2
+Drooplits,Free Agents,N/A,N/A,EBA,2,3.5,1,3,0,0,0,0,0,0.5,1,1.5,3,0,2
+P8O,Free Agents,N/A,N/A,EBA,2,10.5,2,8.5,0,0,1.5,0,0,1.5,4,4.5,7.5,1,1
+genoc9de,New York Knights,Eastern,N/A,EBA,4,18.5,2.75,9.5,0,0,2.5,0,0.5,3,6.25,7.5,14.5,0,4
+MojoMajin,Nashville Anthem,Western,N/A,EBA,2,40.5,1,14.5,0,0,2.5,0,5.5,7,8.5,16.5,22,1,1
+linc,Houston Hornets,Western,N/A,EBA,3,17.667,1.333,2.333,0,0,1.667,0,0.333,4,5.667,6.667,9.333,1,2
+Hira,Nashville Anthem,Western,N/A,EBA,4,34.25,5.25,4.25,0.25,1,1.25,0,0.25,3.5,5.25,14.5,16.75,3,1
+tacshady,Free Agents,N/A,N/A,EBA,4,4.25,5,1.5,0,0.5,1.25,0,0.5,0.75,1.25,1.75,3.25,1,3
+OnlyDae,Miami Beach Kings,Eastern,N/A,EBA,2,8.5,4,3.5,0.5,0,3.5,0,0,1,1,3.5,4,1,1
+cahpn,Washington Volt,Western,N/A,EBA,4,14.5,2.25,2,0,0.75,1.5,0,1.5,3.5,5,5.5,8.5,1,3
+uwu,Free Agents,N/A,N/A,EBA,2,3,1,2,0,1,0.5,0,1,0,0,1.5,1.5,0,2
+Monkey,Toronto Terror,Eastern,N/A,EBA,4,2.25,0,0,0,0,0,0,0,0.25,0.5,1,1.5,4,0
+Keron,Free Agents,N/A,N/A,EBA,2,10,4,2,0,2,1,0,1.5,0.5,0.5,4.5,7,0,2
+1Oreoi,Houston Hornets,Western,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+hoopslifeogpark,Free Agents,N/A,N/A,EBA,2,12.5,1.5,0.5,1.5,0.5,0,0,0.5,1.5,2.5,5.5,7.5,1,1
+InsertedScoring,Free Agents,N/A,N/A,EBA,2,2.5,6,1.5,0,0.5,0,0,1,0.5,1.5,1,2,1,1
+tony,Free Agents,N/A,N/A,EBA,4,10.5,1.75,2.75,0.5,0,1.75,0,0,2.75,4.25,3.75,5.5,1,3
+Lol,Minnesota Huskies,Eastern,N/A,EBA,1,43,1,3,0,0,0,0,0,11,12,15,18,1,0
+KENSINGTON ZOMBIE,Houston Hornets,Western,N/A,EBA,2,2.5,0.5,1,0,0,0,0,0,0.5,0.5,1,2,1,1
+Nedev,Free Agents,N/A,N/A,EBA,3,2,1,2.333,0.333,0.333,0,0,0.667,0.667,0.667,0.667,1.333,3,0
+ColdFrozenYogurt,Free Agents,N/A,N/A,EBA,1,11,7,4,0,0,2,0,0,3,6,4,8,0,1
+dissipate,Free Agents,N/A,N/A,EBA,4,2.25,0.25,0.25,0,0,0.25,0,0,0.75,1.5,0.75,1.5,3,1
+gam1ngdca,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+gixg,Free Agents,N/A,N/A,EBA,2,6.5,2,1.5,0,0,0.5,0,0,2,3.5,2,3.5,1,1
+adrielxxx6,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+TheSkullMaster88,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+kevdaw,Phoenix Power,Western,N/A,EBA,4,9.5,3.25,3.75,0,1,2,0,1.5,1.25,2.25,4,6.5,1,3
+RBW4GLUEGUY,Las Vegas Thrill,Western,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+clutch_football8,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+Messi_30win,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+lggysUncle,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+Ummmmmboy147,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+NatePlayz2409,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+King_goat13345,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+ItsSlezin,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+ironman_cool12345,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+chestpassing,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+amiIIolive,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+FLXCKTRXPS,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+EagleBros1013,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+Lildonald2015,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+edd1e1212,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+OTB_JAY249,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+Wyett_351,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+L3ft_nu134,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+swervo30three,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+Calidatboi_14,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+Mdot449,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+Herojunebug0523,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+APPLE_ONIONDUDE2,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+1Caqueii1,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+pqpqpqpqpqpqpqotu,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+BillBill_45,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+Jujuxshake908,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+shaundaaa,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+cantguard_jeff,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+40X_Klot,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+YTCantGuardJay,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+ahqjjbs,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+urfavmonkey54,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+jayjetss,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+Tw5gz,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+zolly2x,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+Tariq_him2,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+99vipered,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+caybeast16z,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+marvins_1,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+gloshewrote,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+B1ltiou,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+lolrandomnames,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+klu,Houston Hornets,Western,N/A,EBA,2,20,0.5,3.5,0,0,1,0,0.5,5.5,8,7,10.5,1,1
+mehwon88,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+Tarik0813,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+Johnnysisz123,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+6sqzz,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+asussysausage,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+trevonisn,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+MrGabiiii,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+Playgroundbaskplayer,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+divyhn,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+1x2x3pz1,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+juicose,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+Zalty_x,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+Wildbuzzz,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+sluncexd,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+lfqd,Free Agents,N/A,N/A,EBA,2,12,1,1.5,0,0,1.5,0,0.5,3,4.5,4.5,7,1,1
+shehatesmyego,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+hiytghht,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+kingcj2009chris,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+JussJaaa,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+Hando5x,Oregon Skyhawks,Western,N/A,EBA,1,37,0,5,0,0,0,0,0,5,7,16,19,0,1
+Kevingod192,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+Noahissabuxket,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+Qwertyy2x,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+dannyy,Baltimore Nighthawks,Eastern,N/A,EBA,2,11.5,2.5,12,0,0,1.5,0,0.5,2.5,4.5,4.5,7,1,1
+Richcjso,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+LamaJJenkins,Chicago Aces,Eastern,N/A,EBA,4,13.5,3.5,1.25,0.5,1.25,2.25,0,1.75,1,1.75,5.75,7.75,3,1
+Dlo,Free Agents,N/A,N/A,EBA,1,11,5,15,2,0,2,0,2,3,5,4,8,1,0
+DaTrueSilver,Seattle Reign,Western,N/A,EBA,2,17,1.5,4.5,0,0,0.5,0,0,5.5,7,5.5,7,2,0
+gIueguyy,Chicago Aces,Eastern,N/A,EBA,3,3.333,10.333,3,0,1,1.333,0,0,0.667,2,1.333,3,2,1
+doppiolongthing,Minnesota Huskies,Eastern,N/A,EBA,1,17,3,2,0,3,0,0,1,3,3,7,9,1,0
+aain,Portland Vipers,Western,N/A,EBA,3,0,0,0,0,0,0,0,0,0,0,0,0,1,2
+2influenced,Las Vegas Thrill,Western,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+tomboygirl,Charlotte Empire,Eastern,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+yard,New York Knights,Eastern,N/A,EBA,1,15,1,1,0,0,0,0,0,4,4,5,6,0,1
+Doodi,Free Agents,N/A,N/A,EBA,2,11.5,4,0,0,4.5,2,0,0.5,0.5,0.5,5.5,7.5,2,0
+grim,Free Agents,N/A,N/A,EBA,2,4,5.5,0.5,0,0.5,0,0,0,0,0,2,4,0,2
+inertia,Sacramento Rage,Western,N/A,EBA,2,30,3,1,0,0,1.5,0,0.5,4,4.5,13,18.5,0,2
+deej,Chicago Aces,Eastern,N/A,EBA,5,23.8,2.8,15.8,0,0,2.8,0,1.4,3.6,6,9.8,14.2,4,1
+NikeBandz_Playz,Free Agents,N/A,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+breeze,Toronto Terror,Eastern,N/A,EBA,8,21.25,3.25,4.5,0.125,0.75,1.625,0,1.375,3.625,4.5,8.625,11,8,0
+Cy_clone,Orlando Supernovas,Eastern,N/A,EBA,5,7,1.2,5,1.2,0,1.4,0,1,1.4,3.2,2.8,5,3,2
+tinyboatbike,Phoenix Power,Western,N/A,EBA,5,16,2,3,0,0.6,1,0,0.4,2,3.4,7,12,1,4
+tapa,Mexico City Aztecs,Western,N/A,EBA,3,18,1,8.333,2,0.333,1.333,0,2.667,4,6.333,7,10.333,0,3
+femi,Minnesota Huskies,Eastern,N/A,EBA,1,0,0,0,0,0,0,0,0,0,0,0,0,1,0
+9magic,Philadelphia Glory,Eastern,N/A,EBA,3,12.333,1.333,3,0,0,0.667,0,0,2,4.333,5,8.667,3,0
+pay1of1,Charlotte Empire,Eastern,N/A,EBA,3,26.667,2,4.333,2.333,0,1.667,0,0.333,7.333,12,9.667,17,1,2
+safey,Charlotte Empire,Eastern,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+ceo,Free Agents,N/A,N/A,EBA,3,1.667,1.667,1,0.333,0.667,0.667,0,0,0.333,0.667,0.667,1,2,1
+benny,Las Vegas Thrill,Western,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+dallas,Atlanta Breeze,Eastern,N/A,EBA,6,28.333,1.833,17.667,2,0,5.5,0,1.833,4.333,7.667,10.833,17.833,4,2
+xyz,Free Agents,N/A,N/A,EBA,1,6,0,2,1,0,1,0,1,2,2,2,2,0,1
+Hype,Las Vegas Thrill,Western,N/A,EBA,2,34,3,8,0,0,3.5,0,1,6,9.5,13.5,20,1,1
+EternalAtake,Free Agents,N/A,N/A,EBA,9,9.333,2.444,0.889,0,3.667,0.778,0,1.111,2,2.444,3.667,4.667,6,3
+NERVIN5,Free Agents,N/A,N/A,EBA,1,0,1,1,0,0,2,0,0,0,3,0,3,0,1
+sel,Free Agents,N/A,N/A,EBA,2,7.5,1,1,0,0,0.5,0,0.5,2.5,4,2.5,4,1,1
+ExclusiveTrade,Free Agents,N/A,N/A,EBA,1,9,1,6,1,0,4,0,1,3,5,3,5,0,1
+Carti,Phoenix Power,Western,N/A,EBA,4,20.5,2.75,1,1.25,0.5,1,0,1,4.25,6,8,10.5,1,3
+Oreo,Detroit Bullets,Eastern,N/A,EBA,1,12,4,5,0,0,2,0,0,0,0,6,10,0,1
+JoshJacobs,Free Agents,N/A,N/A,EBA,2,15.5,1,4,1.5,0,3.5,0,0.5,3.5,4.5,5.5,9,0,2
+Cowz,Free Agents,N/A,N/A,EBA,1,34,4,7,0,0,1,0,1,2,7,15,22,1,0
+funnybear6,Free Agents,N/A,N/A,EBA,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1
+god,Free Agents,N/A,N/A,EBA,2,17,2,4.5,0,1.5,1.5,0,0.5,3,3.5,7,9.5,1,1
+Jelly,Free Agents,N/A,N/A,EBA,1,14,1,1,0,0,2,0,0,4,7,5,8,1,0
+Blitz,Free Agents,N/A,N/A,EBA,1,3,3,1,1,0,0,0,0,1,2,1,2,1,0
+Batman,Free Agents,N/A,N/A,EBA,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1
+Luke,Free Agents,N/A,N/A,EBA,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1
+sharp,Orlando Supernovas,Eastern,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+12zefd,Phoenix Power,Western,N/A,EBA,3,8,5,2.333,0,0,3.333,0,0.333,1.333,3.333,3,6,0,3
+ert,Phoenix Power,Western,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+Tendeds,Charlotte Empire,Eastern,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+jorge,Nashville Anthem,Western,N/A,EBA,5,19.2,2,9.4,3.6,0,1.4,0,1.4,4.6,7.2,6.6,10.6,3,2
+mond,Free Agents,N/A,N/A,EBA,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1
+pain,Free Agents,N/A,N/A,EBA,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1
+goodgirl,Orlando Supernovas,Eastern,N/A,EBA,2,7.5,5,1,0,3,1.5,0,1.5,1.5,2,3,4,1,1
+jonoffdasprinkz,Las Vegas Thrill,Western,N/A,EBA,1,13,2,2,0,2,1,0,2,3,3,5,5,1,0
+weflyhigh,Free Agents,N/A,N/A,EBA,2,11,2.5,0.5,0,0,0.5,0,0.5,3,3.5,4,4.5,0,2
+J5yve,Indiana Bandits,Eastern,N/A,EBA,2,48.5,2,8,0,0,1,0,1,9,12,19,25,0,2
+khan,Chicago Aces,Eastern,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+red,Free Agents,N/A,N/A,EBA,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1
+unitdiag,Free Agents,N/A,N/A,EBA,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1
+Hezi,Philadelphia Glory,Eastern,N/A,EBA,1,41,8,7,0,0,1,0,0,7,9,17,20,1,0
+lays,Orlando Supernovas,Eastern,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+2016LebronJamess,Phoenix Power,Western,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+plou899,Phoenix Power,Western,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+Corbin,Orlando Supernovas,Eastern,N/A,EBA,2,27,1.5,3.5,0,0,0,0,2,6,8.5,10,12.5,1,1
+GM_WRLD,Free Agents,N/A,N/A,EBA,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1
+RBA,Free Agents,N/A,N/A,EBA,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1
+cupidbalenci,Indiana Bandits,Eastern,N/A,EBA,2,9.5,2.5,10,0,0,0,0,0.5,1.5,2.5,3.5,7,0,2
+internetfelon,Free Agents,N/A,N/A,EBA,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1
+lefthanded,Washington Volt,Western,N/A,EBA,5,19,7,3,0,1.6,1.4,0,0.6,3,3,8,10.2,2,3
+lucki inducer,Seattle Reign,Western,N/A,EBA,2,28.5,1,7,2.5,0,0.5,0,0.5,8.5,11.5,9.5,12.5,2,0
+pilatz,Portland Vipers,Western,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+joey,Indiana Bandits,Eastern,N/A,EBA,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1
+GreenFuhNihka,Houston Hornets,Western,N/A,EBA,1,5,1,1,0,0,0,0,0,1,1,2,3,0,1
+FxdeMade,Seattle Reign,Western,N/A,EBA,2,34,2,13.5,0,0,1,0,0,7.5,9,13,15,2,0
+cyrokkz,Atlanta Breeze,Eastern,N/A,EBA,1,0,1,2,0,0,0,0,0,0,0,0,0,0,1
+xxxx,Indiana Bandits,Eastern,N/A,EBA,2,8,5,4,0,0,2,0,0.5,1,2,3.5,6,0,2
+kqco,Portland Vipers,Western,N/A,EBA,1,17,2,4,0,0,0,0,0,2,4,7,11,1,0
+BewareOfThe12th,San Diego Storm,Western,N/A,EBA,1,8,3,4,0,1,1,0,2,2,2,3,3,0,1
+lesuver,Portland Vipers,Western,N/A,EBA,1,4,0,0,1,0,0,0,0,0,0,2,2,1,0
+ItsRillaYT,Portland Vipers,Western,N/A,EBA,3,3.333,0.333,1.333,0,0,2.333,0,0,0.667,1.333,1.333,3,0,3
+ffaiit,Free Agents,N/A,N/A,EBA,2,5.5,2,1,0.5,0,0.5,0,2,1.5,4,2,6,0,2
+redbeansandfranks,Seattle Reign,Western,N/A,EBA,2,27.5,5.5,7,0,0,0.5,0,1,5.5,7,10.5,12.5,2,0
+life72,San Diego Storm,Western,N/A,EBA,1,15,4,1,0,2,1,0,1,3,3,6,7,0,1
+moon,San Diego Storm,Western,N/A,EBA,1,2,0,0,0,0,0,0,0,0,3,1,4,0,1
+tfpr,Portland Vipers,Western,N/A,EBA,1,42,4,0,0,0,0,0,2,7,9,17,19,1,0
+OPOYWINNER,San Diego Storm,Western,N/A,EBA,1,18,10,2,0,0,3,0,0,1,2,8,12,0,1
+GoatedRahim,Houston Hornets,Western,N/A,EBA,11,31.909,2.273,14.909,3.545,0,3.273,0,1.182,5.182,8.727,13.364,20.182,7,4
+IlIlIlIlIlIl,Atlanta Breeze,Eastern,N/A,EBA,1,2,3,1,0,0,2,0,0,0,0,1,2,0,1
+4re1,Philadelphia Glory,Eastern,N/A,EBA,1,30,3,19,4,0,0,0,2,4,7,10,15,1,0
+Rival,Philadelphia Glory,Eastern,N/A,EBA,1,10,6,1,1,0,1,0,2,2,4,4,7,1,0
+CreamyWhiteFemale,Charlotte Empire,Eastern,N/A,EBA,1,7,3,4,0,4,1,0,2,1,1,2,2,0,1
+user,Charlotte Empire,Eastern,N/A,EBA,1,14,1,3,0,4,1,0,4,2,4,6,8,0,1
+impulse,Orlando Supernovas,Eastern,N/A,EBA,5,20.8,4,8.6,0.8,1.2,1.2,0,1.8,3.6,5.6,8.6,12.8,3,2
+deltaxgoat,Minnesota Huskies,Eastern,N/A,EBA,1,35,10,11,0,4,0,0,2,5,6,15,19,1,0
+MIR,Portland Vipers,Western,N/A,EBA,1,5,5,4,5,5,1,0,6,1,1,2,4,1,0
+tacofreak2026,Miami Beach Kings,Eastern,N/A,EBA,2,16.5,5.5,2,0,0,0,0,0,0.5,0.5,8,8,0,2
+shesotinder,Nashville Anthem,Western,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+Hoqq,Miami Beach Kings,Eastern,N/A,EBA,2,9,4.5,3,0,0,1,0,0.5,1,1.5,4,6,0,2
+Wittyyb,Chicago Aces,Eastern,N/A,EBA,2,13.5,6.5,4.5,0,0,0,0,0,2.5,4,5.5,7,2,0
+ArcReturned,Miami Beach Kings,Eastern,N/A,EBA,1,5,0,2,0,0,0,0,0,1,2,2,3,0,1
+rufus,Philadelphia Glory,Eastern,N/A,EBA,1,25,5,0,0,2,0,0,2,7,7,9,9,1,0
+Latwon,Houston Hornets,Western,N/A,EBA,1,15,2,1,0,0,1,0,0,3,3,6,6,1,0
+ummistaa,New York Knights,Eastern,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+buq,New York Knights,Eastern,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+0_feer,New York Knights,Eastern,N/A,EBA,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1
+Alexander,New York Knights,Eastern,N/A,EBA,1,34,1,5,3,0,1,0,4,8,10,13,19,0,1
+Kermit,New York Knights,Eastern,N/A,EBA,1,23,3,3,0,0,2,0,1,3,5,10,15,0,1
+sovarian,New York Knights,Eastern,N/A,EBA,1,6,0,2,0,0,0,0,0,2,2,2,2,0,1
+baoky,Nashville Anthem,Western,N/A,EBA,2,7,5.5,1,1,1,1,0,3.5,1,1,3,3.5,1,1
+iukbi,Seattle Reign,Western,N/A,EBA,1,23,3,3,0,0,0,0,3,7,10,8,11,1,0
+gee,Miami Beach Kings,Eastern,N/A,EBA,2,0,0,0,0,0,0,0,0,0,0,0,0,0,2
+mond,Seattle Reign,Western,N/A,EBA,1,6,2,0,0,4,0,0,0,2,2,2,2,1,0
+bumpmade,Seattle Reign,Western,N/A,EBA,1,0,0,0,0,0,0,0,0,0,0,0,0,1,0
+ymmit,San Franciso Bears,Western,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+VERYRAREFOREVER,San Franciso Bears,Western,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+Naruto,Baltimore Nighthawks,Eastern,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+atv,Baltimore Nighthawks,Eastern,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+snaz,Baltimore Nighthawks,Eastern,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+Bryce,Indiana Bandits,Eastern,N/A,EBA,2,24,1,4,0,0,1,0,0,7,9,8.5,12.5,0,2
+TechyluvBlox,Baltimore Nighthawks,Eastern,N/A,EBA,1,37,0,13,2,0,1,0,1,1,5,18,26,1,0
+Critical,Sacramento Rage,Western,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+raro,Sacramento Rage,Western,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+jtc,San Franciso Bears,Western,N/A,EBA,1,44,1,3,1,0,1,0,0,14,18,15,20,1,0
+vvdaguy,Sacramento Rage,Western,N/A,EBA,1,50,5,12,1,0,1,0,3,15,18,17,21,1,0
+ricky shanklin,San Franciso Bears,Western,N/A,EBA,1,9,4,5,0,0,1,0,1,1,2,4,5,1,0
+talkdoesitall,San Franciso Bears,Western,N/A,EBA,1,0,1,0,0,0,0,0,0,0,0,0,0,1,0
+trog,San Franciso Bears,Western,N/A,EBA,1,33,4,26,1,0,0,0,1,2,4,13,15,1,0
+vmzo,San Franciso Bears,Western,N/A,EBA,1,33,5,4,0,0,1,0,0,8,11,12,15,1,0
+warconflict,San Franciso Bears,Western,N/A,EBA,1,2,0,0,0,0,0,0,0,0,1,1,2,1,0
+gam1ngdca,San Franciso Bears,Western,N/A,EBA,1,15,3,0,0,0,1,0,1,3,4,6,9,1,0
+jerm,San Franciso Bears,Western,N/A,EBA,1,30,1,5,1,0,0,0,0,8,11,11,16,1,0
+jiyuda,Sacramento Rage,Western,N/A,EBA,1,93,5,21,0,0,2,0,1,24,33,34,44,1,0
+1344,Miami Beach Kings,Eastern,N/A,EBA,1,19,0,1,1,0,0,0,1,3,5,8,11,0,1
+Lucurious,Miami Beach Kings,Eastern,N/A,EBA,1,23,4,16,0,0,0,0,1,3,10,10,21,0,1
+Panda,Oregon Skyhawks,Western,N/A,EBA,1,2,0,0,0,0,0,0,1,0,0,1,2,0,1
+smoke,Oregon Skyhawks,Western,N/A,EBA,1,22,0,1,0,0,1,0,0,6,8,8,10,0,1
+ace,Las Vegas Thrill,Western,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+IJmanI,Oregon Skyhawks,Western,N/A,EBA,1,26,10,4,0,0,2,0,1,0,0,13,14,0,1
+LeHaz_James,Oregon Skyhawks,Western,N/A,EBA,1,42,0,32,1,0,1,0,7,8,9,17,19,0,1
+xPJ,Oregon Skyhawks,Western,N/A,EBA,1,15,2,5,0,0,0,0,0,5,7,5,7,0,1
+zaxsire,Oregon Skyhawks,Western,N/A,EBA,1,3,0,0,0,0,1,0,1,1,1,1,1,0,1
+GokuNarutoForMe,Chicago Aces,Eastern,N/A,EBA,4,33.5,3.25,4.25,2.5,0,0.75,0,1,7.25,8.75,12.75,16.25,3,1
+dtc,Las Vegas Thrill,Western,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+rico,Las Vegas Thrill,Western,N/A,EBA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+TragicJbro,Washington Volt,Western,N/A,EBA,1,6,1,1,0,0,0,0,0,2,2,2,2,0,1
+yonkowise,Washington Volt,Western,N/A,EBA,1,0,0,1,0,0,0,0,2,0,0,0,0,0,1
+legl,Washington Volt,Western,N/A,EBA,1,6,1,0,0,0,1,0,1,2,2,2,3,0,1
+akeem,Washington Volt,Western,N/A,EBA,1,3,0,0,0,0,1,0,0,1,3,1,3,0,1
+YoBreeze,Washington Volt,Western,N/A,EBA,1,5,1,1,0,1,0,0,0,1,1,2,2,0,1
+Mammoth,Las Vegas Thrill,Western,N/A,EBA,2,7.5,5,3,0,0,1.5,0,0,1.5,3.5,3.5,7,1,1

@@ -1,0 +1,330 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# StatLine Adapter Schema (v3.0.0rc3)
+# ─────────────────────────────────────────────────────────────────────────────
+
+key: valorant
+version: 1.0.0
+aliases: [val, riot_valorant]
+title: Valorant
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Dimensions
+# ─────────────────────────────────────────────────────────────────────────────
+
+dimensions:
+  mode:
+    values: [Competitive, Unrated, Premier, Custom, VCT]
+    description: Match context; separate ranked vs structured play.
+    strict: true
+    meta: { display: Mode }
+
+  map:
+    values: [Ascent, Bind, Breeze, Fracture, Haven, Icebox, Lotus, Pearl, Split, Sunset]
+    description: Map name for filtering and rollups.
+    strict: true
+    meta: { display: Map }
+
+  role:
+    values: [Duelist, Initiator, Controller, Sentinel, Flex]
+    description: Player role grouping (may be inferred externally or supplied).
+    strict: false
+    meta: { display: Role }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Sniff
+# ─────────────────────────────────────────────────────────────────────────────
+
+sniff:
+  require_all_headers:
+    - rounds_played
+    - kills
+    - deaths
+    - assists
+    - damage_total
+    - headshots
+    - shots
+    - first_kills
+    - first_deaths
+    - plants
+    - defuses
+    - clutches_played
+    - clutches_won
+  meta: { confidence: high }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Filters
+# ─────────────────────────────────────────────────────────────────────────────
+
+filters:
+  min_rounds:
+    type: metric
+    field: rounds_played
+    accepts: [">=", ">"]
+    modes: [include-only]
+    description: Only include rows with enough rounds to reduce small-sample noise.
+    meta: { recommended: 10 }
+
+  map_is:
+    type: dimension
+    field: map
+    accepts: ["=", "!="]
+    modes: [include-only, exclude-only]
+    description: Include or exclude specific maps.
+
+  mode_is:
+    type: dimension
+    field: mode
+    accepts: ["=", "!="]
+    modes: [include-only, exclude-only]
+    description: Filter by match context.
+
+  role_is:
+    type: dimension
+    field: role
+    accepts: ["=", "!="]
+    modes: [include-only, exclude-only]
+    description: Filter by role grouping.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Buckets
+# ─────────────────────────────────────────────────────────────────────────────
+
+buckets:
+  fragging:
+    title: Fragging
+    description: Elimination output and kill efficiency.
+    tags: [core]
+
+  damage:
+    title: Damage
+    description: Consistent damage contribution, not just final blows.
+    tags: [core]
+
+  impact:
+    title: Impact
+    description: High-leverage events (first kills, clutch conversion).
+    tags: [core]
+
+  utility:
+    title: Utility
+    description: Objective + non-frag contributions (assists, plants/defuses).
+    tags: [support]
+
+  discipline:
+    title: Discipline
+    description: Avoiding avoidable negatives (deaths, first deaths).
+    tags: [control]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Metrics
+# ─────────────────────────────────────────────────────────────────────────────
+
+metrics:
+  - key: rounds_played
+    clamp: [5, 30]
+    source:
+      field: rounds_played
+
+  - key: kills
+    bucket: fragging
+    clamp: [5, 35]
+    source:
+      field: kills
+
+  - key: deaths
+    bucket: discipline
+    invert: true
+    clamp: [5, 30]
+    source:
+      field: deaths
+
+  - key: assists
+    bucket: utility
+    clamp: [0, 20]
+    source:
+      field: assists
+
+  - key: damage_total
+    bucket: damage
+    clamp: [600, 4500]
+    source:
+      field: damage_total
+    transform:
+      kind: custom
+      params:
+        name: log1p
+        scale: 1.0
+
+  - key: first_kills
+    bucket: impact
+    clamp: [0, 10]
+    source:
+      field: first_kills
+
+  - key: first_deaths
+    bucket: discipline
+    invert: true
+    clamp: [0, 10]
+    source:
+      field: first_deaths
+
+  - key: plants
+    bucket: utility
+    clamp: [0, 8]
+    source:
+      field: plants
+
+  - key: defuses
+    bucket: utility
+    clamp: [0, 6]
+    source:
+      field: defuses
+
+  - key: hs_per_shot
+    bucket: damage
+    clamp: [0.01, 0.08]
+    source:
+      field: headshots
+    transform:
+      expr: "x / max(shots, 1)"
+
+  - key: kd_ratio
+    bucket: fragging
+    clamp: [0.6, 2.2]
+    source:
+      field: kills
+    transform:
+      expr: "x / max(deaths, 1)"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Efficiency
+# ─────────────────────────────────────────────────────────────────────────────
+
+efficiency:
+  - key: kpr
+    bucket: fragging
+    clamp: [0.25, 1.10]
+    min_den: 10
+    make: "kills"
+    attempt: "rounds_played"
+
+  - key: dpr
+    bucket: discipline
+    invert: true
+    clamp: [0.25, 1.10]
+    min_den: 10
+    make: "deaths"
+    attempt: "rounds_played"
+
+  - key: apr
+    bucket: utility
+    clamp: [0.05, 0.60]
+    min_den: 10
+    make: "assists"
+    attempt: "rounds_played"
+
+  - key: dmg_per_round
+    bucket: damage
+    clamp: [70, 210]
+    min_den: 10
+    make: "damage_total"
+    attempt: "rounds_played"
+    transform:
+      kind: custom
+      params:
+        name: softcap
+        cap: 170
+        slope: 0.35
+
+  - key: fk_rate
+    bucket: impact
+    clamp: [0.00, 0.25]
+    min_den: 10
+    make: "first_kills"
+    attempt: "rounds_played"
+
+  - key: fd_rate
+    bucket: discipline
+    invert: true
+    clamp: [0.00, 0.25]
+    min_den: 10
+    make: "first_deaths"
+    attempt: "rounds_played"
+
+  - key: obj_actions_per_round
+    bucket: utility
+    clamp: [0.00, 0.25]
+    min_den: 10
+    make: "plants + defuses"
+    attempt: "rounds_played"
+
+  - key: clutch_rate
+    bucket: impact
+    clamp: [0.00, 0.60]
+    min_den: 5
+    make: "clutches_won"
+    attempt: "clutches_played"
+    transform:
+      kind: clip
+      params:
+        lo: 0
+        hi: 1
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Weights
+# ─────────────────────────────────────────────────────────────────────────────
+
+weights:
+  pri:
+    fragging: 0.28
+    damage: 0.22
+    impact: 0.20
+    utility: 0.15
+    discipline: 0.15
+
+  duelist:
+    fragging: 0.34
+    damage: 0.24
+    impact: 0.22
+    utility: 0.08
+    discipline: 0.12
+
+  support:
+    fragging: 0.18
+    damage: 0.18
+    impact: 0.16
+    utility: 0.30
+    discipline: 0.18
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Penalties
+# ─────────────────────────────────────────────────────────────────────────────
+
+penalties:
+  pri:
+    discipline: 0.06
+
+  duelist:
+    discipline: 0.05
+
+  support:
+    discipline: 0.07
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Score profiles
+# ─────────────────────────────────────────────────────────────────────────────
+
+score_profiles:
+  pri:
+    kind: affine
+    weights_profile: pri
+    lo: 55
+    hi: 99
+
+  pri_windowed:
+    kind: window
+    weights_profile: pri
+    out_lo: 55
+    out_hi: 99
+    pct_lo: 0.10
+    pct_hi: 0.90
