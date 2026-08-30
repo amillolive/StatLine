@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True, slots=True)
 class ReleaseInfo:
-    generation: int
+    version: int
     core: int
     gateway: int
     app: int

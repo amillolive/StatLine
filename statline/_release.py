@@ -28,7 +28,7 @@ def get_release_info() -> ReleaseInfo:
         values[key.strip()] = int(value.strip())
 
     required = {
-        "GENERATION",
+        "VERSION",
         "CORE_RELEASE",
         "GATEWAY_RELEASE",
         "APP_RELEASE",
@@ -39,7 +39,7 @@ def get_release_info() -> ReleaseInfo:
         raise ValueError(f"Missing RELEASE entries: {', '.join(sorted(missing))}")
 
     return ReleaseInfo(
-        generation=values["GENERATION"],
+        version=values["VERSION"],
         core=values["CORE_RELEASE"],
         gateway=values["GATEWAY_RELEASE"],
         app=values["APP_RELEASE"],

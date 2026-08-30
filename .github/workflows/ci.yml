@@ -23,6 +23,7 @@ env:
   PYTHONUTF8: "1"
   TZ: "UTC"
   CI: "1"
+
   ORION_TOKEN: "TEST_TOKEN"
   STATLINE_ENV: "test"
   STATLINE_MODE: "local"
@@ -40,19 +41,22 @@ jobs:
     name: Ruff
     runs-on: ubuntu-latest
     timeout-minutes: 7
-    steps:
-      - uses: actions/checkout@v4
 
-      - uses: astral-sh/setup-uv@v4
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d
         with:
           python-version: "3.14"
           enable-cache: true
-          cache-dependency-glob: "pyproject.toml"
+          cache-dependency-glob: |
+            pyproject.toml
+            uv.lock
 
       - name: Create venv
         run: uv venv --python 3.14
 
-      - name: Install ruff
+      - name: Install Ruff
         run: uv pip install "ruff>=0.5,<1.0"
 
       - name: Ruff format check
@@ -65,14 +69,17 @@ jobs:
     name: Mypy
     runs-on: ubuntu-latest
     timeout-minutes: 12
-    steps:
-      - uses: actions/checkout@v4
 
-      - uses: astral-sh/setup-uv@v4
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d
         with:
           python-version: "3.14"
           enable-cache: true
-          cache-dependency-glob: "pyproject.toml"
+          cache-dependency-glob: |
+            pyproject.toml
+            uv.lock
 
       - name: Create venv
         run: uv venv --python 3.14
@@ -92,6 +99,7 @@ jobs:
         if: steps.mypy_nice.outcome == 'failure'
         run: |
           echo "::warning title=Mypy nice failed::Mypy core passed, but mypy nice found strict typing cleanup issues."
+
           {
             echo "## Mypy Nice Advisory"
             echo ""
@@ -106,20 +114,31 @@ jobs:
     name: Tests (${{ matrix.os }} / py${{ matrix.python }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 25
+
     strategy:
       fail-fast: false
       matrix:
-        os: ["ubuntu-latest", "macos-latest", "windows-latest"]
-        python: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+        python:
+          - "3.10"
+          - "3.11"
+          - "3.12"
+          - "3.13"
+          - "3.14"
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: astral-sh/setup-uv@v4
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d
         with:
           python-version: ${{ matrix.python }}
           enable-cache: true
-          cache-dependency-glob: "pyproject.toml"
+          cache-dependency-glob: |
+            pyproject.toml
+            uv.lock
 
       - name: Create venv
         run: uv venv --python ${{ matrix.python }}
@@ -131,20 +150,30 @@ jobs:
         run: mkdir -p test-results
 
       - name: Run tests
-        shell: bash
         run: |
           if ! find tests -name 'test_*.py' -print -quit 2>/dev/null | grep -q .; then
             echo "No tests detected."
-            echo '<?xml version="1.0" ?><testsuite></testsuite>' > test-results/junit.xml
-            echo '<?xml version="1.0" ?><coverage></coverage>' > coverage.xml
+
+            echo '<?xml version="1.0" ?><testsuite></testsuite>' \
+              > test-results/junit.xml
+
+            echo '<?xml version="1.0" ?><coverage></coverage>' \
+              > coverage.xml
+
             exit 0
           fi
 
-          uv run pytest -ra             --maxfail=1             --durations=10             --cov=statline             --cov-report=xml:coverage.xml             --junitxml=test-results/junit.xml
+          uv run --no-sync pytest \
+            -ra \
+            --maxfail=1 \
+            --durations=10 \
+            --cov=statline \
+            --cov-report=xml:coverage.xml \
+            --junitxml=test-results/junit.xml
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: test-results-${{ matrix.os }}-py${{ matrix.python }}
           path: |
@@ -166,21 +195,56 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [ruff, tests]
-    steps:
-      - uses: actions/checkout@v4
 
-      - uses: astral-sh/setup-uv@v4
+    needs:
+      - ruff
+      - mypy
+      - tests
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d
         with:
           python-version: "3.14"
           enable-cache: true
-          cache-dependency-glob: "pyproject.toml"
+          cache-dependency-glob: |
+            pyproject.toml
+            uv.lock
 
       - name: Create venv
         run: uv venv --python 3.14
 
-      - name: Install build backend
+      - name: Install release tools
         run: uv pip install "build>=1.2,<2.0" "twine>=7.0,<8.0"
+
+      - name: Verify tag matches project.version
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          .venv/bin/python - <<'PY'
+          import os
+          import pathlib
+          import sys
+          import tomllib
+
+          tag = os.environ["GITHUB_REF_NAME"]
+          wanted = tag[1:] if tag.startswith("v") else tag
+
+          data = tomllib.loads(
+              pathlib.Path("pyproject.toml").read_text(encoding="utf-8")
+          )
+          found = data["project"]["version"]
+
+          if found != wanted:
+              print(
+                  f"Tag {tag!r} does not match "
+                  f"pyproject version {found!r}.",
+                  file=sys.stderr,
+              )
+              sys.exit(1)
+
+          print(f"Version OK: {found}")
+          PY
 
       - name: Build sdist & wheel
         run: uv run --no-sync python -m build
@@ -188,57 +252,76 @@ jobs:
       - name: Twine check
         run: uv run --no-sync python -m twine check dist/*
 
-      - name: Upload dist
-        uses: actions/upload-artifact@v4
+      - name: Upload distribution
+        uses: actions/upload-artifact@v7
         with:
-          name: dist-ubuntu
+          name: dist
           path: dist/*
+          if-no-files-found: error
 
   smoke:
     name: Wheel smoke (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 12
-    needs: [build]
+
+    needs:
+      - build
+
     strategy:
       fail-fast: false
       matrix:
-        os: ["ubuntu-latest", "macos-latest", "windows-latest"]
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: astral-sh/setup-uv@v4
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d
         with:
           python-version: "3.14"
           enable-cache: true
-          cache-dependency-glob: "pyproject.toml"
+          cache-dependency-glob: |
+            pyproject.toml
+            uv.lock
 
       - name: Create venv
         run: uv venv --python 3.14
 
-      - name: Download built wheel
-        uses: actions/download-artifact@v4
+      - name: Download built distribution
+        uses: actions/download-artifact@v8
         with:
-          name: dist-ubuntu
+          name: dist
           path: dist
 
       - name: Install wheel
         run: |
           for i in 1 2 3; do
-            uv pip install dist/*.whl && exit 0
+            if uv pip install dist/*.whl; then
+              exit 0
+            fi
+
             echo "Wheel install failed, retrying..."
             sleep 10
           done
+
           uv pip install dist/*.whl
 
       - name: Resolve venv commands
         run: |
           if [ "$RUNNER_OS" = "Windows" ]; then
-            echo "PY=$GITHUB_WORKSPACE/.venv/Scripts/python.exe" >> "$GITHUB_ENV"
-            echo "STATLINE=$GITHUB_WORKSPACE/.venv/Scripts/statline.exe" >> "$GITHUB_ENV"
+            echo "PY=$GITHUB_WORKSPACE/.venv/Scripts/python.exe" \
+              >> "$GITHUB_ENV"
+
+            echo "STATLINE=$GITHUB_WORKSPACE/.venv/Scripts/statline.exe" \
+              >> "$GITHUB_ENV"
           else
-            echo "PY=$GITHUB_WORKSPACE/.venv/bin/python" >> "$GITHUB_ENV"
-            echo "STATLINE=$GITHUB_WORKSPACE/.venv/bin/statline" >> "$GITHUB_ENV"
+            echo "PY=$GITHUB_WORKSPACE/.venv/bin/python" \
+              >> "$GITHUB_ENV"
+
+            echo "STATLINE=$GITHUB_WORKSPACE/.venv/bin/statline" \
+              >> "$GITHUB_ENV"
           fi
 
       - name: Import package
@@ -258,18 +341,28 @@ jobs:
         working-directory: ${{ runner.temp }}
         run: '"$STATLINE" --mode local --help'
 
-
       - name: Public API smoke
         working-directory: ${{ runner.temp }}
         run: |
           "$PY" - <<'PY'
-          from statline import list_adapters, list_datasets, load_adapter, load_dataset, score_row
+          from statline import (
+              list_adapters,
+              list_datasets,
+              load_adapter,
+              load_dataset,
+              score_row,
+          )
 
           adapters = list_adapters()
           assert adapters, "No adapters discovered"
-          assert "demo" in adapters, f"demo adapter missing; got {adapters!r}"
+          assert "demo" in adapters, (
+              f"demo adapter missing; got {adapters!r}"
+          )
+
           datasets = list_datasets()
-          assert "DEMO/demo.csv" in datasets, f"demo dataset missing; got {datasets!r}"
+          assert "DEMO/demo.csv" in datasets, (
+              f"demo dataset missing; got {datasets!r}"
+          )
 
           adapter = load_adapter("demo")
           row = load_dataset("demo", limit=1)[0]
@@ -277,6 +370,7 @@ jobs:
 
           assert isinstance(result["pri"], int), result
           assert "scores" in result, result
+
           print("Smoke OK:", adapter.key, result["pri"])
           PY
 
@@ -284,16 +378,38 @@ jobs:
         working-directory: ${{ runner.temp }}
         run: |
           "$PY" - <<'PY'
-          from statline.core.adapters import list_adapters, load_adapter
+          from statline.core.adapters import (
+              list_adapters,
+              load_adapter,
+          )
 
           names = list_adapters()
           assert names, "No adapters discovered"
 
           for name in names:
               adapter = load_adapter(name)
+
               assert adapter.key
-              assert adapter.score_profiles, f"{adapter.key} has no score profiles"
+              assert adapter.score_profiles, (
+                  f"{adapter.key} has no score profiles"
+              )
 
           print("Adapters OK:", ", ".join(names))
           PY
-          
+
+  publish:
+    name: Publish
+    needs:
+      - smoke
+
+    # Production publishing happens ONLY from an actual pushed v* tag.
+    # workflow_dispatch can run CI, but cannot publish.
+    if: >-
+      github.event_name == 'push' &&
+      startsWith(github.ref, 'refs/tags/v')
+
+    permissions:
+      contents: read
+      id-token: write
+
+    uses: ./.github/workflows/publish.yml

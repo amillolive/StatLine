@@ -33,6 +33,7 @@ from urllib.parse import urlencode
 import click  # Typer is built on Click
 import typer
 
+from statline import __version__ as version
 from statline.app import __release__
 from statline.app.cli.presentation import render_table_text, render_timing
 from statline.app.cli.types import (
@@ -49,8 +50,9 @@ from statline.core.types.timing import StageTimes
 
 # ── CLI versioning ────────────────────────────────────────────────────────────
 
-CLI_VERSION = __release__
-CLI_NAME = "StatLine UX"
+CLI_NAME = "CLI UX"
+CLI_VERSION = f"r{__release__}"
+STATLINE_VERSION = f"v{version.lstrip('v')}"
 
 # ── HTTP backend (quiet for type checkers) ────────────────────────────────────
 
@@ -124,7 +126,9 @@ app.add_typer(admin_app, name="admin")
 app.add_typer(sys_app, name="sys")
 app.add_typer(statpack_app, name="statpack")
 
-_BANNER_LINE: str = f"{CLI_NAME} v{CLI_VERSION} — Adapter-Driven Scoring"
+_BANNER_LINE: str = (
+    f"{CLI_NAME} {CLI_VERSION}, StatLine {STATLINE_VERSION} — Adapter-Driven Scoring Framework"
+)
 _BANNER_REGEX = re.compile(r"^===\s*StatLine\b.*===\s*$")
 
 
@@ -3108,7 +3112,7 @@ def launch() -> None:
 
     shell = StatLineHomeShell(
         typer_app=app,
-        config=LauncherConfig(title="StatLine UX"),
+        config=LauncherConfig(title="CLI UX"),
     )
     run_shell = cast(Callable[[], object], shell.run)
     run_shell()
