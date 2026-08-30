@@ -189,6 +189,7 @@ skip_covered = true
 
 [tool.hatch.build]
 include = [
+  "statline/RELEASE",
   "statline/**/*.py",
   "statline/**/*.pyi",
   "statline/py.typed",
@@ -214,8 +215,12 @@ exclude = [
 [tool.hatch.build.targets.wheel]
 packages = ["statline"]
 
+[tool.hatch.build.targets.wheel.force-include]
+"statline/RELEASE" = "statline/RELEASE"
+
 [tool.hatch.build.targets.sdist]
 include = [
+  "statline/RELEASE",
   "statline/**/*.py",
   "statline/**/*.pyi",
   "statline/py.typed",
