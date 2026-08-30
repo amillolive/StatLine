@@ -66,7 +66,7 @@ def test_packaged_dataset_registry_is_canonical() -> None:
 def test_local_cli_prints_main_banner_once() -> None:
     result = CliRunner().invoke(app, ["--mode", "local", "adapters"])
     assert result.exit_code == 0, result.output
-    assert result.output.count("StatLine UX") == 1
+    assert result.output.count("CLI UX") == 1
 
 
 def test_moved_modules_resolve_package_paths() -> None:
