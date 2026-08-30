@@ -197,7 +197,7 @@ include = [
   "statline/**/*.yml",
   "statline/**/*.json",
   "statline/core/adapters/defs/*.yaml",
-  "statline/core/datasets/data/stats/**/*.csv",
+  "statline/core/datasets/**/*.csv",
 ]
 exclude = [
   ".db/**",
@@ -228,7 +228,7 @@ include = [
   "statline/**/*.yml",
   "statline/**/*.json",
   "statline/core/adapters/defs/*.yaml",
-  "statline/core/datasets/data/stats/**/*.csv",
+  "statline/core/datasets/**/*.csv",
   "tests/**/*.py",
   "scripts/**/*.py",
   "typings/**/*.pyi",
