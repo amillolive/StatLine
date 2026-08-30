@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from contextlib import nullcontext
-from typing import Any, Dict, List, Literal, Mapping, Optional, Sequence, Union, cast
+from typing import Any, Literal, cast
 
 from statline.core.adapters import list_adapters as _list_adapters
 from statline.core.adapters import load_adapter as _load_adapter
@@ -24,13 +25,13 @@ from statline.gateway.adapters.score_types import (
 from statline.gateway.http.errors import BadRequest, NotFound
 
 Row = Mapping[str, Any]
-Weights = Dict[str, float]
-WeightsArg = Union[str, Weights]
-Penalties = Dict[str, float]
-Output = Dict[str, Any]
-Filters = Dict[str, Any]
-Context = Dict[str, Dict[str, float]]
-Caps = Dict[str, float]
+Weights = dict[str, float]
+WeightsArg = str | Weights
+Penalties = dict[str, float]
+Output = dict[str, Any]
+Filters = dict[str, Any]
+Context = dict[str, dict[str, float]]
+Caps = dict[str, float]
 InputKind = Literal["raw", "mapped"]
 CapsMode = Literal["batch", "row"]
 
@@ -46,10 +47,10 @@ def get_adapter(adapter_key: str) -> CompiledAdapter:
         raise NotFound(f"Unknown adapter: {key}", detail=str(error)) from error
 
 
-def _ensure_rows(rows: object) -> List[Mapping[str, Any]]:
+def _ensure_rows(rows: object) -> list[Mapping[str, Any]]:
     if not isinstance(rows, Sequence) or isinstance(rows, (str, bytes, bytearray)):
         raise BadRequest("rows must be a JSON array of objects")
-    checked: List[Mapping[str, Any]] = []
+    checked: list[Mapping[str, Any]] = []
     for row in cast(Sequence[object], rows):
         if not isinstance(row, Mapping):
             raise BadRequest("each row must be a JSON object")
@@ -58,22 +59,22 @@ def _ensure_rows(rows: object) -> List[Mapping[str, Any]]:
 
 
 def _score_mapped_rows(
-    rows: List[Dict[str, Any]],
+    rows: list[dict[str, Any]],
     adapter: CompiledAdapter,
     *,
-    weights: Optional[WeightsArg],
-    penalties_override: Optional[Penalties],
-    output: Optional[Output],
-    context: Optional[Context],
-    caps_override: Optional[Caps],
+    weights: WeightsArg | None,
+    penalties_override: Penalties | None,
+    output: Output | None,
+    context: Context | None,
+    caps_override: Caps | None,
     caps_mode: CapsMode,
-    timing: Optional[StageTimes],
-) -> List[Dict[str, Any]]:
+    timing: StageTimes | None,
+) -> list[dict[str, Any]]:
     if not rows:
         return []
 
     if caps_mode == "row":
-        results: List[Dict[str, Any]] = []
+        results: list[dict[str, Any]] = []
 
         for row in rows:
             row_result = calculate_pri(
@@ -109,15 +110,15 @@ def score_rows(
     rows: object,
     *,
     input_kind: InputKind = "raw",
-    weights: Optional[WeightsArg] = None,
-    penalties_override: Optional[Penalties] = None,
-    output: Optional[Output] = None,
-    filters: Optional[Filters] = None,
-    context: Optional[Context] = None,
-    caps_override: Optional[Caps] = None,
+    weights: WeightsArg | None = None,
+    penalties_override: Penalties | None = None,
+    output: Output | None = None,
+    filters: Filters | None = None,
+    context: Context | None = None,
+    caps_override: Caps | None = None,
     caps_mode: CapsMode = "batch",
-    timing: Optional[StageTimes] = None,
-) -> tuple[CompiledAdapter, List[Dict[str, Any]], List[Dict[str, Any]]]:
+    timing: StageTimes | None = None,
+) -> tuple[CompiledAdapter, list[dict[str, Any]], list[dict[str, Any]]]:
     """Map/filter/score rows through one canonical gateway pipeline."""
     checked = _ensure_rows(rows)
     adapter = get_adapter(adapter_key)
@@ -159,7 +160,7 @@ def score_rows(
     return adapter, mapped, results
 
 
-def score_row(req: ScoreRowRequest, *, timing: Optional[StageTimes] = None) -> ScoreRowResponse:
+def score_row(req: ScoreRowRequest, *, timing: StageTimes | None = None) -> ScoreRowResponse:
     _adapter, _mapped, results = score_rows(
         req.adapter,
         [req.row],
@@ -177,9 +178,7 @@ def score_row(req: ScoreRowRequest, *, timing: Optional[StageTimes] = None) -> S
     return results[0]
 
 
-def score_batch(
-    req: ScoreBatchRequest, *, timing: Optional[StageTimes] = None
-) -> ScoreBatchResponse:
+def score_batch(req: ScoreBatchRequest, *, timing: StageTimes | None = None) -> ScoreBatchResponse:
     _adapter, _mapped, results = score_rows(
         req.adapter,
         req.rows,
@@ -195,7 +194,7 @@ def score_batch(
     return results
 
 
-def adapters_available() -> List[str]:
+def adapters_available() -> list[str]:
     return [str(name) for name in _list_adapters()]
 
 

@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass  # pyright: ignore[reportUnusedImport]
-from typing import Any, Callable, Literal, Mapping
+from typing import Any, Literal
 
 ParamKind = Literal["text", "number", "boolean", "path", "choice", "multi"]
 

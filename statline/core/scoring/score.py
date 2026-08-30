@@ -2,18 +2,11 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable, Mapping, Sequence
 from collections.abc import Mapping as ABCMapping
 from contextlib import nullcontext
 from typing import (
     Any,
-    Dict,
-    Iterable,
-    List,
-    Mapping,
-    Optional,
-    Sequence,
-    Tuple,
-    Union,
     cast,
     overload,
 )
@@ -33,7 +26,7 @@ from .weights import normalize_weights
 
 # NOTE:
 # - Keep the scorer typed internally, but the public surface is dict-like (JSON-friendly).
-PRIResult = Dict[str, Any]
+PRIResult = dict[str, Any]
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Small utilities
@@ -43,11 +36,11 @@ PRIResult = Dict[str, Any]
 def _to_float(x: Any, default: float = 0.0) -> float:
     try:
         return float(x)
-    except Exception:
+    except (TypeError, ValueError, OverflowError):
         return default
 
 
-def _to_float_or_none(x: object) -> Optional[float]:
+def _to_float_or_none(x: object) -> float | None:
     if isinstance(x, (int, float, str)):
         try:
             return float(x)
@@ -67,7 +60,7 @@ def _to_int(x: object, default: int = 0) -> int:
     return default
 
 
-def _ctx_get(ctx: Mapping[str, Mapping[str, float]], k: str) -> Tuple[float, float]:
+def _ctx_get(ctx: Mapping[str, Mapping[str, float]], k: str) -> tuple[float, float]:
     info = ctx.get(k) or {}
     leader = _to_float(info.get("leader", 1.0), 1.0)
     floor = _to_float(info.get("floor", 0.0), 0.0)
@@ -91,14 +84,14 @@ def _norm01_from_ctx(v: Any, leader: float, floor: float, invert: bool) -> float
     return clamp01(t)
 
 
-def _context_from_clamps(adapter: Any, invert_map: Dict[str, bool]) -> Dict[str, Dict[str, float]]:
+def _context_from_clamps(adapter: Any, invert_map: dict[str, bool]) -> dict[str, dict[str, float]]:
     """
     Build leader/floor context from adapter clamp ranges.
     - Non-invert: leader=hi, floor=lo
     - Invert:     leader=lo, floor=hi
     Includes BOTH primary metrics and efficiency specs (derived channels).
     """
-    out: Dict[str, Dict[str, float]] = {}
+    out: dict[str, dict[str, float]] = {}
 
     def _put(key: str, clamp: Any, inv: bool) -> None:
         if not clamp:
@@ -193,7 +186,7 @@ def _score_from_profile(
     return _affine01(raw01, 55.0, 99.0)
 
 
-def _midrank_percentiles(values: List[float]) -> List[float]:
+def _midrank_percentiles(values: list[float]) -> list[float]:
     """
     Midrank percentile in [0..100], stable with ties.
     For n==1 returns 50.0.
@@ -229,14 +222,14 @@ def _midrank_percentiles(values: List[float]) -> List[float]:
 
 
 def per_metric_weights_from_buckets(
-    metric_to_bucket: Dict[str, str],
-    bucket_weights: Dict[str, float],
-) -> Dict[str, float]:
+    metric_to_bucket: dict[str, str],
+    bucket_weights: dict[str, float],
+) -> dict[str, float]:
     """Spread each bucket's weight equally across its metrics."""
-    counts: Dict[str, int] = {}
-    for _, b in metric_to_bucket.items():
+    counts: dict[str, int] = {}
+    for b in metric_to_bucket.values():
         counts[b] = counts.get(b, 0) + 1
-    per_metric: Dict[str, float] = {}
+    per_metric: dict[str, float] = {}
     for m, b in metric_to_bucket.items():
         bw = float(bucket_weights.get(b, 0.0))
         n = max(1, counts.get(b, 1))
@@ -247,10 +240,10 @@ def per_metric_weights_from_buckets(
 def _resolve_bucket_weights(
     adapter: Any,
     *,
-    weights: Optional[Union[str, Dict[str, float]]] = None,  # preset name OR bucket->weight
-    weights_override: Optional[Dict[str, float]] = None,  # legacy override
+    weights: str | dict[str, float] | None = None,  # preset name OR bucket->weight
+    weights_override: dict[str, float] | None = None,  # legacy override
     default_preset: str = "pri",
-) -> Tuple[Dict[str, float], Optional[str]]:
+) -> tuple[dict[str, float], str | None]:
     """
     Resolve bucket weights + return (bucket_weights, preset_name_used_if_any).
 
@@ -281,19 +274,19 @@ def _resolve_bucket_weights(
 
 
 def _apply_penalties_to_bucket_weights(
-    bucket_weights: Dict[str, float],
+    bucket_weights: dict[str, float],
     adapter: Any,
     *,
-    penalty_profile: Optional[str],
-    penalties_override: Optional[Dict[str, float]] = None,
-) -> Dict[str, float]:
+    penalty_profile: str | None,
+    penalties_override: dict[str, float] | None = None,
+) -> dict[str, float]:
     """
     weight[b] *= max(0, 1 - penalty[b])
 
     If penalties_override is provided, it is treated as global and wins.
     Otherwise, use adapter.penalties[penalty_profile] if present.
     """
-    penalties: Dict[str, float] = {}
+    penalties: dict[str, float] = {}
 
     if penalties_override:
         penalties = dict(penalties_override)
@@ -314,7 +307,7 @@ def _apply_penalties_to_bucket_weights(
     return out
 
 
-def _apply_output_toggles(item: Dict[str, Any], output: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+def _apply_output_toggles(item: dict[str, Any], output: dict[str, Any] | None) -> dict[str, Any]:
     """
     If output is None: preserve legacy payload.
     If output is provided: apply v2.1 toggles.
@@ -355,18 +348,19 @@ def _ci_get(row: Mapping[str, Any], key: str) -> Any:
     if key in row:
         return row.get(key)
     lk = str(key).lower()
-    for k in row.keys():
+    for k in row:
         try:
-            if str(k).lower() == lk:
-                return row.get(k)
-        except Exception:
-            continue
+            candidate = str(k).lower()
+        except Exception:  # noqa: BLE001 - malformed custom mapping keys are ignored
+            candidate = None
+        if candidate == lk:
+            return row.get(k)
     return None
 
 
-def _adapter_filter_specs(adapter: Any) -> Dict[str, FilterSpec]:
+def _adapter_filter_specs(adapter: Any) -> dict[str, FilterSpec]:
     table = getattr(adapter, "filters", None) or {}  # pyright: ignore[reportUnknownVariableType]
-    out: Dict[str, FilterSpec] = {}
+    out: dict[str, FilterSpec] = {}
     if isinstance(table, Mapping):
         for k, v in table.items():  # pyright: ignore[reportUnknownVariableType]
             ks = str(k).strip()  # pyright: ignore[reportUnknownArgumentType]
@@ -377,7 +371,7 @@ def _adapter_filter_specs(adapter: Any) -> Dict[str, FilterSpec]:
     return out
 
 
-def _parse_predicate_any(pred_any: Any, *, default_metric: str) -> Optional[Dict[str, Any]]:
+def _parse_predicate_any(pred_any: Any, *, default_metric: str) -> dict[str, Any] | None:
     """
     Parse a single predicate in flexible forms into {metric, op, value}.
     Works for BOTH numeric (metric) and string (dimension) comparisons.
@@ -417,7 +411,7 @@ def _parse_predicate_any(pred_any: Any, *, default_metric: str) -> Optional[Dict
     return None
 
 
-def _parse_filter_payload(payload: Any, *, default_metric: str) -> Tuple[List[Dict[str, Any]], str]:
+def _parse_filter_payload(payload: Any, *, default_metric: str) -> tuple[list[dict[str, Any]], str]:
     mode = "include-only"
     preds_any: Any = payload
 
@@ -431,7 +425,7 @@ def _parse_filter_payload(payload: Any, *, default_metric: str) -> Tuple[List[Di
         elif any(k in payload for k in ("op", "value", "val", "metric", "stat")):
             preds_any = [payload]
 
-    preds: List[Dict[str, Any]] = []
+    preds: list[dict[str, Any]] = []
     if isinstance(preds_any, (list, tuple)):
         for it in preds_any:  # pyright: ignore[reportUnknownVariableType]
             p = _parse_predicate_any(it, default_metric=default_metric)
@@ -460,12 +454,12 @@ def _passes_predicates(
 
         # Try numeric if the operator is order-based, or if both look numeric
         wants_numeric = op in ("<", "<=", ">", ">=")
-        if not wants_numeric:
-            # heuristic: if either side is numeric-ish, still try numeric
-            if isinstance(b_any, (int, float)) or (
-                isinstance(b_any, str) and _NUM_RE.match(b_any.strip() or "")
-            ):
-                wants_numeric = True
+        # Heuristic: if either side is numeric-ish, still try numeric.
+        if not wants_numeric and (
+            isinstance(b_any, (int, float))
+            or (isinstance(b_any, str) and _NUM_RE.match(b_any.strip() or ""))
+        ):
+            wants_numeric = True
 
         if wants_numeric:
             a = _to_float(a_any, 0.0)
@@ -514,10 +508,10 @@ def _passes_predicates(
 def _passes_declared_adapter_filters_typed(
     row: Mapping[str, Any],
     adapter: Any,
-    filters: Optional[Dict[str, Any]],
+    filters: dict[str, Any] | None,
     *,
     kind: str,  # "metric" or "dimension"
-    reserved_filter_keys: Optional[Sequence[str]] = None,
+    reserved_filter_keys: Sequence[str] | None = None,
 ) -> bool:
     """
     Apply adapter-declared typed filters (schema `filters:`).
@@ -576,7 +570,7 @@ def _passes_declared_adapter_filters_typed(
 # ──────────────────────────────────────────────────────────────────────────────
 
 
-_RESERVED_FILTER_KEYS: Tuple[str, ...] = (
+_RESERVED_FILTER_KEYS: tuple[str, ...] = (
     "dimensions",
     "stat_where",
     "stat_where_mode",
@@ -586,7 +580,7 @@ _RESERVED_FILTER_KEYS: Tuple[str, ...] = (
 
 
 def _passes_dimension_filters(
-    raw: Mapping[str, Any], filters: Optional[Dict[str, Any]], adapter: Any
+    raw: Mapping[str, Any], filters: dict[str, Any] | None, adapter: Any
 ) -> bool:
     """
     Legacy convenience:
@@ -602,12 +596,12 @@ def _passes_dimension_filters(
         return True
 
     dim_filters_any = filters.get("dimensions")
-    dim_filters: Dict[str, Any] = (
+    dim_filters: dict[str, Any] = (
         dict(dim_filters_any) if isinstance(dim_filters_any, Mapping) else {}  # pyright: ignore[reportUnknownArgumentType]
     )  # pyright: ignore[reportUnknownArgumentType]
 
     # also accept dimension keys at the top-level
-    for dk in dims_any.keys():  # pyright: ignore[reportUnknownVariableType]
+    for dk in dims_any:  # pyright: ignore[reportUnknownVariableType]
         k = str(dk).strip()  # pyright: ignore[reportUnknownArgumentType]
         if k and k in filters and k not in dim_filters:
             dim_filters[k] = filters.get(k)
@@ -616,7 +610,7 @@ def _passes_dimension_filters(
         if want_any is None:
             continue
 
-        want: List[str] = []
+        want: list[str] = []
         if isinstance(want_any, str):
             want = [want_any]
         elif isinstance(want_any, (list, tuple, set)):
@@ -640,9 +634,9 @@ def _passes_dimension_filters(
 
 def passes_mapped_filters(
     mapped: Mapping[str, Any],
-    filters: Optional[Dict[str, Any]],
+    filters: dict[str, Any] | None,
     *,
-    adapter: Optional[Any] = None,
+    adapter: Any | None = None,
 ) -> bool:
     """Return whether an already-mapped row passes adapter metric filters.
 
@@ -665,9 +659,9 @@ def passes_mapped_filters(
 
 def passes_raw_filters(  # pyright: ignore[reportUnusedFunction]
     raw: Mapping[str, Any],
-    filters: Optional[Dict[str, Any]],
+    filters: dict[str, Any] | None,
     *,
-    adapter: Optional[Any] = None,
+    adapter: Any | None = None,
 ) -> bool:
     if not filters:
         return True
@@ -716,13 +710,13 @@ def calculate_pri(
     rows_or_row: Mapping[str, Any],
     adapter: Any,
     *,
-    weights_override: Optional[Dict[str, float]] = None,
-    weights: Optional[Union[str, Dict[str, float]]] = None,
-    penalties_override: Optional[Dict[str, float]] = None,
-    output: Optional[Dict[str, Any]] = None,
-    context: Optional[Dict[str, Dict[str, float]]] = None,
-    caps_override: Optional[Dict[str, float]] = None,
-    timing: Optional[Any] = None,
+    weights_override: dict[str, float] | None = None,
+    weights: str | dict[str, float] | None = None,
+    penalties_override: dict[str, float] | None = None,
+    output: dict[str, Any] | None = None,
+    context: dict[str, dict[str, float]] | None = None,
+    caps_override: dict[str, float] | None = None,
+    timing: Any | None = None,
 ) -> PRIResult: ...
 
 
@@ -731,28 +725,28 @@ def calculate_pri(
     rows_or_row: Iterable[Mapping[str, Any]],
     adapter: Any,
     *,
-    weights_override: Optional[Dict[str, float]] = None,
-    weights: Optional[Union[str, Dict[str, float]]] = None,
-    penalties_override: Optional[Dict[str, float]] = None,
-    output: Optional[Dict[str, Any]] = None,
-    context: Optional[Dict[str, Dict[str, float]]] = None,
-    caps_override: Optional[Dict[str, float]] = None,
-    timing: Optional[Any] = None,
-) -> List[PRIResult]: ...
+    weights_override: dict[str, float] | None = None,
+    weights: str | dict[str, float] | None = None,
+    penalties_override: dict[str, float] | None = None,
+    output: dict[str, Any] | None = None,
+    context: dict[str, dict[str, float]] | None = None,
+    caps_override: dict[str, float] | None = None,
+    timing: Any | None = None,
+) -> list[PRIResult]: ...
 
 
 def calculate_pri(
-    rows_or_row: Union[Mapping[str, Any], Iterable[Mapping[str, Any]]],
+    rows_or_row: Mapping[str, Any] | Iterable[Mapping[str, Any]],
     adapter: Any,
     *,
-    weights_override: Optional[Dict[str, float]] = None,
-    weights: Optional[Union[str, Dict[str, float]]] = None,
-    penalties_override: Optional[Dict[str, float]] = None,
-    output: Optional[Dict[str, Any]] = None,
-    context: Optional[Dict[str, Dict[str, float]]] = None,
-    caps_override: Optional[Dict[str, float]] = None,
-    timing: Optional[Any] = None,
-) -> Union[PRIResult, List[PRIResult]]:
+    weights_override: dict[str, float] | None = None,
+    weights: str | dict[str, float] | None = None,
+    penalties_override: dict[str, float] | None = None,
+    output: dict[str, Any] | None = None,
+    context: dict[str, dict[str, float]] | None = None,
+    caps_override: dict[str, float] | None = None,
+    timing: Any | None = None,
+) -> PRIResult | list[PRIResult]:
     """
     Canonical PRI scorer.
 
@@ -764,7 +758,7 @@ def calculate_pri(
     # to keep Pyright/Pylance narrowing correct.
     if isinstance(rows_or_row, ABCMapping):
         row = cast(Mapping[str, Any], rows_or_row)
-        mapped_rows: List[Dict[str, Any]] = [dict(row)]
+        mapped_rows: list[dict[str, Any]] = [dict(row)]
         is_single = True
     else:
         mapped_rows = [dict(r) for r in rows_or_row]
@@ -790,19 +784,19 @@ def calculate_pri(
 
 
 def _calculate_pri_batch_mapped(
-    mapped_rows: List[Dict[str, Any]],
+    mapped_rows: list[dict[str, Any]],
     adapter: Any,
     *,
     # legacy:
-    weights_override: Optional[Dict[str, float]] = None,
+    weights_override: dict[str, float] | None = None,
     # v2.1:
-    weights: Optional[Union[str, Dict[str, float]]] = None,
-    penalties_override: Optional[Dict[str, float]] = None,
-    output: Optional[Dict[str, Any]] = None,
-    context: Optional[Dict[str, Dict[str, float]]] = None,
-    caps_override: Optional[Dict[str, float]] = None,
-    _timing: Optional[Any] = None,
-) -> List[Dict[str, Any]]:
+    weights: str | dict[str, float] | None = None,
+    penalties_override: dict[str, float] | None = None,
+    output: dict[str, Any] | None = None,
+    context: dict[str, dict[str, float]] | None = None,
+    caps_override: dict[str, float] | None = None,
+    _timing: Any | None = None,
+) -> list[dict[str, Any]]:
     """
     Score already-mapped rows. (Kernel API)
     """
@@ -811,9 +805,9 @@ def _calculate_pri_batch_mapped(
     with T.stage("spec") if T else nullcontext():
         metrics_spec = getattr(adapter, "metrics", []) or []
 
-        metric_keys: List[str] = []
-        metric_to_bucket: Dict[str, str] = {}
-        invert_map: Dict[str, bool] = {}
+        metric_keys: list[str] = []
+        metric_to_bucket: dict[str, str] = {}
+        invert_map: dict[str, bool] = {}
 
         for m in metrics_spec:
             invert_map[m.key] = bool(getattr(m, "invert", False))
@@ -839,7 +833,7 @@ def _calculate_pri_batch_mapped(
 
     with T.stage("caps") if T else nullcontext():
         if caps_override:
-            ctx: Dict[str, Dict[str, float]] = {}
+            ctx: dict[str, dict[str, float]] = {}
             for k, cap in caps_override.items():
                 kk = str(k)
                 c = max(1e-6, _to_float(cap, 1.0))
@@ -859,7 +853,7 @@ def _calculate_pri_batch_mapped(
             ctx = _context_from_clamps(adapter, invert_map)
         else:
             # batch-derived context fallback
-            vals: Dict[str, List[float]] = {k: [] for k in metric_keys}
+            vals: dict[str, list[float]] = {k: [] for k in metric_keys}
             for r in rows_used:
                 for k in metric_keys:
                     raw_value = r.get(k)
@@ -897,8 +891,8 @@ def _calculate_pri_batch_mapped(
 
     with T.stage("profiles") if T else nullcontext():
         profiles_in = getattr(adapter, "score_profiles", None) or {}  # pyright: ignore[reportUnknownVariableType]
-        profiles: Dict[str, ScoreProfileSpec] = {}
-        profile_order: List[str] = []
+        profiles: dict[str, ScoreProfileSpec] = {}
+        profile_order: list[str] = []
 
         if isinstance(profiles_in, Mapping):
             for name, prof in profiles_in.items():  # pyright: ignore[reportUnknownVariableType]
@@ -943,8 +937,8 @@ def _calculate_pri_batch_mapped(
         pri_scored_metrics = {k for k, w in pri_unit_w.items() if abs(w) > 1e-12}
 
         # Per-profile unit weights
-        unit_w_by_profile: Dict[str, Dict[str, float]] = {primary_name: dict(pri_unit_w)}
-        preset_used_by_profile: Dict[str, Optional[str]] = {primary_name: pri_preset_used}
+        unit_w_by_profile: dict[str, dict[str, float]] = {primary_name: dict(pri_unit_w)}
+        preset_used_by_profile: dict[str, str | None] = {primary_name: pri_preset_used}
 
         for name, prof in profiles.items():
             if name == primary_name:
@@ -972,13 +966,13 @@ def _calculate_pri_batch_mapped(
         bucket_keys = list(buckets_def.keys())
 
         # First pass: compute components once, then raw01 per profile
-        tmp_rows: List[Dict[str, Any]] = []
-        raw01_by_profile: Dict[str, List[float]] = {name: [] for name in unit_w_by_profile.keys()}
+        tmp_rows: list[dict[str, Any]] = []
+        raw01_by_profile: dict[str, list[float]] = {name: [] for name in unit_w_by_profile}
 
         RAW01_SCALE = 1  # tune once
 
         for idx, r in enumerate(rows_used):
-            comps: Dict[str, float] = {}
+            comps: dict[str, float] = {}
 
             # Fail fast if the adapter did not materialize required metrics.
             missing = [k for k in metric_keys if k not in r]
@@ -993,8 +987,8 @@ def _calculate_pri_batch_mapped(
                 comps[k] = _norm01_from_ctx(r.get(k, 0.0), leader, floor, invert_map.get(k, False))
 
             # Bucket scores: preserve legacy behavior (based on PRIMARY-scored metrics only)
-            bucket_scores: Dict[str, float] = {b: 0.0 for b in bucket_keys}
-            bucket_counts: Dict[str, int] = {b: 0 for b in bucket_keys}
+            bucket_scores: dict[str, float] = {b: 0.0 for b in bucket_keys}
+            bucket_counts: dict[str, int] = {b: 0 for b in bucket_keys}
 
             for mk, nv in comps.items():
                 if mk not in pri_scored_metrics:
@@ -1005,7 +999,7 @@ def _calculate_pri_batch_mapped(
                 bucket_scores[b] += float(nv)
                 bucket_counts[b] += 1
 
-            for b in list(bucket_scores.keys()):
+            for b in list(bucket_scores):
                 c = bucket_counts.get(b, 0)
                 if c > 0:
                     bucket_scores[b] /= c
@@ -1031,7 +1025,7 @@ def _calculate_pri_batch_mapped(
 
                 raw01_by_profile[pname].append(x01)
 
-            payload: Dict[str, Any] = {
+            payload: dict[str, Any] = {
                 "buckets": bucket_scores,
                 "components": comps,
                 "weights": dict(pri_unit_w),
@@ -1044,7 +1038,7 @@ def _calculate_pri_batch_mapped(
             tmp_rows.append(payload)
 
         # Percentiles per profile (only used by window profiles, but cheap to compute consistently)
-        pct01_by_profile: Dict[str, List[float]] = {}
+        pct01_by_profile: dict[str, list[float]] = {}
         for pname, xs in raw01_by_profile.items():
             pct_values = [p / 100.0 for p in _midrank_percentiles(list(xs))]
 
@@ -1059,24 +1053,24 @@ def _calculate_pri_batch_mapped(
             pct01_by_profile[pname] = pct_values
 
         # Final pass: build output items
-        by_idx: Dict[int, Dict[str, Any]] = {}
+        by_idx: dict[int, dict[str, Any]] = {}
         for payload in tmp_rows:
             idx = _to_int(payload.get("_i", 0), 0)
-            item: Dict[str, Any] = dict(payload)
+            item: dict[str, Any] = dict(payload)
             item.pop("_i", None)
 
-            scores: Dict[str, int] = {}
+            scores: dict[str, int] = {}
             for name, prof in profiles.items():
                 raw01 = raw01_by_profile.get(name, [0.0])[idx]
                 pct01 = pct01_by_profile.get(name, [0.5])[idx]
                 sval = _score_from_profile(prof, raw01=raw01, pct01=pct01)
-                scores[name] = int(round(sval))
+                scores[name] = round(sval)
 
             # Back-compat: keep primary PRI in "pri"
             primary_score = scores.get(primary_name)
             if primary_score is None:
                 pri_raw = _to_float(item.get("pri_raw", 0.0), 0.0)
-                primary_score = int(round(_affine01(pri_raw, 55.0, 99.0)))
+                primary_score = round(_affine01(pri_raw, 55.0, 99.0))
 
             item["pri"] = primary_score
 
@@ -1103,6 +1097,6 @@ def _calculate_pri_batch_mapped(
 __all__ = [
     "PRIResult",
     "calculate_pri",
-    "passes_raw_filters",
     "passes_mapped_filters",
+    "passes_raw_filters",
 ]

@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import os
 import sys
-from typing import Optional, TextIO
+from typing import TextIO
 
 # Env knobs:
 #   STATLINE_LOG_LEVEL: DEBUG|INFO|WARNING|ERROR|CRITICAL  (default: INFO)
@@ -33,7 +33,7 @@ def _make_formatter(fmt_style: str) -> logging.Formatter:
 def get_logger(
     name: str = "statline",
     *,
-    stream: Optional[TextIO] = None,
+    stream: TextIO | None = None,
 ) -> logging.Logger:
     """
     Central logger factory for Statline.

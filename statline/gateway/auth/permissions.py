@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from typing import Iterable, Set
+from collections.abc import Iterable
 
 SCOPE_USERBASE = "userbase"
 SCOPE_MODERATION = "moderation"
 SCOPE_ADMIN = "admin"
 
-KNOWN_SCOPES: Set[str] = {SCOPE_USERBASE, SCOPE_MODERATION, SCOPE_ADMIN}
+KNOWN_SCOPES: set[str] = {SCOPE_USERBASE, SCOPE_MODERATION, SCOPE_ADMIN}
 
 # Scope implication: admin > moderation > userbase
 IMPLIES = {  # pyright: ignore[reportUnknownVariableType]
@@ -16,7 +16,7 @@ IMPLIES = {  # pyright: ignore[reportUnknownVariableType]
 }
 
 
-def expand_scopes(scopes: Iterable[str]) -> Set[str]:
+def expand_scopes(scopes: Iterable[str]) -> set[str]:
     out = set(scopes)
     changed = True
     while changed:
@@ -29,7 +29,7 @@ def expand_scopes(scopes: Iterable[str]) -> Set[str]:
     return out
 
 
-def validate_scopes(scopes: Iterable[str]) -> Set[str]:
+def validate_scopes(scopes: Iterable[str]) -> set[str]:
     s = set(scopes)
     unknown = s - KNOWN_SCOPES
     if unknown:

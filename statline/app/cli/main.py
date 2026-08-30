@@ -14,6 +14,7 @@ import subprocess
 import sys
 import time
 from collections import defaultdict
+from collections.abc import Callable, Generator, Iterable, Mapping
 
 # ── stdlib ────────────────────────────────────────────────────────────────────
 from datetime import datetime, timezone, tzinfo
@@ -21,19 +22,9 @@ from os import getenv
 from pathlib import Path
 from typing import (
     Any,
-    Callable,
-    DefaultDict,
-    Dict,
-    Generator,
-    Iterable,
-    List,
     Literal,
-    Mapping,
-    Optional,
     TextIO,
-    Tuple,
     TypeGuard,
-    Union,
     cast,
 )
 from urllib.parse import urlencode
@@ -176,11 +167,11 @@ def _normalize_ip(ip: Any) -> str:
     return s
 
 
-def _collapse_audit_rows(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    out: List[Dict[str, Any]] = []
+def _collapse_audit_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    out: list[dict[str, Any]] = []
     i = 0
 
-    def keyish(r: Dict[str, Any]) -> Tuple[Any, Any, Any, Any]:
+    def keyish(r: dict[str, Any]) -> tuple[Any, Any, Any, Any]:
         return (r.get("ts"), r.get("subject"), r.get("ip"), r.get("event"))
 
     while i < len(rows):
@@ -235,10 +226,8 @@ def suppress_duplicate_banner_stdout() -> Generator[None, None, None]:
         sys.stdout = cast(TextIO, filt)
         yield
     finally:
-        try:
+        with contextlib.suppress(Exception):
             filt.flush()
-        except Exception:
-            pass
         sys.stdout = orig
 
 
@@ -259,11 +248,11 @@ def _log_note(path: Path, line: str) -> None:
         with path.open("a", encoding="utf-8") as f:
             f.write(line.rstrip() + "\n")
     except Exception:
-        # Logging must never crash the CLI
-        pass
+        # Logging must never crash the CLI.
+        return
 
 
-def _local_adapter_names() -> List[str]:
+def _local_adapter_names() -> list[str]:
     """List locally-available adapters for demo/fallback."""
     try:
         from statline.core.adapters import list_adapters as _L
@@ -284,10 +273,10 @@ def _fallback_banner(reason: str) -> None:
     )
 
 
-def _candidate_secret_dirs() -> List[Path]:
+def _candidate_secret_dirs() -> list[Path]:
     env = getenv("STATLINE_SECRETS")
     home = Path.home()
-    dirs: List[Path] = []
+    dirs: list[Path] = []
     if env:
         dirs.append(Path(env))
     dirs += [
@@ -320,7 +309,7 @@ DEVKEY_PATH: Path = SECRETS_DIR / "DEVKEY"
 KEYS_DIR: Path = SECRETS_DIR / "keys"
 
 
-def _read_text(p: Path) -> Optional[str]:
+def _read_text(p: Path) -> str | None:
     try:
         return p.read_text(encoding="utf-8")
     except Exception:
@@ -359,7 +348,7 @@ def _describe_apikey() -> str:
 
 
 def _describe_auth_state() -> str:
-    return "\n".join([_describe_device(), _describe_apikey()])
+    return f"{_describe_device()}\n{_describe_apikey()}"
 
 
 # ── base64url helpers ─────────────────────────────────────────────────────────
@@ -483,14 +472,14 @@ def device_public_key_b64(priv: Any) -> str:
     return _b64url(raw)
 
 
-def _device_proof_headers(method: str, target: str, body: bytes) -> Dict[str, str]:
+def _device_proof_headers(method: str, target: str, body: bytes) -> dict[str, str]:
     """Build v4 device proof headers (Ed25519 signature over canonical envelope)."""
     priv = _load_ed25519_private()
     device_id = _read_device_id()
     ts = str(int(time.time()))
     nonce = secrets.token_urlsafe(18)
     body_hash = _sha256_hex(body)
-    envelope = f"{method.upper()}\n{target}\n{ts}\n{nonce}\n{body_hash}".encode("utf-8")
+    envelope = f"{method.upper()}\n{target}\n{ts}\n{nonce}\n{body_hash}".encode()
     sig = priv.sign(envelope)
     return {
         HDR_DEVICE_ID: device_id,
@@ -511,17 +500,13 @@ def _auth_for_path(path: str) -> Literal["none", "device", "principal"]:
     """Select the StatLine v4 auth mode for a request path."""
     if path.startswith(("/v2/", "/v3/")):
         raise RuntimeError("Legacy API endpoints are not supported by the transport; use v4.")
-    if path.startswith("/v4/admin") or path.startswith("/v4/moderation"):
+    if path.startswith(("/v4/admin", "/v4/moderation")):
         return "principal"
-    if path.startswith("/v4/auth/enroll") or path.startswith("/v4/health") or path == "/":
+    if path.startswith(("/v4/auth/enroll", "/v4/health")) or path == "/":
         return "none"
     if path.startswith("/v4/auth/whoami"):
         return "principal"
-    if (
-        path.startswith("/v4/auth/api-key-requests")
-        or path.startswith("/v4/auth/api-keys")
-        or path.startswith("/v4/auth/device")
-    ):
+    if path.startswith(("/v4/auth/api-key-requests", "/v4/auth/api-keys", "/v4/auth/device")):
         return "device"
     if path.startswith("/v4/"):
         return _best_auth_mode(guarded=True)
@@ -533,10 +518,10 @@ def _headers(
     target: str,
     body: bytes,
     *,
-    extra: Optional[Dict[str, str]] = None,
+    extra: dict[str, str] | None = None,
     auth: Literal["none", "device", "principal"] = "principal",
-) -> Dict[str, str]:
-    h: Dict[str, str] = {"Content-Type": "application/json"}
+) -> dict[str, str]:
+    h: dict[str, str] = {"Content-Type": "application/json"}
 
     if auth == "device" or (auth == "principal" and _has_device() and _has_device_id()):
         h.update(_device_proof_headers(method, target, body))
@@ -569,7 +554,7 @@ def _pretty_detail(detail: Any) -> str:
 
         if isinstance(d, list):
             # Pydantic validation errors often arrive as list[dict]
-            parts: List[str] = []
+            parts: list[str] = []
             for it in d:  # pyright: ignore[reportUnknownVariableType]
                 if isinstance(it, dict):
                     loc = it.get("loc")  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
@@ -611,10 +596,10 @@ _TS_KEY_RE = re.compile(
 
 def _local_tz() -> tzinfo:
     # Local system tz (handles EST/EDT correctly if OS is configured)
-    return datetime.now().astimezone().tzinfo or timezone.utc
+    return datetime.now(timezone.utc).astimezone().tzinfo or timezone.utc
 
 
-def _try_parse_iso(s: str) -> Optional[datetime]:
+def _try_parse_iso(s: str) -> datetime | None:
     s2 = s.strip()
     if not s2:
         return None
@@ -661,11 +646,11 @@ def _maybe_format_timestamp(key: str, value: Any) -> Any:
     return value
 
 
-AuditGroupKey = Tuple[str, str, str]
+AuditGroupKey = tuple[str, str, str]
 
 
-def _group_audit(rows: List[Dict[str, Any]]) -> Dict[AuditGroupKey, List[Dict[str, Any]]]:
-    groups: DefaultDict[AuditGroupKey, List[Dict[str, Any]]] = defaultdict(list)
+def _group_audit(rows: list[dict[str, Any]]) -> dict[AuditGroupKey, list[dict[str, Any]]]:
+    groups: defaultdict[AuditGroupKey, list[dict[str, Any]]] = defaultdict(list)
 
     for r in rows:
         org = str(r.get("org") or "-")
@@ -678,7 +663,7 @@ def _group_audit(rows: List[Dict[str, Any]]) -> Dict[AuditGroupKey, List[Dict[st
 
 def _normalize_for_display(obj: Any) -> Any:
     if isinstance(obj, dict):
-        out: Dict[str, Any] = {}
+        out: dict[str, Any] = {}
         for k, v in obj.items():  # pyright: ignore[reportUnknownVariableType]
             kk = str(k)  # pyright: ignore[reportUnknownArgumentType]
             vv = _normalize_for_display(v)
@@ -725,7 +710,7 @@ def supports_internal_pager() -> bool:
     return not sys.platform.startswith("win")
 
 
-def render_apikeys_view(data: Dict[str, Any]) -> None:
+def render_apikeys_view(data: dict[str, Any]) -> None:
     keys = data.get("keys", [])
     if not keys:
         typer.secho("No API keys found.", fg=typer.colors.YELLOW)
@@ -763,7 +748,7 @@ def render_apikeys_view(data: Dict[str, Any]) -> None:
 def echo_clean_auto(obj: Any) -> None:
     norm = _normalize_for_display(obj)
     if isinstance(norm, dict) and isinstance(norm.get("audit"), list) and norm["audit"]:  # pyright: ignore[reportUnknownMemberType]
-        audit_rows = cast(List[Dict[str, Any]], norm["audit"])
+        audit_rows = cast(list[dict[str, Any]], norm["audit"])
         text = _render_audit_pages(audit_rows, per_page=50)
         click.echo_via_pager(text)
         return
@@ -806,8 +791,8 @@ def request_json(
     path: str,
     payload: Any = None,
     *,
-    params: Optional[Dict[str, Any]] = None,
-    extra_headers: Optional[Dict[str, str]] = None,
+    params: dict[str, Any] | None = None,
+    extra_headers: dict[str, str] | None = None,
 ) -> Any:
     """Send one authenticated JSON request through the configured CLI backend."""
     verb = method.upper()
@@ -867,14 +852,14 @@ def _translate_v4_path(path: str) -> str:
     return path.replace("/v3/", "/v4/", 1) if path.startswith("/v3/") else path
 
 
-def _adapter_document_for_legacy(path: str) -> Optional[Tuple[str, str]]:
+def _adapter_document_for_legacy(path: str) -> tuple[str, str] | None:
     match = re.fullmatch(r"/v3/adapter/([^/]+)/(.+)", path)
     if match is None:
         return None
     return match.group(1), match.group(2)
 
 
-def _legacy_adapter_projection(document: Dict[str, Any], resource: str) -> Dict[str, Any]:
+def _legacy_adapter_projection(document: dict[str, Any], resource: str) -> dict[str, Any]:
     if resource == "weights":
         return {"weights": document.get("weights", {})}
     if resource in {"metric-keys", "metric-keys/probe"}:
@@ -891,7 +876,7 @@ def _legacy_adapter_projection(document: Dict[str, Any], resource: str) -> Dict[
     return document
 
 
-def _is_any_list(value: object) -> TypeGuard[List[Any]]:
+def _is_any_list(value: object) -> TypeGuard[list[Any]]:
     return isinstance(value, list)
 
 
@@ -899,13 +884,13 @@ def _score_response_data(response: Any, *, one: bool, mapped: bool = False) -> A
     if not isinstance(response, dict):
         return response
 
-    typed_response = cast(Dict[str, Any], response)
+    typed_response = cast(dict[str, Any], response)
     raw_values: object = typed_response.get("mapped" if mapped else "results", [])
 
     if not _is_any_list(raw_values):
         return {} if one else []
 
-    values: List[Any] = raw_values
+    values: list[Any] = raw_values
 
     if one:
         return values[0] if values else {}
@@ -913,7 +898,7 @@ def _score_response_data(response: Any, *, one: bool, mapped: bool = False) -> A
     return values
 
 
-def _get_v3(path_v3: str, *, params: Optional[Dict[str, Any]] = None) -> Any:
+def _get_v3(path_v3: str, *, params: dict[str, Any] | None = None) -> Any:
     adapter_request = _adapter_document_for_legacy(path_v3)
     if adapter_request is not None:
         adapter, resource = adapter_request
@@ -921,7 +906,7 @@ def _get_v3(path_v3: str, *, params: Optional[Dict[str, Any]] = None) -> Any:
         if not isinstance(raw_document, dict):
             return raw_document
 
-        document = cast(Dict[str, Any], raw_document)
+        document = cast(dict[str, Any], raw_document)
         return _legacy_adapter_projection(document, resource)
 
     if path_v3 == "/v3/adapters":
@@ -929,16 +914,16 @@ def _get_v3(path_v3: str, *, params: Optional[Dict[str, Any]] = None) -> Any:
         if not isinstance(raw_response, dict):
             return raw_response
 
-        response = cast(Dict[str, Any], raw_response)
+        response = cast(dict[str, Any], raw_response)
 
         raw_adapter_items: object = response.get("adapters", [])
-        adapter_items: List[Any] = raw_adapter_items if _is_any_list(raw_adapter_items) else []
+        adapter_items: list[Any] = raw_adapter_items if _is_any_list(raw_adapter_items) else []
 
-        adapter_names: List[str] = []
+        adapter_names: list[str] = []
 
         for raw_item in adapter_items:
             if isinstance(raw_item, dict):
-                item = cast(Dict[str, Any], raw_item)
+                item = cast(dict[str, Any], raw_item)
                 key = item.get("key")
                 if key is not None:
                     adapter_names.append(str(key))
@@ -955,16 +940,16 @@ def _get_v3(path_v3: str, *, params: Optional[Dict[str, Any]] = None) -> Any:
         if not isinstance(raw_response, dict):
             return raw_response
 
-        response = cast(Dict[str, Any], raw_response)
+        response = cast(dict[str, Any], raw_response)
 
         raw_dataset_items: object = response.get("datasets", [])
-        dataset_items: List[Any] = raw_dataset_items if _is_any_list(raw_dataset_items) else []
+        dataset_items: list[Any] = raw_dataset_items if _is_any_list(raw_dataset_items) else []
 
-        dataset_names: List[str] = []
+        dataset_names: list[str] = []
 
         for raw_item in dataset_items:
             if isinstance(raw_item, dict):
-                item = cast(Dict[str, Any], raw_item)
+                item = cast(dict[str, Any], raw_item)
                 dataset_path = item.get("path")
                 if dataset_path is not None:
                     dataset_names.append(str(dataset_path))
@@ -981,18 +966,18 @@ def _get_v3(path_v3: str, *, params: Optional[Dict[str, Any]] = None) -> Any:
         if not isinstance(raw_response, dict):
             return {"adapters": []}
 
-        response = cast(Dict[str, Any], raw_response)
+        response = cast(dict[str, Any], raw_response)
 
         raw_debug_items: object = response.get("adapters", [])
-        debug_items: List[Any] = raw_debug_items if _is_any_list(raw_debug_items) else []
+        debug_items: list[Any] = raw_debug_items if _is_any_list(raw_debug_items) else []
 
-        debug_adapter_names: List[str] = []
+        debug_adapter_names: list[str] = []
 
         for raw_item in debug_items:
             if not isinstance(raw_item, dict):
                 continue
 
-            item = cast(Dict[str, Any], raw_item)
+            item = cast(dict[str, Any], raw_item)
             key = item.get("key")
             if key is not None:
                 debug_adapter_names.append(str(key))
@@ -1002,7 +987,7 @@ def _get_v3(path_v3: str, *, params: Optional[Dict[str, Any]] = None) -> Any:
     return request_json("GET", _translate_v4_path(path_v3), params=params)
 
 
-def _post_v3(path_v3: str, payload: Any, *, params: Optional[Dict[str, Any]] = None) -> Any:
+def _post_v3(path_v3: str, payload: Any, *, params: dict[str, Any] | None = None) -> Any:
     if path_v3 == "/v3/adapters/sniff":
         return request_json("POST", "/v4/adapters/sniff", payload, params=params)
 
@@ -1037,7 +1022,7 @@ def _post_v3(path_v3: str, payload: Any, *, params: Optional[Dict[str, Any]] = N
     return request_json("POST", translated, payload, params=params)
 
 
-def _delete_v3(path_v3: str, *, params: Optional[Dict[str, Any]] = None) -> Any:
+def _delete_v3(path_v3: str, *, params: dict[str, Any] | None = None) -> Any:
     return request_json("DELETE", _translate_v4_path(path_v3), params=params)
 
 
@@ -1109,12 +1094,12 @@ def _print_mode_banner(*, reachable: bool, authed: bool, url: str, mode: Mode) -
 # ── dataset picker ────────────────────────────────────────────────────────────
 
 
-def api_list_datasets() -> List[Dict[str, str]]:
+def api_list_datasets() -> list[dict[str, str]]:
     """Read the packaged dataset catalog from GET /v4/datasets."""
     try:
         data = _get_v3("/v3/datasets")
         ds = data.get("datasets", [])
-        out: List[Dict[str, str]] = []
+        out: list[dict[str, str]] = []
 
         if isinstance(ds, list):
             for name in ds:  # pyright: ignore[reportUnknownVariableType]
@@ -1126,14 +1111,14 @@ def api_list_datasets() -> List[Dict[str, str]]:
         return []
 
 
-def local_list_datasets() -> List[Dict[str, str]]:
+def local_list_datasets() -> list[dict[str, str]]:
     """Return the canonical packaged datasets for offline CLI use."""
     root = dataset_root()
     return [{"name": name, "path": str(root / name)} for name in list_datasets()]
 
 
-def _pick_dataset_via_menu(title: str) -> Optional[str]:
-    candidates: List[Dict[str, str]] = []
+def _pick_dataset_via_menu(title: str) -> str | None:
+    candidates: list[dict[str, str]] = []
     if _mode != "local" and _online:
         candidates = api_list_datasets()
     if not candidates:
@@ -1163,15 +1148,15 @@ def _pick_dataset_via_menu(title: str) -> Optional[str]:
 
 # ── typing helpers ────────────────────────────────────────────────────────────
 
-Row = Dict[str, Any]
-Rows = List[Row]
+Row = dict[str, Any]
+Rows = list[Row]
 
 
 # ── YAML support (optional) ───────────────────────────────────────────────────
 
 
-yaml_mod: Optional[YamlLikeProtocol]
-_yaml_loader: Optional[Any]
+yaml_mod: YamlLikeProtocol | None
+_yaml_loader: Any | None
 try:
     import yaml as _yaml_import
 
@@ -1207,7 +1192,7 @@ def _read_rows(input_path: Path) -> Iterable[Row]:
     if suffix in {".yaml", ".yml"}:
         data_text = input_path.read_text(encoding="utf-8")
         data: Any = _yaml_load_text(data_text)
-        src: List[Mapping[str, Any]] = []
+        src: list[Mapping[str, Any]] = []
         from collections.abc import Mapping as AbcMapping
 
         if isinstance(data, AbcMapping):
@@ -1215,12 +1200,12 @@ def _read_rows(input_path: Path) -> Iterable[Row]:
             rows_val_obj: Any = data_map.get("rows")
             if not isinstance(rows_val_obj, list):
                 raise typer.BadParameter("YAML must be a list[dict] or {rows: list[dict]}.")
-            rows_val: List[object] = cast(List[object], rows_val_obj)
+            rows_val: list[object] = cast(list[object], rows_val_obj)
             for r_any in rows_val:
                 if isinstance(r_any, AbcMapping):
                     src.append(cast(Mapping[str, Any], r_any))
         elif isinstance(data, list):
-            data_list: List[object] = cast(List[object], data)
+            data_list: list[object] = cast(list[object], data)
             for r_any in data_list:
                 if isinstance(r_any, AbcMapping):
                     src.append(cast(Mapping[str, Any], r_any))
@@ -1238,7 +1223,7 @@ def _read_rows(input_path: Path) -> Iterable[Row]:
     raise typer.BadParameter("Input must be .yaml/.yml or .csv (JSON not supported).")
 
 
-def _name_for_row(raw: Mapping[str, Any], preferred: Optional[List[str]] = None) -> str:
+def _name_for_row(raw: Mapping[str, Any], preferred: list[str] | None = None) -> str:
     keys = preferred or [
         "display_name",
         "name",
@@ -1304,7 +1289,7 @@ def _profile_header(name: str) -> str:
     return str(name).strip()
 
 
-def _extract_profile_score(res: Mapping[str, Any], profile: str) -> Optional[int]:
+def _extract_profile_score(res: Mapping[str, Any], profile: str) -> int | None:
     p = str(profile).strip()
     if not p:
         return None
@@ -1344,13 +1329,13 @@ def _extract_profile_score(res: Mapping[str, Any], profile: str) -> Optional[int
     return None
 
 
-def _detect_profiles_from_results(results: List[Mapping[str, Any]]) -> List[str]:
-    found: List[str] = ["PRI"]
+def _detect_profiles_from_results(results: list[Mapping[str, Any]]) -> list[str]:
+    found: list[str] = ["PRI"]
 
     for r in results:
         scores = r.get("scores")
         if isinstance(scores, Mapping):
-            keys = [str(k).strip() for k in scores.keys() if str(k).strip()]  # pyright: ignore[reportUnknownVariableType, reportUnknownArgumentType]
+            keys = [str(k).strip() for k in scores if str(k).strip()]  # pyright: ignore[reportUnknownVariableType, reportUnknownArgumentType]
             for k in keys:
                 if k.upper() == "PRI":
                     continue
@@ -1360,14 +1345,13 @@ def _detect_profiles_from_results(results: List[Mapping[str, Any]]) -> List[str]
 
     for p in ("PRI-AF", "PRI-AR", "PRI-AP"):
         slug = _slug_profile_key(p)
-        if any(slug in r for r in results):
-            if p not in found:
-                found.append(p)
+        if any(slug in r for r in results) and p not in found:
+            found.append(p)
 
     return found
 
 
-def _midrank_percentiles(values: List[float]) -> List[float]:
+def _midrank_percentiles(values: list[float]) -> list[float]:
     n = len(values)
     if n == 0:
         return []
@@ -1393,8 +1377,8 @@ def _midrank_percentiles(values: List[float]) -> List[float]:
     return out
 
 
-def _split_csvish(items: List[str]) -> List[str]:
-    out: List[str] = []
+def _split_csvish(items: list[str]) -> list[str]:
+    out: list[str] = []
     for it in items:
         s = str(it).strip()
         if not s:
@@ -1427,13 +1411,13 @@ def _format_cell(key: str, v: Any) -> str:
     return str(v)
 
 
-def render_table(rows: List[Dict[str, Any]], cols: List[str]) -> str:
-    widths: Dict[str, int] = {c: max(len(c), *(len(str(r.get(c, ""))) for r in rows)) for c in cols}
+def render_table(rows: list[dict[str, Any]], cols: list[str]) -> str:
+    widths: dict[str, int] = {c: max(len(c), *(len(str(r.get(c, ""))) for r in rows)) for c in cols}
 
-    def fmt_row(r: Dict[str, Any]) -> str:
+    def fmt_row(r: dict[str, Any]) -> str:
         return "  ".join(str(r.get(c, "")).ljust(widths[c]) for c in cols)
 
-    out: List[str] = []
+    out: list[str] = []
     out.append("  ".join(c.ljust(widths[c]) for c in cols))
     out.append("  ".join("-" * widths[c] for c in cols))
 
@@ -1443,7 +1427,7 @@ def render_table(rows: List[Dict[str, Any]], cols: List[str]) -> str:
     return "\n".join(out)
 
 
-def _render_audit_pages(rows: List[Dict[str, Any]], *, per_page: int = 50) -> str:
+def _render_audit_pages(rows: list[dict[str, Any]], *, per_page: int = 50) -> str:
     # Normalize & collapse
     rows = _collapse_audit_rows(rows)
 
@@ -1453,7 +1437,7 @@ def _render_audit_pages(rows: List[Dict[str, Any]], *, per_page: int = 50) -> st
     # Stable ordering: org, subject, device, newest first in each group
     ordered_keys = sorted(groups.keys(), key=lambda k: (str(k[0]), str(k[1]), str(k[2])))  # pyright: ignore[reportUnknownLambdaType, reportUnknownArgumentType, reportUnknownVariableType]
 
-    parts: List[str] = []
+    parts: list[str] = []
     cols = [
         "ts",
         "event",
@@ -1486,12 +1470,12 @@ def _render_audit_pages(rows: List[Dict[str, Any]], *, per_page: int = 50) -> st
     return "\n".join(parts).rstrip() + "\n"
 
 
-def _render_table(rows: Rows, cols: List[Tuple[str, str]], limit: int = 0) -> str:
+def _render_table(rows: Rows, cols: list[tuple[str, str]], limit: int = 0) -> str:
     """Render command tables through the shared rounded Rich renderer."""
     return render_table_text(rows, cols, limit=limit).rstrip("\n")
 
 
-def _render_md(rows: Rows, cols: List[Tuple[str, str]], limit: int = 0) -> str:
+def _render_md(rows: Rows, cols: list[tuple[str, str]], limit: int = 0) -> str:
     view = rows[: (limit or len(rows))]
     headers = [hdr for hdr, _ in cols]
     lines = [
@@ -1512,7 +1496,7 @@ def _render_md(rows: Rows, cols: List[Tuple[str, str]], limit: int = 0) -> str:
         + "|",
     ]
     for i, r in enumerate(view, 1):
-        parts: List[str] = []
+        parts: list[str] = []
         for hdr, key in cols:  # pyright: ignore[reportUnusedVariable]
             if key == "__rank__":
                 parts.append(str(i))
@@ -1526,7 +1510,7 @@ def _render_md(rows: Rows, cols: List[Tuple[str, str]], limit: int = 0) -> str:
 # ── Filters/dimensions (adapter-defined; best-effort introspection) ───────────
 
 
-def _as_str_list(x: Any) -> List[str]:
+def _as_str_list(x: Any) -> list[str]:
     if x is None:
         return []
     if isinstance(x, list):
@@ -1536,7 +1520,7 @@ def _as_str_list(x: Any) -> List[str]:
     return []
 
 
-def api_adapter_traits(adapter: str) -> Dict[str, Any]:
+def api_adapter_traits(adapter: str) -> dict[str, Any]:
     """
     Best-effort adapter-defined knobs.
     The server may or may not expose these; we probe multiple shapes.
@@ -1547,7 +1531,7 @@ def api_adapter_traits(adapter: str) -> Dict[str, Any]:
     if not _online or _mode == "local":
         try:
             adp = load_adapter(adapter)
-            out: Dict[str, Any] = {}
+            out: dict[str, Any] = {}
             for k in ("filters", "dimensions", "dims", "traits"):
                 v = getattr(adp, k, None)
                 if v:
@@ -1556,11 +1540,11 @@ def api_adapter_traits(adapter: str) -> Dict[str, Any]:
         except Exception:
             return {}
 
-    def _try_get(path: str) -> Optional[Dict[str, Any]]:
+    def _try_get(path: str) -> dict[str, Any] | None:
         try:
             d = _get_v3(path)
             if isinstance(d, dict):
-                return cast(Dict[str, Any], d)
+                return cast(dict[str, Any], d)
         except Exception:
             return None
         return None
@@ -1578,25 +1562,25 @@ def api_adapter_traits(adapter: str) -> Dict[str, Any]:
     return {}
 
 
-def _coerce_filter_keys(traits: Dict[str, Any]) -> List[str]:
+def _coerce_filter_keys(traits: dict[str, Any]) -> list[str]:
     # Accept several shapes
     for k in ("filter_keys", "filters", "keys"):
         v = traits.get(k)
         if isinstance(v, dict):
-            return [str(x).strip() for x in v.keys() if str(x).strip()]  # pyright: ignore[reportUnknownVariableType, reportUnknownArgumentType]
+            return [str(x).strip() for x in v if str(x).strip()]  # pyright: ignore[reportUnknownVariableType, reportUnknownArgumentType]
         if isinstance(v, list):
             return [str(x).strip() for x in v if str(x).strip()]  # pyright: ignore[reportUnknownVariableType, reportUnknownArgumentType]
     return []
 
 
-def _parse_kv_items(items: List[str]) -> Dict[str, Any]:
+def _parse_kv_items(items: list[str]) -> dict[str, Any]:
     """
     Parse:
       --filter key=value
       --filter key=a,b,c
     into dict.
     """
-    out: Dict[str, Any] = {}
+    out: dict[str, Any] = {}
     for raw in items:
         s = str(raw).strip()
         if not s:
@@ -1627,7 +1611,7 @@ def _parse_kv_items(items: List[str]) -> Dict[str, Any]:
     return out
 
 
-def _to_float_or_none(v: Any) -> Optional[float]:
+def _to_float_or_none(v: Any) -> float | None:
     if v is None or isinstance(v, bool):
         return None
     try:
@@ -1639,7 +1623,7 @@ def _to_float_or_none(v: Any) -> Optional[float]:
         return None
 
 
-def _passes_display_filters(src: Mapping[str, Any], filters: Dict[str, Any]) -> bool:
+def _passes_display_filters(src: Mapping[str, Any], filters: dict[str, Any]) -> bool:
     """
     CLI display/export filters.
 
@@ -1684,14 +1668,14 @@ def _passes_display_filters(src: Mapping[str, Any], filters: Dict[str, Any]) -> 
 # ── API facades (v3-only remote, local fallback) ─────────────────────────────────
 
 
-def api_adapter_metric_keys(adapter: str) -> List[str]:
+def api_adapter_metric_keys(adapter: str) -> list[str]:
     if not _online or _mode == "local":
         try:
             adp = load_adapter(adapter)
             metrics = getattr(adp, "metrics", None)
 
             seen: set[str] = set()
-            out: List[str] = []
+            out: list[str] = []
 
             if isinstance(metrics, (list, tuple)):
                 for m in metrics:  # pyright: ignore[reportUnknownVariableType]
@@ -1720,13 +1704,13 @@ def api_adapter_metric_keys(adapter: str) -> List[str]:
         return []
 
 
-def api_adapter_weight_presets(adapter: str) -> List[str]:
+def api_adapter_weight_presets(adapter: str) -> list[str]:
     if not _online or _mode == "local":
         try:
             adp = load_adapter(adapter)
             w = getattr(adp, "weights", None)
             if isinstance(w, dict):
-                return sorted(str(k) for k in w.keys())  # pyright: ignore[reportUnknownVariableType, reportUnknownArgumentType]
+                return sorted(str(k) for k in w)  # pyright: ignore[reportUnknownVariableType, reportUnknownArgumentType]
         except Exception as e:
             _log_note(BUG_NOTES, f"[api_adapter_weight_presets local] {adapter}: {e!r}")
             return []
@@ -1735,16 +1719,16 @@ def api_adapter_weight_presets(adapter: str) -> List[str]:
         data = _get_v3(f"/v3/adapter/{adapter}/weights")
         w = data.get("weights") or {}  # pyright: ignore[reportUnknownVariableType]
         if isinstance(w, dict):
-            return sorted([str(k) for k in w.keys()])  # pyright: ignore[reportUnknownVariableType, reportUnknownArgumentType]
+            return sorted([str(k) for k in w])  # pyright: ignore[reportUnknownVariableType, reportUnknownArgumentType]
     except Exception:
-        pass
+        return []
     return []
 
 
 def _resolve_local_weights(
     adp: Any,
-    w: Optional[Union[Dict[str, Any], str]],
-) -> Optional[Dict[str, float]]:
+    w: dict[str, Any] | str | None,
+) -> dict[str, float] | None:
     if w is None:
         return None
 
@@ -1761,11 +1745,11 @@ def _resolve_local_weights(
 def _local_fallback_score_batch(
     adapter: str,
     rows: Rows,
-    weights_override: Optional[Union[Dict[str, Any], str]],
-    context: Optional[Dict[str, Dict[str, float]]],
-    caps_override: Optional[Dict[str, float]],
-    filters: Optional[Dict[str, Any]],
-    timing: Optional[StageTimes] = None,
+    weights_override: dict[str, Any] | str | None,
+    context: dict[str, dict[str, float]] | None,
+    caps_override: dict[str, float] | None,
+    filters: dict[str, Any] | None,
+    timing: StageTimes | None = None,
 ) -> Rows:
     # Local core scoring currently doesn't take "filters" at the CLI layer;
     # we pass through if calculator supports it via kwargs (best-effort).
@@ -1799,11 +1783,11 @@ def _local_fallback_score_batch(
 def _local_fallback_score_row(
     adapter: str,
     row: Row,
-    weights_override: Optional[Union[Dict[str, Any], str]],
-    context: Optional[Dict[str, Dict[str, float]]],
-    caps_override: Optional[Dict[str, float]],
-    filters: Optional[Dict[str, Any]],
-    timing: Optional[StageTimes] = None,
+    weights_override: dict[str, Any] | str | None,
+    context: dict[str, dict[str, float]] | None,
+    caps_override: dict[str, float] | None,
+    filters: dict[str, Any] | None,
+    timing: StageTimes | None = None,
 ) -> Row:
     res = _local_fallback_score_batch(
         adapter, [row], weights_override, context, caps_override, filters, timing
@@ -1811,7 +1795,7 @@ def _local_fallback_score_row(
     return res[0] if res else {"pri": 99, "pri_raw": 1.0, "context_used": "local-fallback"}
 
 
-def api_list_adapters() -> List[str]:
+def api_list_adapters() -> list[str]:
     if not _online or _mode == "local":
         return _local_adapter_names()
 
@@ -1845,11 +1829,11 @@ def api_list_adapters() -> List[str]:
 def api_score_batch(
     adapter: str,
     rows: Rows,
-    weights_override: Optional[Union[Dict[str, Any], str]],
-    context: Optional[Dict[str, Dict[str, float]]],
-    caps_override: Optional[Dict[str, float]],
-    filters: Optional[Dict[str, Any]],
-    timing: Optional[StageTimes] = None,
+    weights_override: dict[str, Any] | str | None,
+    context: dict[str, dict[str, float]] | None,
+    caps_override: dict[str, float] | None,
+    filters: dict[str, Any] | None,
+    timing: StageTimes | None = None,
 ) -> Rows:
     if not _online or _mode == "local":
         return _local_fallback_score_batch(
@@ -1893,10 +1877,10 @@ def api_score_batch(
 def api_score_row(
     adapter: str,
     row: Row,
-    weights_override: Optional[Union[Dict[str, Any], str]],
-    context: Optional[Dict[str, Dict[str, float]]],
-    caps_override: Optional[Dict[str, float]],
-    filters: Optional[Dict[str, Any]],
+    weights_override: dict[str, Any] | str | None,
+    context: dict[str, dict[str, float]] | None,
+    caps_override: dict[str, float] | None,
+    filters: dict[str, Any] | None,
 ) -> Row:
     if not _online or _mode == "local":
         return _local_fallback_score_row(
@@ -1937,8 +1921,8 @@ def api_score_row(
 def api_calc_pri_single(
     adapter: str,
     row: Row,
-    weights_override: Optional[Union[Dict[str, Any], str]],
-    filters: Optional[Dict[str, Any]],
+    weights_override: dict[str, Any] | str | None,
+    filters: dict[str, Any] | None,
 ) -> Row:
     if not _online or _mode == "local":
         return _local_fallback_score_row(adapter, row, weights_override, None, None, filters)
@@ -1976,8 +1960,8 @@ def api_calc_pri_single(
 def api_pri_row(
     adapter: str,
     row: Row,
-    weights_override: Optional[Union[Dict[str, Any], str]],
-    filters: Optional[Dict[str, Any]],
+    weights_override: dict[str, Any] | str | None,
+    filters: dict[str, Any] | None,
 ) -> Row:
     """
     Score one raw row through the unified server-side v4 pipeline.
@@ -2011,11 +1995,11 @@ def api_pri_row(
 def api_pri_batch(
     adapter: str,
     rows: Rows,
-    weights_override: Optional[Union[Dict[str, Any], str]],
-    filters: Optional[Dict[str, Any]],
+    weights_override: dict[str, Any] | str | None,
+    filters: dict[str, Any] | None,
     *,
     caps_mode: str = "batch",
-    timing: Optional[StageTimes] = None,
+    timing: StageTimes | None = None,
 ) -> Rows:
     """
     Score raw rows through POST /v4/score with shared or per-row caps.
@@ -2083,7 +2067,7 @@ def api_pri_batch(
 # ── root options & helpers ────────────────────────────────────────────────────
 
 
-def _resolve_timing(ctx: typer.Context, local: Optional[bool]) -> bool:
+def _resolve_timing(ctx: typer.Context, local: bool | None) -> bool:
     if local is not None:
         return local
     try:
@@ -2091,11 +2075,11 @@ def _resolve_timing(ctx: typer.Context, local: Optional[bool]) -> bool:
         if root.obj and "timing" in root.obj:
             return bool(root.obj["timing"])
     except Exception:
-        pass
+        return STATLINE_DEBUG_TIMING
     return STATLINE_DEBUG_TIMING
 
 
-def _emit_timing(times: Optional[StageTimes]) -> None:
+def _emit_timing(times: StageTimes | None) -> None:
     """Write timing to stderr so JSON, JSONL, and CSV stdout remain valid."""
     if times is not None and times.items:
         typer.echo("\n" + render_timing(times), err=True, nl=False)
@@ -2158,7 +2142,7 @@ def _root(
     command_started = time.perf_counter()
 
     def emit_command_total() -> None:
-        root_obj = cast(Dict[str, Any], root.obj or {})
+        root_obj = cast(dict[str, Any], root.obj or {})
         if (
             not timing
             or bool(root_obj.get("timing_emitted"))
@@ -2304,10 +2288,10 @@ def auth_device_init(
 
 @auth_app.command("enroll")
 def auth_enroll(
-    reg_token: Optional[str] = typer.Option(None, "--token", help="Registration token (reg_...)."),
-    token_file: Optional[Path] = typer.Option(None, "--file", help="File containing a reg_ token."),
+    reg_token: str | None = typer.Option(None, "--token", help="Registration token (reg_...)."),
+    token_file: Path | None = typer.Option(None, "--file", help="File containing a reg_ token."),
     user: str = typer.Option(..., "--user", help="User handle for this principal (e.g., conner)."),
-    email: Optional[str] = typer.Option(None, "--email", help="Email for the principal."),
+    email: str | None = typer.Option(None, "--email", help="Email for the principal."),
 ) -> None:
     """Enroll this device using a server-minted reg token (creates PENDING enrollment request)."""
     ensure_banner()
@@ -2332,7 +2316,7 @@ def auth_enroll(
         "cli_version": f"{CLI_NAME}/{CLI_VERSION}",
     }
 
-    payload: Dict[str, Any] = {
+    payload: dict[str, Any] = {
         "reg_token": reg_token,
         "user": user,
         "device_pub_b64": device_pub_b64,
@@ -2367,11 +2351,11 @@ def auth_device_info() -> None:
 
 @auth_app.command("apikey-request")
 def auth_apikey_request(
-    owner: Optional[str] = typer.Option(
+    owner: str | None = typer.Option(
         None, "--owner", help="Optional owner label (defaults to host)."
     ),
-    scopes: List[str] = typer.Option([], "--scope", help="Scope (repeatable)."),
-    ttl_days: Optional[int] = typer.Option(None, "--ttl-days", help="Requested TTL in days."),
+    scopes: list[str] = typer.Option([], "--scope", help="Scope (repeatable)."),
+    ttl_days: int | None = typer.Option(None, "--ttl-days", help="Requested TTL in days."),
 ) -> None:
     """Create an API key request (requires enrolled ACTIVE device; device-proof only)."""
     ensure_banner()
@@ -2384,7 +2368,7 @@ def auth_apikey_request(
             "Device not enrolled. Run: statline auth device-init  (then)  statline auth enroll ..."
         )
 
-    payload: Dict[str, Any] = {
+    payload: dict[str, Any] = {
         "owner": owner or platform.node(),
         "scopes": scopes or None,
         "ttl_days": ttl_days,
@@ -2456,13 +2440,13 @@ def auth_apikeys() -> None:
 @mod_app.command("audit")
 def mod_audit(
     limit: int = typer.Option(200, "--limit"),
-    event: Optional[str] = typer.Option(None, "--event"),
-    org: Optional[str] = typer.Option(None, "--org"),
+    event: str | None = typer.Option(None, "--event"),
+    org: str | None = typer.Option(None, "--org"),
 ) -> None:
     ensure_banner()
     if _mode == "local":
         raise typer.BadParameter("Moderation requires SLAPI. Re-run with --mode remote.")
-    params: Dict[str, Any] = {"limit": limit}
+    params: dict[str, Any] = {"limit": limit}
     if event:
         params["event"] = event
     if org:
@@ -2472,7 +2456,7 @@ def mod_audit(
 
 
 @mod_app.command("apikeys")
-def mod_apikeys(org: Optional[str] = typer.Option(None, "--org")) -> None:
+def mod_apikeys(org: str | None = typer.Option(None, "--org")) -> None:
     ensure_banner()
     if _mode == "local":
         raise typer.BadParameter("Moderation requires SLAPI. Re-run with --mode remote.")
@@ -2527,15 +2511,15 @@ def mod_revoke_device(
 @admin_app.command("mint-regtoken")
 def admin_mint_regtoken(
     org: str = typer.Option("statline", "--org"),
-    scopes: List[str] = typer.Option([], "--scope", help="Scope (repeatable)."),
-    ttl_days: Optional[int] = typer.Option(14, "--ttl-days"),
+    scopes: list[str] = typer.Option([], "--scope", help="Scope (repeatable)."),
+    ttl_days: int | None = typer.Option(14, "--ttl-days"),
     save: bool = typer.Option(True, "--save/--no-save", help="Write token file into secrets/keys."),
 ) -> None:
     """Mint a registration token used for device enrollment."""
     ensure_banner()
     if _mode == "local":
         raise typer.BadParameter("Admin requires SLAPI. Re-run with --mode remote.")
-    params: Dict[str, Any] = {"org": org, "ttl_days": ttl_days, "scopes": scopes or None}
+    params: dict[str, Any] = {"org": org, "ttl_days": ttl_days, "scopes": scopes or None}
     data = _post_v3("/v3/admin/mint-regtoken", None, params=params)
     tok = str(data.get("token") or data.get("reg_token") or "").strip()
     if not tok.startswith("reg_"):
@@ -2603,12 +2587,12 @@ def admin_deny_enrollment_cmd(
 @admin_app.command("apikey-requests")
 def admin_apikey_requests_cmd(
     status: str = typer.Option("PENDING", "--status"),
-    org: Optional[str] = typer.Option(None, "--org"),
+    org: str | None = typer.Option(None, "--org"),
 ) -> None:
     ensure_banner()
     if _mode == "local":
         raise typer.BadParameter("Admin requires SLAPI. Re-run with --mode remote.")
-    params: Dict[str, Any] = {"status": status}
+    params: dict[str, Any] = {"status": status}
     if org:
         params["org"] = org
     data = _get_v3("/v3/admin/apikey-requests", params=params)
@@ -2620,14 +2604,14 @@ def admin_approve_apikey_request_cmd(
     request_id: str = typer.Argument(...),
     decided_by: str = typer.Option("admin", "--by"),
     note: str = typer.Option("", "--note"),
-    scopes: List[str] = typer.Option(
+    scopes: list[str] = typer.Option(
         [], "--scope", help="Optional scope narrowing at approval (repeatable)."
     ),
 ) -> None:
     ensure_banner()
     if _mode == "local":
         raise typer.BadParameter("Admin requires SLAPI. Re-run with --mode remote.")
-    payload: Dict[str, Any] = {"decided_by": decided_by, "note": note}
+    payload: dict[str, Any] = {"decided_by": decided_by, "note": note}
     if scopes:
         payload["scopes"] = scopes
     data = _post_v3(f"/v3/admin/apikey-requests/{request_id}/approve", payload)
@@ -2652,7 +2636,7 @@ def admin_interactive() -> None:
     if not _reachable:
         raise typer.BadParameter(f"SLAPI not reachable at {_slapi_url}.")
 
-    def menu(title: str, options: List[str], default_idx: int = 0) -> str:
+    def menu(title: str, options: list[str], default_idx: int = 0) -> str:
         typer.secho("\n" + title, fg=typer.colors.MAGENTA, bold=True)
         for i, opt in enumerate(options, 1):
             typer.echo(f"  {i}. {opt}")
@@ -2721,7 +2705,7 @@ def admin_interactive() -> None:
                 typer.prompt("scopes (comma sep) [blank=userbase]", default="")
             ).strip()
             scopes2 = [s.strip() for s in scopes_raw.split(",") if s.strip()] if scopes_raw else []
-            params: Dict[str, Any] = {"org": org, "ttl_days": ttl, "scopes": scopes2 or None}
+            params: dict[str, Any] = {"org": org, "ttl_days": ttl, "scopes": scopes2 or None}
             data = try_call(_post_v3, "/v3/admin/mint-regtoken", None, params=params)
             if data is not None:
                 typer.secho("Minted:", fg=typer.colors.GREEN, bold=True)
@@ -2770,8 +2754,8 @@ def admin_interactive() -> None:
         if top == "API key requests: list + approve/deny":
             status = str(typer.prompt("status", default="PENDING")).strip() or "PENDING"
             requests_org_raw = str(typer.prompt("org (blank=all)", default="")).strip()
-            requests_org_filter: Optional[str] = requests_org_raw or None
-            params3: Dict[str, Any] = {"status": status}
+            requests_org_filter: str | None = requests_org_raw or None
+            params3: dict[str, Any] = {"status": status}
             if requests_org_filter:
                 params3["org"] = requests_org_filter
             data = try_call(_get_v3, "/v3/admin/apikey-requests", params=params3)
@@ -2796,12 +2780,12 @@ def admin_interactive() -> None:
                 scopes4 = (
                     [s.strip() for s in scopes_raw.split(",") if s.strip()] if scopes_raw else None
                 )
-                payload: Dict[str, Any] = {"decided_by": decided_by, "note": note}
+                payload: dict[str, Any] = {"decided_by": decided_by, "note": note}
                 if scopes4 is not None:
                     payload["scopes"] = scopes4
                 res = try_call(_post_v3, f"/v3/admin/apikey-requests/{rid}/approve", payload)
             else:
-                payload2: Dict[str, Any] = {"decided_by": decided_by, "note": note}
+                payload2: dict[str, Any] = {"decided_by": decided_by, "note": note}
                 res = try_call(_post_v3, f"/v3/admin/apikey-requests/{rid}/deny", payload2)
             if res is not None:
                 show(res)
@@ -2809,7 +2793,7 @@ def admin_interactive() -> None:
 
         if top == "Moderation (best-effort): list apikeys":
             apikeys_org_raw = str(typer.prompt("org (blank=all)", default="")).strip()
-            apikeys_org_filter: Optional[str] = apikeys_org_raw or None
+            apikeys_org_filter: str | None = apikeys_org_raw or None
 
             data = try_call(
                 _get_v3,
@@ -2824,9 +2808,9 @@ def admin_interactive() -> None:
             limit = int(str(typer.prompt("limit", default="200")).strip() or "200")
             event = str(typer.prompt("event (blank=all)", default="")).strip() or None
             audit_org_raw = str(typer.prompt("org (blank=all)", default="")).strip()
-            audit_org_filter: Optional[str] = audit_org_raw or None
+            audit_org_filter: str | None = audit_org_raw or None
 
-            params2: Dict[str, Any] = {"limit": limit}
+            params2: dict[str, Any] = {"limit": limit}
             if event:
                 params2["event"] = event
             if audit_org_filter:
@@ -2854,7 +2838,7 @@ def admin_deny_apikey_request_cmd(
 
 
 @admin_app.command("apikeys")
-def admin_apikeys_cmd(org: Optional[str] = typer.Option(None, "--org")) -> None:
+def admin_apikeys_cmd(org: str | None = typer.Option(None, "--org")) -> None:
     ensure_banner()
     if _mode == "local":
         raise typer.BadParameter("Admin requires SLAPI. Re-run with --mode remote.")
@@ -2881,7 +2865,7 @@ def adapters_list() -> None:
 @app.command("interactive")
 def interactive(
     ctx: typer.Context,
-    timing: Optional[bool] = typer.Option(
+    timing: bool | None = typer.Option(
         None,
         "--timing/--no-timing",
         help="Show per-row timing inside interactive mode (inherits root default).",
@@ -2892,7 +2876,7 @@ def interactive(
     _ = _resolve_timing(ctx, timing) or STATLINE_DEBUG_TIMING
 
     # ── “OS-like” shell ───────────────────────────────────────────────────────
-    def menu_select(title: str, options: List[str], default_index: int = 0) -> str:
+    def menu_select(title: str, options: list[str], default_index: int = 0) -> str:
         if not options:
             raise typer.BadParameter(f"No options for {title}")
         typer.secho(title, fg=typer.colors.MAGENTA, bold=True)
@@ -2909,7 +2893,7 @@ def interactive(
                 return raw
             typer.secho("  Invalid selection.", fg=typer.colors.RED)
 
-    def prompt_filters(adapter_key: str) -> Optional[Dict[str, Any]]:
+    def prompt_filters(adapter_key: str) -> dict[str, Any] | None:
         traits = api_adapter_traits(adapter_key)
         keys = _coerce_filter_keys(traits)
         # Adapter-only: if adapter doesn't declare filters, don't offer them.
@@ -2919,18 +2903,18 @@ def interactive(
         typer.secho(
             "\nAdapter filters/dimensions (adapter-defined):", fg=typer.colors.BLUE, bold=True
         )
-        out: Dict[str, Any] = {}
+        out: dict[str, Any] = {}
         for k in keys:
             # If adapter exposes options (dict shape), show a menu; else prompt raw.
-            options: List[str] = []
+            options: list[str] = []
             if isinstance(traits.get("filters"), dict) and k in cast(
-                Dict[str, Any], traits["filters"]
+                dict[str, Any], traits["filters"]
             ):
-                options = _as_str_list(cast(Dict[str, Any], traits["filters"]).get(k))
+                options = _as_str_list(cast(dict[str, Any], traits["filters"]).get(k))
             elif isinstance(traits.get("dimensions"), dict) and k in cast(
-                Dict[str, Any], traits["dimensions"]
+                dict[str, Any], traits["dimensions"]
             ):
-                options = _as_str_list(cast(Dict[str, Any], traits["dimensions"]).get(k))
+                options = _as_str_list(cast(dict[str, Any], traits["dimensions"]).get(k))
 
             if options:
                 chosen = menu_select(f"{k}:", ["(skip)"] + options, 0)
@@ -2952,7 +2936,7 @@ def interactive(
     adapter_key = menu_select("Adapters:", names, 0)
 
     presets = api_adapter_weight_presets(adapter_key)
-    weights_override: Optional[Union[Dict[str, float], str]] = None
+    weights_override: dict[str, float] | str | None = None
     if presets:
         chosen = menu_select("Weight presets:", presets, 0)
         weights_override = chosen
@@ -2989,7 +2973,7 @@ def interactive(
             raise typer.Exit(1)
 
         results = api_score_batch(adapter_key, raw_rows, weights_override, None, None, filters)
-        prof_list = _detect_profiles_from_results(cast(List[Mapping[str, Any]], results))
+        prof_list = _detect_profiles_from_results(cast(list[Mapping[str, Any]], results))
 
         rows_out: Rows = []
         for i in range(len(raw_rows)):
@@ -3014,7 +2998,7 @@ def interactive(
         for r in rows_out:
             r.pop("_i", None)
 
-        profile_cols: List[Tuple[str, str]] = []
+        profile_cols: list[tuple[str, str]] = []
         for p in prof_list:
             if str(p).strip().upper() == "PRI":
                 continue
@@ -3034,7 +3018,7 @@ def interactive(
         return
 
     # single
-    raw_row: Dict[str, Any] = {}
+    raw_row: dict[str, Any] = {}
     player_name = str(typer.prompt("Player name (for display)", default="")).strip()
     if player_name:
         raw_row["display_name"] = player_name
@@ -3126,34 +3110,32 @@ def launch() -> None:
         typer_app=app,
         config=LauncherConfig(title="StatLine UX"),
     )
-    run_shell = cast(Callable[[], object], getattr(shell, "run"))
+    run_shell = cast(Callable[[], object], shell.run)
     run_shell()
 
 
 @app.command("score")
 def score(
     ctx: typer.Context,
-    adapter: Optional[str] = typer.Option(
+    adapter: str | None = typer.Option(
         None,
         "--adapter",
         "-a",
         help=("Adapter ID or alias. Omit to select the adapter from the supplied dataset."),
     ),
-    input_path: Optional[Path] = typer.Argument(
+    input_path: Path | None = typer.Argument(
         None,
         help=("CSV dataset. Omit when the selected adapter declares metadata.dataset."),
     ),
-    weights: Optional[Path] = typer.Option(
-        None, "--weights", help="YAML mapping of {bucket: weight}"
-    ),
-    weights_preset: Optional[str] = typer.Option(
+    weights: Path | None = typer.Option(None, "--weights", help="YAML mapping of {bucket: weight}"),
+    weights_preset: str | None = typer.Option(
         None, "--weights-preset", help="Preset name you want to send"
     ),
-    out: Optional[Path] = typer.Option(None, "--out", help="Write results (format via --fmt)"),
+    out: Path | None = typer.Option(None, "--out", help="Write results (format via --fmt)"),
     include_headers: bool = typer.Option(
         True, "--headers/--no-headers", help="Include header row for CSV output"
     ),
-    timing: Optional[bool] = typer.Option(
+    timing: bool | None = typer.Option(
         None, "--timing/--no-timing", help="(Client flag only) — server may ignore."
     ),
     caps: str = typer.Option(
@@ -3169,11 +3151,11 @@ def score(
         help="Output format: csv|table|md|json|jsonl",
         case_sensitive=False,
     ),
-    name_col: List[str] = typer.Option(
+    name_col: list[str] = typer.Option(
         [], "--name-col", help="Preferred name column(s); first non-empty wins."
     ),
     limit: int = typer.Option(0, "--limit", min=0, help="Limit rows shown (0=all)"),
-    profiles: List[str] = typer.Option(
+    profiles: list[str] = typer.Option(
         [],
         "--profile",
         "--profiles",
@@ -3198,7 +3180,7 @@ def score(
     pretty: bool = typer.Option(
         False, "--pretty/--no-pretty", help="For json output: pretty-print JSON."
     ),
-    filters: List[str] = typer.Option(
+    filters: list[str] = typer.Option(
         [],
         "--filter",
         "--filters",
@@ -3227,7 +3209,7 @@ def score(
     with stage_times.stage("read_dataset") if stage_times else contextlib.nullcontext():
         raw_rows: Rows = list(_read_rows(resolved_input))
 
-    weights_override: Optional[Union[Dict[str, float], str]] = None
+    weights_override: dict[str, float] | str | None = None
     if weights and weights_preset:
         raise typer.BadParameter("Specify either --weights or --weights-preset, not both.")
     if weights:
@@ -3243,14 +3225,14 @@ def score(
     # for CLI flags we keep them (power-user), but if we can detect declared keys, validate.
     declared_keys = _coerce_filter_keys(api_adapter_traits(adapter_id))
     if declared_keys and filters_dict:
-        unknown = sorted([k for k in filters_dict.keys() if k not in set(declared_keys)])
+        unknown = sorted(k for k in filters_dict if k not in set(declared_keys))
         if unknown:
             typer.secho(
                 f"Warning: adapter '{adapter_id}' did not declare filter(s): {', '.join(unknown)} (sending anyway).",
                 fg=typer.colors.YELLOW,
             )
 
-    score_filters: Optional[Dict[str, Any]] = None
+    score_filters: dict[str, Any] | None = None
 
     if caps_mode == "clamps":
         results = api_pri_batch(
@@ -3276,7 +3258,7 @@ def score(
     prof_norm = [p for p in prof_in if p.strip()]
     want_all = any(p.strip().lower() == "all" for p in prof_norm)
 
-    detected = _detect_profiles_from_results(cast(List[Mapping[str, Any]], results))
+    detected = _detect_profiles_from_results(cast(list[Mapping[str, Any]], results))
     if want_all:
         prof_list = detected
     else:
@@ -3351,7 +3333,7 @@ def score(
 
     view = rows_out[: (limit or len(rows_out))]
 
-    profile_cols: List[Tuple[str, str]] = []
+    profile_cols: list[tuple[str, str]] = []
     for p in prof_list:
         if str(p).strip().upper() == "PRI":
             continue
@@ -3359,7 +3341,7 @@ def score(
         key = _slug_profile_key(p)
         profile_cols.append((hdr, key))
 
-    cols_table: List[Tuple[str, str]] = [
+    cols_table: list[tuple[str, str]] = [
         ("Rank", "__rank__"),
         ("Name", "name"),
         ("PRI", "pri"),
@@ -3370,7 +3352,7 @@ def score(
         cols_table.append(("Pct", "percentile"))
     cols_table.append(("Context", "context_used"))
 
-    out_fields: List[str] = ["name", "pri"]
+    out_fields: list[str] = ["name", "pri"]
     for p in prof_list:
         if str(p).strip().upper() == "PRI":
             continue
@@ -3492,7 +3474,7 @@ def _print_payload(data: Any, *, fmt: str = "json", pretty: bool = True) -> None
         echo_clean_auto(data)
 
 
-def _read_jsonish_arg(value: Optional[str], *, default: Any = None, name: str = "value") -> Any:
+def _read_jsonish_arg(value: str | None, *, default: Any = None, name: str = "value") -> Any:
     if value is None or value == "":
         return default
     s = value.strip()
@@ -3505,7 +3487,7 @@ def _read_jsonish_arg(value: Optional[str], *, default: Any = None, name: str = 
             raise typer.BadParameter(f"Could not parse {name} as JSON/YAML: {e}") from e
 
 
-def _read_jsonish_file(path: Optional[Path], *, default: Any = None, name: str = "file") -> Any:
+def _read_jsonish_file(path: Path | None, *, default: Any = None, name: str = "file") -> Any:
     if path is None:
         return default
     try:
@@ -3514,8 +3496,8 @@ def _read_jsonish_file(path: Optional[Path], *, default: Any = None, name: str =
         raise typer.BadParameter(f"Could not read {name} {path}: {e}") from e
 
 
-def _merge_row_items(row_json: Optional[str], kv: List[str]) -> Dict[str, Any]:
-    out: Dict[str, Any] = {}
+def _merge_row_items(row_json: str | None, kv: list[str]) -> dict[str, Any]:
+    out: dict[str, Any] = {}
     if row_json:
         parsed = _read_jsonish_arg(row_json, default={}, name="--row")
         if not isinstance(parsed, Mapping):
@@ -3526,9 +3508,7 @@ def _merge_row_items(row_json: Optional[str], kv: List[str]) -> Dict[str, Any]:
     return out
 
 
-def _load_weights_arg(
-    weights: Optional[Path], preset: Optional[str]
-) -> Optional[Union[Dict[str, float], str]]:
+def _load_weights_arg(weights: Path | None, preset: str | None) -> dict[str, float] | str | None:
     if weights and preset:
         raise typer.BadParameter("Specify either --weights or --weights-preset, not both.")
     if preset:
@@ -3549,7 +3529,7 @@ def _score_output_options(  # pyright: ignore[reportUnusedFunction]
     show_buckets: bool,
     show_context: bool,
     percentiles: bool,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     return {
         "show_weights": show_weights,
         "hide_pri_raw": hide_pri_raw,
@@ -3560,7 +3540,7 @@ def _score_output_options(  # pyright: ignore[reportUnusedFunction]
     }
 
 
-def _expr_identifiers(expr: Any) -> List[str]:
+def _expr_identifiers(expr: Any) -> list[str]:
     """Return variable-like identifiers referenced by a safe adapter expression."""
     try:
         tree = ast.parse(str(expr), mode="eval")
@@ -3577,23 +3557,23 @@ def _expr_identifiers(expr: Any) -> List[str]:
     return sorted(n for n in names if n not in called)
 
 
-def _local_adapter_spec_payload(adapter: str) -> Dict[str, Any]:
+def _local_adapter_spec_payload(adapter: str) -> dict[str, Any]:
     from dataclasses import asdict, is_dataclass
 
     from statline.core.adapters.load import load_spec as _load_spec_local
 
     spec = _load_spec_local(adapter)
     raw = asdict(spec) if is_dataclass(spec) else dict(spec)  # pyright: ignore[reportUnknownVariableType]
-    return cast(Dict[str, Any], _normalize_for_display(raw))
+    return cast(dict[str, Any], _normalize_for_display(raw))
 
 
-def _local_adapter_traits_payload(adapter: str) -> Dict[str, Any]:
+def _local_adapter_traits_payload(adapter: str) -> dict[str, Any]:
     from statline.core.adapters.load import load_spec as _load_spec_local
 
     spec = _load_spec_local(adapter)
 
-    def metric_keys() -> List[str]:
-        out: List[str] = []
+    def metric_keys() -> list[str]:
+        out: list[str] = []
         for m in getattr(spec, "metrics", []) or []:
             k = getattr(m, "key", None)
             if k:
@@ -3604,8 +3584,8 @@ def _local_adapter_traits_payload(adapter: str) -> Dict[str, Any]:
                 out.append(str(k))
         return _as_str_list(out)
 
-    def inputs() -> List[str]:
-        out: List[str] = []
+    def inputs() -> list[str]:
+        out: list[str] = []
         for m in getattr(spec, "metrics", []) or []:
             src = getattr(m, "source", None)
             field = getattr(src, "field", None) if src is not None else None
@@ -3614,7 +3594,7 @@ def _local_adapter_traits_payload(adapter: str) -> Dict[str, Any]:
                 out.append(str(field))
             elif expr:
                 out.extend(_expr_identifiers(expr))
-        for d in (getattr(spec, "dimensions", {}) or {}).keys():
+        for d in getattr(spec, "dimensions", {}) or {}:
             out.append(str(d))
         for f in (getattr(spec, "filters", {}) or {}).values():
             fld = getattr(f, "field", None)
@@ -3622,11 +3602,11 @@ def _local_adapter_traits_payload(adapter: str) -> Dict[str, Any]:
                 out.append(str(fld))
         return _as_str_list(out)
 
-    dimensions: Dict[str, Any] = {}
+    dimensions: dict[str, Any] = {}
     for key, dim in (getattr(spec, "dimensions", {}) or {}).items():
         dimensions[str(key)] = list(getattr(dim, "values", ()) or ())
 
-    filters: Dict[str, Any] = {}
+    filters: dict[str, Any] = {}
     for key, flt in (getattr(spec, "filters", {}) or {}).items():
         filters[str(key)] = {
             "type": getattr(flt, "type", "metric"),
@@ -3652,14 +3632,14 @@ def _local_adapter_traits_payload(adapter: str) -> Dict[str, Any]:
     }
 
 
-def _local_map_batch(adapter: str, rows: Rows) -> List[Dict[str, Any]]:
+def _local_map_batch(adapter: str, rows: Rows) -> list[dict[str, Any]]:
     from statline.core.scoring.map import safe_map_batch
 
     adp = load_adapter(adapter)
     return safe_map_batch(adp, rows)
 
 
-def _local_map_row(adapter: str, row: Row) -> Dict[str, Any]:
+def _local_map_row(adapter: str, row: Row) -> dict[str, Any]:
     return _local_map_batch(adapter, [row])[0]
 
 
@@ -3667,12 +3647,12 @@ def _local_calc_batch(
     adapter: str,
     rows: Rows,
     *,
-    weights_arg: Optional[Union[Dict[str, float], str]] = None,
-    penalties_override: Optional[Dict[str, float]] = None,
-    output: Optional[Dict[str, Any]] = None,
-    context: Optional[Dict[str, Dict[str, float]]] = None,
-    caps_override: Optional[Dict[str, float]] = None,
-) -> List[Dict[str, Any]]:
+    weights_arg: dict[str, float] | str | None = None,
+    penalties_override: dict[str, float] | None = None,
+    output: dict[str, Any] | None = None,
+    context: dict[str, dict[str, float]] | None = None,
+    caps_override: dict[str, float] | None = None,
+) -> list[dict[str, Any]]:
     from statline.core.scoring import calculate_pri
 
     adp = load_adapter(adapter)
@@ -3690,7 +3670,7 @@ def _local_calc_batch(
     return [dict(x) for x in res]
 
 
-def _local_calc_row(adapter: str, row: Row, **kwargs: Any) -> Dict[str, Any]:
+def _local_calc_row(adapter: str, row: Row, **kwargs: Any) -> dict[str, Any]:
     return _local_calc_batch(adapter, [row], **kwargs)[0]
 
 
@@ -3714,10 +3694,10 @@ def _wire_format_to_path(path: Path, data: Any, *, fmt: str, include_headers: bo
         if not rows:
             path.write_text("", encoding="utf-8")
             return
-        fields: List[str] = []
+        fields: list[str] = []
         for r in rows:  # pyright: ignore[reportUnknownVariableType]
             if isinstance(r, Mapping):
-                for k in r.keys():  # pyright: ignore[reportUnknownVariableType]
+                for k in r:  # pyright: ignore[reportUnknownVariableType]
                     ks = str(k)  # pyright: ignore[reportUnknownArgumentType]
                     if ks not in fields:
                         fields.append(ks)
@@ -3898,8 +3878,8 @@ def adapter_filters_cmd(
 
 @adapter_app.command("sniff")
 def adapter_sniff_cmd(
-    headers: List[str] = typer.Argument(None, help="Header names, or omit and use --file."),
-    file: Optional[Path] = typer.Option(
+    headers: list[str] = typer.Argument(None, help="Header names, or omit and use --file."),
+    file: Path | None = typer.Option(
         None, "--file", "-f", help="CSV/YAML/JSON file whose first row/header should be sniffed."
     ),
     source: str = typer.Option("auto", "--source", help="auto|local|remote", case_sensitive=False),
@@ -3911,7 +3891,7 @@ def adapter_sniff_cmd(
         try:
             rows = list(_read_rows(file))
             if rows:
-                header_list.extend(str(k) for k in rows[0].keys())
+                header_list.extend(str(k) for k in rows[0])
         except Exception:
             from statline.gateway.storage.csv import peek_headers
 
@@ -3925,7 +3905,7 @@ def adapter_sniff_cmd(
         # The packaged sniff helper only considers require_any_headers in this rc;
         # the CLI handles both require_any_headers and require_all_headers so
         # adapters like eba_players/valorant are discoverable from real CSVs.
-        matches: List[str] = []
+        matches: list[str] = []
         hset = {str(h).strip().lower() for h in header_list if str(h).strip()}
         for name in _local_adapter_names():
             try:
@@ -3937,8 +3917,8 @@ def adapter_sniff_cmd(
                 all_set = {str(h).strip().lower() for h in all_headers if str(h).strip()}
                 if (any_set and (any_set & hset)) or (all_set and all_set.issubset(hset)):
                     matches.append(str(getattr(adp, "key", name)))
-            except Exception:
-                continue
+            except Exception as error:
+                _log_note(BUG_NOTES, f"[adapter_sniff local] {name}: {error!r}")
         data = {"adapters": _as_str_list(matches), "headers": header_list}
     _print_payload(data)
 
@@ -3946,10 +3926,8 @@ def adapter_sniff_cmd(
 @map_app.command("row")
 def map_row_cmd(
     adapter: str = typer.Option(..., "--adapter", "-a"),
-    row: Optional[str] = typer.Option(
-        None, "--row", help="JSON/YAML object containing raw fields."
-    ),
-    kv: List[str] = typer.Option(
+    row: str | None = typer.Option(None, "--row", help="JSON/YAML object containing raw fields."),
+    kv: list[str] = typer.Option(
         [], "--set", "-s", help="Raw field assignment, e.g. ppg=25. Repeatable or comma-separated."
     ),
     source: str = typer.Option("auto", "--source", help="auto|local|remote", case_sensitive=False),
@@ -3972,7 +3950,7 @@ def map_batch_cmd(
     input_path: Path = typer.Argument(..., help="CSV/YAML/JSON rows, or '-' for CSV stdin."),
     adapter: str = typer.Option(..., "--adapter", "-a"),
     source: str = typer.Option("auto", "--source", help="auto|local|remote", case_sensitive=False),
-    out: Optional[Path] = typer.Option(None, "--out"),
+    out: Path | None = typer.Option(None, "--out"),
     fmt: str = typer.Option("json", "--fmt", help="json|jsonl|csv|clean", case_sensitive=False),
     include_headers: bool = typer.Option(True, "--headers/--no-headers"),
 ) -> None:
@@ -3992,18 +3970,18 @@ def map_batch_cmd(
 @calc_app.command("row")
 def calc_row_cmd(
     adapter: str = typer.Option(..., "--adapter", "-a"),
-    row: Optional[str] = typer.Option(
+    row: str | None = typer.Option(
         None, "--row", help="JSON/YAML object containing mapped metrics."
     ),
-    kv: List[str] = typer.Option(
+    kv: list[str] = typer.Option(
         [], "--set", "-s", help="Mapped metric assignment. Repeatable or comma-separated."
     ),
-    weights: Optional[Path] = typer.Option(None, "--weights"),
-    weights_preset: Optional[str] = typer.Option(None, "--weights-preset"),
-    penalties: Optional[str] = typer.Option(
+    weights: Path | None = typer.Option(None, "--weights"),
+    weights_preset: str | None = typer.Option(None, "--weights-preset"),
+    penalties: str | None = typer.Option(
         None, "--penalties", help="JSON/YAML bucket penalty mapping."
     ),
-    output: Optional[str] = typer.Option(None, "--output", help="JSON/YAML output toggle mapping."),
+    output: str | None = typer.Option(None, "--output", help="JSON/YAML output toggle mapping."),
     source: str = typer.Option("auto", "--source", help="auto|local|remote", case_sensitive=False),
     fmt: str = typer.Option("json", "--fmt", help="json|clean", case_sensitive=False),
 ) -> None:
@@ -4014,12 +3992,12 @@ def calc_row_cmd(
         raise typer.BadParameter("Provide --row JSON/YAML or --set metric=value options.")
     weights_arg = _load_weights_arg(weights, weights_preset)
     penalties_override = cast(
-        Optional[Dict[str, float]], _read_jsonish_arg(penalties, default=None, name="--penalties")
+        dict[str, float] | None, _read_jsonish_arg(penalties, default=None, name="--penalties")
     )
     output_dict = cast(
-        Optional[Dict[str, Any]], _read_jsonish_arg(output, default=None, name="--output")
+        dict[str, Any] | None, _read_jsonish_arg(output, default=None, name="--output")
     )
-    payload: Dict[str, Any] = {
+    payload: dict[str, Any] = {
         "adapter": adapter,
         "row": mapped,
         "weights": weights_arg,
@@ -4044,17 +4022,17 @@ def calc_row_cmd(
 def calc_batch_cmd(
     input_path: Path = typer.Argument(..., help="CSV/YAML/JSON mapped metric rows."),
     adapter: str = typer.Option(..., "--adapter", "-a"),
-    weights: Optional[Path] = typer.Option(None, "--weights"),
-    weights_preset: Optional[str] = typer.Option(None, "--weights-preset"),
-    penalties: Optional[str] = typer.Option(
+    weights: Path | None = typer.Option(None, "--weights"),
+    weights_preset: str | None = typer.Option(None, "--weights-preset"),
+    penalties: str | None = typer.Option(
         None, "--penalties", help="JSON/YAML bucket penalty mapping."
     ),
-    output: Optional[str] = typer.Option(None, "--output", help="JSON/YAML output toggle mapping."),
+    output: str | None = typer.Option(None, "--output", help="JSON/YAML output toggle mapping."),
     caps_mode: str = typer.Option(
         "batch", "--caps-mode", help="batch|clamps", case_sensitive=False
     ),
     source: str = typer.Option("auto", "--source", help="auto|local|remote", case_sensitive=False),
-    out: Optional[Path] = typer.Option(None, "--out"),
+    out: Path | None = typer.Option(None, "--out"),
     fmt: str = typer.Option("json", "--fmt", help="json|jsonl|csv|clean", case_sensitive=False),
 ) -> None:
     """Score mapped metric rows through POST /v4/score."""
@@ -4062,12 +4040,12 @@ def calc_batch_cmd(
     rows = list(_read_rows(input_path))
     weights_arg = _load_weights_arg(weights, weights_preset)
     penalties_override = cast(
-        Optional[Dict[str, float]], _read_jsonish_arg(penalties, default=None, name="--penalties")
+        dict[str, float] | None, _read_jsonish_arg(penalties, default=None, name="--penalties")
     )
     output_dict = cast(
-        Optional[Dict[str, Any]], _read_jsonish_arg(output, default=None, name="--output")
+        dict[str, Any] | None, _read_jsonish_arg(output, default=None, name="--output")
     )
-    payload: Dict[str, Any] = {
+    payload: dict[str, Any] = {
         "adapter": adapter,
         "rows": rows,
         "weights": weights_arg,
@@ -4297,7 +4275,7 @@ def cache_config_cmd(scope: str = typer.Argument(...)) -> None:
 @cache_app.command("touch")
 def cache_touch_cmd(
     scope: str = typer.Argument(...),
-    last_sync_ts: Optional[int] = typer.Option(None, "--last-sync-ts"),
+    last_sync_ts: int | None = typer.Option(None, "--last-sync-ts"),
 ) -> None:
     """Create/update cache sync config for a scope."""
     ensure_banner()
@@ -4365,7 +4343,7 @@ def cache_entities_cmd(
 @cache_app.command("metrics")
 def cache_metrics_cmd(
     scope: str = typer.Argument(...),
-    fuzzy_key: Optional[str] = typer.Option(None, "--fuzzy-key"),
+    fuzzy_key: str | None = typer.Option(None, "--fuzzy-key"),
     limit: int = typer.Option(0, "--limit"),
 ) -> None:
     """List cached metrics for a scope or one entity."""
@@ -4414,7 +4392,7 @@ def storage_csv_read_cmd(
 def storage_csv_write_cmd(
     input_path: Path = typer.Argument(..., help="JSON/YAML rows to write."),
     out: Path = typer.Option(..., "--out"),
-    fields: List[str] = typer.Option(
+    fields: list[str] = typer.Option(
         [], "--field", help="Field order; repeatable or comma-separated."
     ),
     include_headers: bool = typer.Option(True, "--headers/--no-headers"),
@@ -4438,7 +4416,7 @@ def storage_csv_write_cmd(
 
 @weights_app.command("normalize")
 def weights_normalize_cmd(
-    items: List[str] = typer.Argument(..., help="key=value weight pairs."),
+    items: list[str] = typer.Argument(..., help="key=value weight pairs."),
 ) -> None:
     """L1-normalize arbitrary weights using statline.core.scoring.weights.normalize_weights."""
     ensure_banner()
@@ -4452,8 +4430,8 @@ def weights_normalize_cmd(
 @weights_app.command("resolve")
 def weights_resolve_cmd(
     adapter: str = typer.Option(..., "--adapter", "-a"),
-    preset: Optional[str] = typer.Option(None, "--preset"),
-    override: List[str] = typer.Option(
+    preset: str | None = typer.Option(None, "--preset"),
+    override: list[str] = typer.Option(
         [], "--override", help="bucket=value override; repeatable or comma-separated."
     ),
 ) -> None:
@@ -4476,7 +4454,7 @@ def weights_resolve_cmd(
 @statpack_app.command("manifest")
 def statpack_manifest_cmd(
     source: Path = typer.Argument(..., exists=True, readable=True),
-    out: Optional[Path] = typer.Option(None, "--out", "-o"),
+    out: Path | None = typer.Option(None, "--out", "-o"),
     force: bool = typer.Option(False, "--force", help="Replace an existing .statpack."),
 ) -> None:
     """Create a StatPack from an unpacked source directory or adapter YAML."""
@@ -4490,7 +4468,7 @@ def statpack_manifest_cmd(
 @statpack_app.command("pack")
 def statpack_pack_cmd(
     source: Path = typer.Argument(..., exists=True, file_okay=False, readable=True),
-    out: Optional[Path] = typer.Option(None, "--out", "-o"),
+    out: Path | None = typer.Option(None, "--out", "-o"),
     force: bool = typer.Option(False, "--force", help="Replace an existing .statpack."),
 ) -> None:
     """Rebuild an edited StatPack source directory."""
@@ -4504,7 +4482,7 @@ def statpack_pack_cmd(
 @statpack_app.command("render")
 def statpack_render_cmd(
     pack: Path = typer.Argument(..., exists=True, dir_okay=False, readable=True),
-    out: Optional[Path] = typer.Option(None, "--out", "-o"),
+    out: Path | None = typer.Option(None, "--out", "-o"),
     force: bool = typer.Option(False, "--force", help="Replace an existing runtime YAML."),
 ) -> None:
     """Render a StatPack into a generated runtime adapter YAML."""
@@ -4518,7 +4496,7 @@ def statpack_render_cmd(
 @statpack_app.command("unpack")
 def statpack_unpack_cmd(
     pack: Path = typer.Argument(..., exists=True, dir_okay=False, readable=True),
-    out: Optional[Path] = typer.Option(None, "--out", "-o"),
+    out: Path | None = typer.Option(None, "--out", "-o"),
     force: bool = typer.Option(False, "--force", help="Replace the destination directory."),
 ) -> None:
     """Safely extract a StatPack for editing."""
@@ -4542,7 +4520,7 @@ def statpack_inspect_cmd(
 
 @statpack_app.command("register")
 def statpack_register_cmd(
-    executable: Optional[Path] = typer.Option(
+    executable: Path | None = typer.Option(
         None, "--executable", help="StatLine executable to associate with .statpack files."
     ),
 ) -> None:
@@ -4589,12 +4567,12 @@ def statpack_run_cmd(
         help="Wait for a key press before closing the terminal.",
         hidden=True,
     ),
-    timing: Optional[bool] = typer.Option(
+    timing: bool | None = typer.Option(
         None,
         "--timing/--no-timing",
         help="Show per-stage StatPack timing (inherits the root setting).",
     ),
-    output: Optional[Path] = typer.Option(
+    output: Path | None = typer.Option(
         None,
         "--output",
         "-o",

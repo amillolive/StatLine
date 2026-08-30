@@ -8,7 +8,7 @@ def main() -> None:
     # Import uvicorn only when launching, so "import statline" stays lightweight
     try:
         import uvicorn
-    except Exception:
+    except ImportError:
         print(
             "Missing dependency: uvicorn. Install with: pip install '.[remote]'\n", file=sys.stderr
         )

@@ -9,8 +9,9 @@ import subprocess
 import sys
 import tempfile
 import zipfile
+from collections.abc import Iterable, Mapping, Sequence
 from pathlib import Path, PurePosixPath
-from typing import Any, Dict, Iterable, Mapping, Optional, Sequence, cast
+from typing import Any, cast
 
 import yaml
 
@@ -49,7 +50,7 @@ def _version() -> str:
         from statline import __version__
 
         return str(__version__)
-    except Exception:
+    except Exception:  # noqa: BLE001 - version metadata must never block packaging
         return "unknown"
 
 
@@ -71,7 +72,7 @@ def _logical_dataset_path(value: object) -> PurePosixPath:
     return path
 
 
-def _yaml_mapping(path: Path, *, expected_key: Optional[str] = None) -> Dict[str, Any]:
+def _yaml_mapping(path: Path, *, expected_key: str | None = None) -> dict[str, Any]:
     try:
         loaded = yaml.safe_load(path.read_text(encoding="utf-8"))
     except yaml.YAMLError as error:
@@ -129,9 +130,7 @@ def _iter_source_files(root: Path) -> Iterable[tuple[Path, str]]:
         if path.is_symlink():
             raise ValueError(f"StatPack source cannot include symlinks: {path}")
         relative = _normalize_member(path.relative_to(root).as_posix())
-        if relative.startswith("dataset/") or relative.startswith("schema/sections/"):
-            yield path, relative
-        elif relative in _REQUIRED_ROOT:
+        if relative.startswith(("dataset/", "schema/sections/")) or relative in _REQUIRED_ROOT:
             yield path, relative
 
 
@@ -159,7 +158,7 @@ def _write_zip(output: Path, files: Iterable[tuple[Path, str]], *, overwrite: bo
 
 def pack_statpack(
     source_directory: str | Path,
-    output: Optional[str | Path] = None,
+    output: str | Path | None = None,
     *,
     overwrite: bool = False,
 ) -> Path:
@@ -172,7 +171,7 @@ def pack_statpack(
     return _write_zip(target, _iter_source_files(root), overwrite=overwrite)
 
 
-def _find_dataset_for_yaml(source: Path, logical: PurePosixPath) -> Optional[Path]:
+def _find_dataset_for_yaml(source: Path, logical: PurePosixPath) -> Path | None:
     relative = Path(*logical.parts)
     candidates = [
         source.parent / relative,
@@ -199,7 +198,7 @@ def _find_dataset_for_yaml(source: Path, logical: PurePosixPath) -> Optional[Pat
 
 def manifest_yaml_statpack(
     adapter_yaml: str | Path,
-    output: Optional[str | Path] = None,
+    output: str | Path | None = None,
     *,
     overwrite: bool = False,
 ) -> Path:
@@ -246,7 +245,7 @@ def manifest_yaml_statpack(
 
 def manifest_statpack(
     source: str | Path,
-    output: Optional[str | Path] = None,
+    output: str | Path | None = None,
     *,
     overwrite: bool = False,
 ) -> Path:
@@ -282,7 +281,7 @@ def _safe_archive_members(archive: zipfile.ZipFile) -> list[zipfile.ZipInfo]:
 
 def unpack_statpack(
     pack: str | Path,
-    output_directory: Optional[str | Path] = None,
+    output_directory: str | Path | None = None,
     *,
     overwrite: bool = False,
 ) -> Path:
@@ -331,11 +330,11 @@ def unpack_statpack(
         raise
 
 
-def load_statpack_tree(root: Path) -> Dict[str, Any]:
+def load_statpack_tree(root: Path) -> dict[str, Any]:
     _ensure_source_tree(root)
     combined = _yaml_mapping(root / "metadata.yaml", expected_key="metadata")
     sections_dir = root / "schema" / "sections"
-    discovered: Dict[str, Any] = {}
+    discovered: dict[str, Any] = {}
     for path in sorted((*sections_dir.glob("*.yaml"), *sections_dir.glob("*.yml"))):
         section_data = _yaml_mapping(path, expected_key=path.stem)
         discovered[path.stem] = section_data[path.stem]
@@ -387,7 +386,7 @@ def _render_text(data: Mapping[str, Any], *, source: Path, output: Path) -> str:
 
 def render_statpack(
     pack: str | Path,
-    output: Optional[str | Path] = None,
+    output: str | Path | None = None,
     *,
     overwrite: bool = False,
 ) -> Path:
@@ -422,7 +421,7 @@ def render_statpack(
     return target
 
 
-def inspect_statpack(pack: str | Path) -> Dict[str, Any]:
+def inspect_statpack(pack: str | Path) -> dict[str, Any]:
     """Return package metadata and contents without executing runner.py."""
     source = Path(pack).expanduser().resolve()
     if not source.is_file():
@@ -431,7 +430,7 @@ def inspect_statpack(pack: str | Path) -> Dict[str, Any]:
         members = _safe_archive_members(archive)
         metadata_raw = archive.read("metadata.yaml").decode("utf-8")
         metadata_loaded = yaml.safe_load(metadata_raw)
-        metadata: Dict[str, Any] = {}
+        metadata: dict[str, Any] = {}
         if isinstance(metadata_loaded, Mapping):
             loaded_root = cast(Mapping[object, object], metadata_loaded)
             metadata_value = loaded_root.get("metadata")

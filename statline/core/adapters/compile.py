@@ -5,10 +5,10 @@ from __future__ import annotations
 import ast
 import math
 import statistics
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from functools import lru_cache
 from types import MappingProxyType
-from typing import Callable, Optional, SupportsFloat, SupportsIndex, TypeAlias, cast
+from typing import SupportsFloat, SupportsIndex, TypeAlias, cast
 
 from statline.core.adapters.hooks import get as get_hooks
 from statline.core.types.adapters import (
@@ -34,7 +34,7 @@ def _finite(x: float, default: float = 0.0) -> float:
     """Return a finite float or the supplied default."""
     try:
         value = float(x)
-    except Exception:
+    except (TypeError, ValueError, OverflowError):
         return default
     return value if math.isfinite(value) else default
 
@@ -49,7 +49,7 @@ def _num(value: object) -> float:
             stripped = value.strip().replace(",", ".")
             return _finite(float(stripped)) if stripped else 0.0
         return _finite(float(cast(_ConvertibleToFloat, value)))
-    except Exception:
+    except (TypeError, ValueError, OverflowError):
         return 0.0
 
 
@@ -84,7 +84,7 @@ _DATASET_FUNCTIONS = {
 }
 
 
-def _numeric_or_none(value: object) -> Optional[float]:
+def _numeric_or_none(value: object) -> float | None:
     """Return one finite numeric value without coercing arbitrary text to zero."""
     try:
         if value is None or isinstance(value, bool):
@@ -96,7 +96,7 @@ def _numeric_or_none(value: object) -> Optional[float]:
             number = float(stripped)
         else:
             number = float(cast(_ConvertibleToFloat, value))
-    except Exception:
+    except (TypeError, ValueError, OverflowError):
         return None
     return number if math.isfinite(number) else None
 
@@ -220,7 +220,7 @@ def _compile_expr(expr: str) -> ExpressionEvaluator:
     """Compile and cache one restricted expression."""
     try:
         parsed = ast.parse(expr, mode="eval")
-    except Exception:
+    except (SyntaxError, ValueError):
         return lambda _ctx, _x: 0.0
 
     function_ast = ast.Expression(
@@ -287,7 +287,7 @@ def _compile_source(source: SourceSpec) -> MetricEvaluator:
     raise ValueError(f"Unsupported source kind: {source.kind}")
 
 
-def _compile_transform(spec: Optional[TransformSpec]) -> _TransformEvaluator:
+def _compile_transform(spec: TransformSpec | None) -> _TransformEvaluator:
     if spec is None:
         return lambda value, _context: value
 
@@ -383,7 +383,7 @@ def map_raw(
     adapter: CompiledAdapter,
     raw: Mapping[str, object],
     *,
-    dataset_context: Optional[Mapping[str, object]] = None,
+    dataset_context: Mapping[str, object] | None = None,
 ) -> dict[str, float]:
     """Map one raw row through an adapter's precompiled execution plan."""
     hooks = get_hooks(adapter.metadata.id)
@@ -443,4 +443,4 @@ def compile_adapter(spec: AdapterSpec) -> CompiledAdapter:
 
 
 compile_expr = _compile_expr
-__all__ = ["build_dataset_context", "compile_adapter", "map_raw", "compile_expr"]
+__all__ = ["build_dataset_context", "compile_adapter", "compile_expr", "map_raw"]

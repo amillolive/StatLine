@@ -99,7 +99,7 @@ devpack = [
   "mkdocs-material>=9.5,<10.0",
   "mkdocstrings[python]>=0.25,<1.0",
   "build>=1.2,<2.0",
-  "twine>=5.0,<7.0",
+  "twine>=7.0,<8.0",
   "pip-audit>=2.7,<3.0",
 ]
 
@@ -130,6 +130,12 @@ src = ["statline", "tests"]
 
 [tool.ruff.lint]
 extend-select = ["I"]
+
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["fastapi.Query", "typer.Argument", "typer.Option"]
+
+[tool.ruff.lint.per-file-ignores]
+"statline/app/cli/main.py" = ["BLE001"]
 
 [tool.mypy]
 python_version = "3.10"

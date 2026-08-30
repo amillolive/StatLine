@@ -3,11 +3,13 @@ from __future__ import annotations
 import shlex
 import subprocess
 import sys
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Iterable
+from typing import ClassVar
 
 import typer
 from textual.app import App, ComposeResult
+from textual.binding import BindingType
 from textual.containers import Horizontal, Vertical
 from textual.widgets import Button, Footer, Header, Input, Label, ListItem, ListView, Static
 
@@ -71,7 +73,7 @@ class StatLineHomeShell(App[None]):
     }
     """
 
-    BINDINGS = [
+    BINDINGS: ClassVar[list[BindingType]] = [
         ("q", "quit", "Quit"),
         ("escape", "focus_search", "Search"),
         ("r", "run_selected", "Run"),

@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Union
+from typing import TYPE_CHECKING, Any, TypeGuard, cast
 
 from statline.gateway.http.error_types import (
     BadRequest,
     Conflict,
     Forbidden,
+    HTTPExceptionLike,
     InternalError,
     NotFound,
     SlapiError,
@@ -43,13 +44,19 @@ _STATUS_MAP: dict[type[SlapiError], int] = {
 }
 
 
-def _looks_like_http_exception(err: Exception) -> bool:
+def _looks_like_http_exception(
+    err: object,
+) -> TypeGuard[HTTPExceptionLike]:
     if not (hasattr(err, "status_code") and hasattr(err, "detail")):
         return False
+
+    http_err = cast(HTTPExceptionLike, err)
+
     try:
-        sc = int(getattr(err, "status_code"))
-    except Exception:
+        sc = int(http_err.status_code)
+    except (TypeError, ValueError, AttributeError):
         return False
+
     return 100 <= sc <= 599
 
 
@@ -60,11 +67,8 @@ def to_http_status(err: Exception) -> tuple[int, str]:
     """
     # Pass through HTTPException-like errors (FastAPI/Starlette) if they bubble up.
     if _looks_like_http_exception(err):
-        try:
-            status = int(getattr(err, "status_code"))
-        except Exception:
-            status = 500
-        detail = getattr(err, "detail", None)
+        status = int(err.status_code)
+        detail = err.detail
         msg = str(detail) if detail is not None else (str(err) or err.__class__.__name__)
         return status, msg
 
@@ -89,7 +93,7 @@ def to_http_status(err: Exception) -> tuple[int, str]:
     return 500, str(err) or "Internal Server Error"
 
 
-def to_http_exception(err: Exception) -> Union[tuple[int, Any], "FastAPIHTTPException"]:
+def to_http_exception(err: Exception) -> tuple[int, Any] | FastAPIHTTPException:
     """
     If FastAPI is available, convert to fastapi.HTTPException.
     Otherwise, return (status, detail) so callers can decide.
@@ -108,28 +112,24 @@ def to_http_exception(err: Exception) -> Union[tuple[int, Any], "FastAPIHTTPExce
 
     try:
         from fastapi import HTTPException as _HTTPException  # runtime import
-    except Exception:  # pragma: no cover
+    except ImportError:  # pragma: no cover  # pragma: no cover
         return status, detail
 
     # If it's already an HTTPException-like object, keep it.
-    if _looks_like_http_exception(err):
-        try:
-            if isinstance(err, _HTTPException):
-                return err
-        except Exception:
-            pass
+    if _looks_like_http_exception(err) and isinstance(err, _HTTPException):
+        return err
 
     return _HTTPException(status_code=status, detail=detail)
 
 
 __all__ = [
-    "SlapiError",
     "BadRequest",
-    "NotFound",
     "Conflict",
-    "Unauthorized",
     "Forbidden",
     "InternalError",
-    "to_http_status",
+    "NotFound",
+    "SlapiError",
+    "Unauthorized",
     "to_http_exception",
+    "to_http_status",
 ]

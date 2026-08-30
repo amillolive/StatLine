@@ -5,9 +5,9 @@ from __future__ import annotations
 import platform
 import shutil
 import sqlite3
-from datetime import datetime
+from collections.abc import Iterable, Sequence
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Iterable, Optional, Sequence
 
 from statline.app.cli.main import (
     APIKEY_PATH,
@@ -104,7 +104,7 @@ def bootstrap_local_admin(
     org: str = "statline",
     user: str = "conner",
     email: str = "conner.walston@valpo.edu",
-    scopes: Optional[Sequence[str]] = None,
+    scopes: Sequence[str] | None = None,
 ) -> None:
     """Bootstrap the first local administrator and persist its device credentials."""
     granted_scopes = list(scopes or ["admin"])
@@ -176,7 +176,9 @@ def rename_local_auth_identity(
     if not database.exists():
         raise FileNotFoundError(f"Auth DB does not exist: {database}")
     device_id, api_prefix = _current_auth()
-    backup = database.with_suffix(f".before-rename-{datetime.now():%Y%m%d-%H%M%S}{database.suffix}")
+    backup = database.with_suffix(
+        f".before-rename-{datetime.now(timezone.utc).astimezone():%Y%m%d-%H%M%S}{database.suffix}"
+    )
     shutil.copy2(database, backup)
     print(
         f"DB:        {database}\nBackup:    {backup}\nDEVICEID:  {device_id}\nAPI prefix:{api_prefix}\n"

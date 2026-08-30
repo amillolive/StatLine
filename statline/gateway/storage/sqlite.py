@@ -6,10 +6,11 @@ import os
 import platform
 import re
 import sqlite3
+from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
 from threading import RLock
-from typing import Generator, Literal, Optional
+from typing import Literal
 
 _SAVEPOINT_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _MEMORY_URI = "file:statline-gateway-memory?mode=memory&cache=shared"
@@ -54,7 +55,7 @@ def _execute_pragma(conn: sqlite3.Connection, statement: str) -> None:
         conn.execute(statement)
     except sqlite3.DatabaseError:
         # Optional/version-specific PRAGMAs should never prevent a connection.
-        pass
+        return
 
 
 def _apply_pragmas(conn: sqlite3.Connection, *, read_only: bool, timeout_s: float) -> None:
@@ -167,7 +168,7 @@ def get_conn(
 @contextmanager
 def transaction(
     conn: sqlite3.Connection,
-    name: Optional[str] = None,
+    name: str | None = None,
 ) -> Generator[None, None, None]:
     savepoint = name or f"sp_{id(conn)}_{os.getpid()}"
     if not _SAVEPOINT_RE.fullmatch(savepoint):

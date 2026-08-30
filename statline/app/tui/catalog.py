@@ -74,7 +74,7 @@ def _click_help(command: click.Command, info_name: str) -> str:
     try:
         ctx = click.Context(command, info_name=info_name)
         return command.get_help(ctx)
-    except Exception:
+    except Exception:  # noqa: BLE001 - help rendering must degrade safely
         return command.help or ""
 
 

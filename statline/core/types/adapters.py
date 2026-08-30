@@ -6,27 +6,23 @@ This module intentionally contains definitions only. Adapter behavior lives in
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 from dataclasses import field as dc_field
 from typing import (
     Any,
-    Callable,
-    Dict,
     Literal,
-    Optional,
     Protocol,
     TypeAlias,
-    Union,
     cast,
     runtime_checkable,
 )
 
-JSONScalar: TypeAlias = Union[str, int, float, bool, None]
-JSONValue: TypeAlias = Union[JSONScalar, list["JSONValue"], dict[str, "JSONValue"]]
+JSONScalar: TypeAlias = str | int | float | bool | None
+JSONValue: TypeAlias = JSONScalar | list["JSONValue"] | dict[str, "JSONValue"]
 MetaScalar: TypeAlias = JSONScalar
-MetaValue: TypeAlias = Union[MetaScalar, list[MetaScalar], dict[str, MetaScalar]]
-Number: TypeAlias = Union[int, float]
+MetaValue: TypeAlias = MetaScalar | list[MetaScalar] | dict[str, MetaScalar]
+Number: TypeAlias = int | float
 Clamp: TypeAlias = tuple[float, float]
 SniffKey: TypeAlias = Literal["require_any_headers", "require_all_headers"]
 FilterType: TypeAlias = Literal["metric", "dimension"]
@@ -47,7 +43,7 @@ class AdapterMetadata:
     version: str
     author: str
     aliases: tuple[str, ...] = ()
-    dataset: Optional[str] = None
+    dataset: str | None = None
     meta: Mapping[str, MetaValue] = dc_field(
         default_factory=cast(
             Callable[[], dict[str, MetaValue]],
@@ -101,9 +97,9 @@ class BucketSpec:
 @dataclass(frozen=True, slots=True)
 class SourceSpec:
     kind: SourceKind
-    field: Optional[str] = None
-    expr: Optional[str] = None
-    const: Optional[float] = None
+    field: str | None = None
+    expr: str | None = None
+    const: float | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -117,10 +113,10 @@ class TransformSpec:
 @dataclass(frozen=True, slots=True)
 class MetricSpec:
     key: str
-    source: Optional[SourceSpec] = None
-    transform: Optional[TransformSpec] = None
-    clamp: Optional[Clamp] = None
-    bucket: Optional[str] = None
+    source: SourceSpec | None = None
+    transform: TransformSpec | None = None
+    clamp: Clamp | None = None
+    bucket: str | None = None
     invert: bool = False
 
 
@@ -131,21 +127,21 @@ class EffSpec:
     attempt: str
     bucket: str
     min_den: float = 1.0
-    clamp: Optional[Clamp] = None
+    clamp: Clamp | None = None
     invert: bool = False
-    transform: Optional[TransformSpec] = None
+    transform: TransformSpec | None = None
 
 
 @dataclass(frozen=True, slots=True)
 class ScoreProfileSpec:
     kind: ScoreKind
     weights_profile: str
-    lo: Optional[float] = None
-    hi: Optional[float] = None
-    out_lo: Optional[float] = None
-    out_hi: Optional[float] = None
-    pct_lo: Optional[float] = None
-    pct_hi: Optional[float] = None
+    lo: float | None = None
+    hi: float | None = None
+    out_lo: float | None = None
+    out_hi: float | None = None
+    pct_lo: float | None = None
+    pct_hi: float | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -178,7 +174,7 @@ class AdapterSpec:
 class ValidationIssue:
     path: str
     message: str
-    hint: Optional[str] = None
+    hint: str | None = None
 
 
 class AdapterValidationError(ValueError):
@@ -197,16 +193,16 @@ class AdapterValidationError(ValueError):
 
 @runtime_checkable
 class AdapterHooks(Protocol):
-    def pre_map(self, row: Dict[str, Any]) -> Dict[str, Any]: ...
-    def post_map(self, metrics: Dict[str, float]) -> Dict[str, float]: ...
+    def pre_map(self, row: dict[str, Any]) -> dict[str, Any]: ...
+    def post_map(self, metrics: dict[str, float]) -> dict[str, float]: ...
     def sniff(self, headers: Iterable[str]) -> bool: ...
 
 
 class NoOpHooks:
-    def pre_map(self, row: Dict[str, Any]) -> Dict[str, Any]:
+    def pre_map(self, row: dict[str, Any]) -> dict[str, Any]:
         return row
 
-    def post_map(self, metrics: Dict[str, float]) -> Dict[str, float]:
+    def post_map(self, metrics: dict[str, float]) -> dict[str, float]:
         return metrics
 
     def sniff(self, headers: Iterable[str]) -> bool:
@@ -261,7 +257,7 @@ class CompiledAdapter:
         return self.metadata.author
 
     @property
-    def dataset(self) -> Optional[str]:
+    def dataset(self) -> str | None:
         return self.metadata.dataset
 
     @property
@@ -272,7 +268,7 @@ class CompiledAdapter:
         self,
         raw: Mapping[str, object],
         *,
-        dataset_context: Optional[Mapping[str, object]] = None,
+        dataset_context: Mapping[str, object] | None = None,
     ) -> dict[str, float]:
         from statline.core.adapters.compile import map_raw
 

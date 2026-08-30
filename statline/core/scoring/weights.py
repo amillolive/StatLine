@@ -1,7 +1,8 @@
 # statline/core/weights.py
 from __future__ import annotations
 
-from typing import Dict, Iterable, Mapping, Optional, SupportsFloat
+from collections.abc import Iterable, Mapping
+from typing import SupportsFloat
 
 
 def normalize_weights(weights: Mapping[str, SupportsFloat]) -> dict[str, float]:
@@ -20,8 +21,8 @@ def normalize_weights(weights: Mapping[str, SupportsFloat]) -> dict[str, float]:
 def resolve_weights(
     metrics: Iterable[str],
     *,
-    defaults: Optional[Mapping[str, SupportsFloat]] = None,
-    override: Optional[Mapping[str, SupportsFloat]] = None,
+    defaults: Mapping[str, SupportsFloat] | None = None,
+    override: Mapping[str, SupportsFloat] | None = None,
     fill_missing_with_zero: bool = True,
 ) -> dict[str, float]:
     """
@@ -43,7 +44,7 @@ def resolve_weights(
     dict[str, float]
         L1-normalized weights over the provided metrics. May be {} if everything is zero.
     """
-    merged: Dict[str, float] = {}
+    merged: dict[str, float] = {}
 
     # Start from defaults
     if defaults:

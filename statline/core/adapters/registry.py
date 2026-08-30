@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from threading import RLock
-from typing import Dict, List, TypeVar
+from typing import TypeVar
 
 from statline.core.adapters.compile import compile_adapter
 from statline.core.adapters.load import load_spec
@@ -13,15 +13,15 @@ from statline.core.types.adapters import AdapterSpec, CompiledAdapter
 
 _T = TypeVar("_T")
 
-_compiled_cache: Dict[str, CompiledAdapter] = {}
-_spec_cache: Dict[str, AdapterSpec] = {}
-_source_cache: Dict[str, Path] = {}
+_compiled_cache: dict[str, CompiledAdapter] = {}
+_spec_cache: dict[str, AdapterSpec] = {}
+_source_cache: dict[str, Path] = {}
 _generation = 0
 _LOCK = RLock()
 
 
 def _register_name(
-    found: Dict[str, _T],
+    found: dict[str, _T],
     name: object,
     value: _T,
     *,
@@ -41,13 +41,13 @@ def _register_name(
 
 
 def _build_registry() -> tuple[
-    Dict[str, CompiledAdapter],
-    Dict[str, AdapterSpec],
-    Dict[str, Path],
+    dict[str, CompiledAdapter],
+    dict[str, AdapterSpec],
+    dict[str, Path],
 ]:
-    compiled: Dict[str, CompiledAdapter] = {}
-    specs: Dict[str, AdapterSpec] = {}
-    sources: Dict[str, Path] = {}
+    compiled: dict[str, CompiledAdapter] = {}
+    specs: dict[str, AdapterSpec] = {}
+    sources: dict[str, Path] = {}
 
     for path in iter_adapter_paths():
         resolved = path.resolve()
@@ -98,7 +98,7 @@ def _unknown_adapter(name: str) -> ValueError:
     return ValueError(f"Unknown adapter '{name}'.{suffix}")
 
 
-def list_adapters() -> List[str]:
+def list_adapters() -> list[str]:
     _discover()
     return sorted({adapter.key for adapter in _compiled_cache.values()})
 
@@ -138,7 +138,7 @@ def refresh_adapters() -> None:
     _discover(force=True)
 
 
-def adapter_cache_info() -> Dict[str, int]:
+def adapter_cache_info() -> dict[str, int]:
     """Return small, JSON-safe process-cache diagnostics."""
     _discover()
     with _LOCK:
@@ -151,7 +151,7 @@ def adapter_cache_info() -> Dict[str, int]:
         }
 
 
-def supported_adapters() -> Dict[str, str]:
+def supported_adapters() -> dict[str, str]:
     _discover()
     return dict(sorted((name, adapter.key) for name, adapter in _compiled_cache.items()))
 

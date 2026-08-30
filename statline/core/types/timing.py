@@ -1,11 +1,11 @@
 import contextlib
+from collections.abc import Generator
 from time import perf_counter
-from typing import Generator, List, Tuple
 
 
 class StageTimes:
     # List of (stage_name, elapsed_ms)
-    items: List[Tuple[str, float]]
+    items: list[tuple[str, float]]
 
     def __init__(self) -> None:
         self.items = []

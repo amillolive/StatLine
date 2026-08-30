@@ -2,19 +2,20 @@
 
 from __future__ import annotations
 
-from typing import Any, ClassVar, Dict, Literal, Mapping, Optional, Sequence, Union
+from collections.abc import Mapping, Sequence
+from typing import Any, ClassVar, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 Row = Mapping[str, Any]
 Rows = Sequence[Row]
-Weights = Dict[str, float]
-WeightsArg = Union[str, Weights]
-Penalties = Dict[str, float]
-Output = Dict[str, Any]
-Filters = Dict[str, Any]
-Caps = Dict[str, float]
-Context = Dict[str, Dict[str, float]]
+Weights = dict[str, float]
+WeightsArg = str | Weights
+Penalties = dict[str, float]
+Output = dict[str, Any]
+Filters = dict[str, Any]
+Caps = dict[str, float]
+Context = dict[str, dict[str, float]]
 
 
 class StrictModel(BaseModel):
@@ -35,9 +36,9 @@ class ScoreIn(StrictModel):
     """One v4 request shape for a row, a batch, or a packaged dataset."""
 
     adapter: str = Field(description="Adapter ID, file stem, or declared alias.")
-    row: Optional[Row] = Field(default=None, description="One input object.")
-    rows: Optional[Rows] = Field(default=None, description="A batch of input objects.")
-    dataset: Optional[str] = Field(
+    row: Row | None = Field(default=None, description="One input object.")
+    rows: Rows | None = Field(default=None, description="A batch of input objects.")
+    dataset: str | None = Field(
         default=None,
         description="Packaged CSV path from GET /v4/datasets.",
     )
@@ -45,15 +46,15 @@ class ScoreIn(StrictModel):
         default="raw",
         description="Raw rows are mapped before scoring; mapped rows skip adapter mapping.",
     )
-    weights: Optional[WeightsArg] = Field(
+    weights: WeightsArg | None = Field(
         default=None,
         description="Weight profile name or bucket-to-weight override.",
     )
-    penalties_override: Optional[Penalties] = None
-    output: Optional[Output] = None
-    filters: Optional[Filters] = None
-    context: Optional[Context] = None
-    caps_override: Optional[Caps] = None
+    penalties_override: Penalties | None = None
+    output: Output | None = None
+    filters: Filters | None = None
+    context: Context | None = None
+    caps_override: Caps | None = None
     caps_mode: Literal["batch", "row"] = Field(
         default="batch",
         description="Use shared batch context or score each row independently.",
@@ -62,7 +63,7 @@ class ScoreIn(StrictModel):
         default=False,
         description="Include the mapped rows used by the scorer in the response.",
     )
-    dataset_limit: Optional[int] = Field(
+    dataset_limit: int | None = Field(
         default=None,
         ge=1,
         le=50_000,
@@ -97,7 +98,7 @@ class ScoreIn(StrictModel):
     )
 
     @model_validator(mode="after")
-    def validate_source(self) -> "ScoreIn":
+    def validate_source(self) -> ScoreIn:
         sources = [self.row is not None, self.rows is not None, self.dataset is not None]
         if sum(sources) != 1:
             raise ValueError("provide exactly one of row, rows, or dataset")
@@ -108,7 +109,7 @@ class ScoreIn(StrictModel):
 
 class ScoreSource(StrictModel):
     kind: Literal["row", "rows", "dataset"]
-    dataset: Optional[str] = None
+    dataset: str | None = None
 
 
 class ScoreOut(StrictModel):
@@ -118,8 +119,8 @@ class ScoreOut(StrictModel):
     input_count: int
     mapped_count: int
     scored_count: int
-    results: list[Dict[str, Any]]
-    mapped: Optional[list[Dict[str, Any]]] = None
+    results: list[dict[str, Any]]
+    mapped: list[dict[str, Any]] | None = None
 
 
 class AdapterSummary(StrictModel):
@@ -127,12 +128,12 @@ class AdapterSummary(StrictModel):
     title: str
     version: str
     aliases: list[str]
-    dataset: Optional[str] = None
+    dataset: str | None = None
 
 
 class AdapterCatalog(StrictModel):
     adapters: list[AdapterSummary]
-    cache: Dict[str, int]
+    cache: dict[str, int]
 
 
 class AdapterOut(StrictModel):
@@ -141,15 +142,15 @@ class AdapterOut(StrictModel):
     version: str
     author: str
     aliases: list[str]
-    dataset: Optional[str] = None
+    dataset: str | None = None
     inputs: list[str]
     metrics: list[str]
-    buckets: Dict[str, Dict[str, Any]]
-    filters: Dict[str, Dict[str, Any]]
-    dimensions: Dict[str, Dict[str, Any]]
-    weights: Dict[str, Dict[str, float]]
-    penalties: Dict[str, Dict[str, float]]
-    score_profiles: Dict[str, Dict[str, Any]]
+    buckets: dict[str, dict[str, Any]]
+    filters: dict[str, dict[str, Any]]
+    dimensions: dict[str, dict[str, Any]]
+    weights: dict[str, dict[str, float]]
+    penalties: dict[str, dict[str, float]]
+    score_profiles: dict[str, dict[str, Any]]
 
 
 class DatasetSummary(StrictModel):
@@ -168,7 +169,7 @@ class DatasetPage(StrictModel):
     limit: int
     count: int
     has_more: bool
-    rows: list[Dict[str, Any]]
+    rows: list[dict[str, Any]]
 
 
 class HealthOut(StrictModel):
@@ -183,27 +184,27 @@ class ApiIndexOut(StrictModel):
     docs: str
     openapi: str
     health: str
-    resources: Dict[str, str]
+    resources: dict[str, str]
 
 
 class ApiKeyRequestIn(StrictModel):
-    owner: Optional[str] = None
-    scopes: Optional[Sequence[str]] = None
-    ttl_days: Optional[int] = 30
+    owner: str | None = None
+    scopes: Sequence[str] | None = None
+    ttl_days: int | None = 30
 
 
 class ApiKeyRequestDecisionIn(StrictModel):
     decided_by: str = "dev"
-    note: Optional[str] = None
-    scopes: Optional[Sequence[str]] = None
+    note: str | None = None
+    scopes: Sequence[str] | None = None
 
 
 class EnrollIn(StrictModel):
     reg_token: str
     user: str
-    email: Optional[str] = None
+    email: str | None = None
     device_pub_b64: str
-    meta: Optional[Dict[str, Any]] = None
+    meta: dict[str, Any] | None = None
 
 
 __all__ = [

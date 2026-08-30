@@ -30,10 +30,10 @@ from statline.public import (
 )
 
 __all__ = [
-    "__version__",
     "CompiledAdapter",
     "Row",
     "Rows",
+    "__version__",
     "dataset_root",
     "iter_dataset",
     "list_adapters",

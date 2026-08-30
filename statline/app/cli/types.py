@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import io
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Any, Iterable, TextIO, TypedDict
+from typing import Any, TextIO, TypedDict
 
 
 @dataclass
@@ -69,7 +70,7 @@ class BannerFilter(io.TextIOBase):
     def isatty(self) -> bool:
         try:
             return self._underlying.isatty()
-        except Exception:
+        except (OSError, ValueError):
             return False
 
 

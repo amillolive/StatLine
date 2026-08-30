@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import csv
-from typing import Any, Dict, Iterable, List, Optional
+from collections.abc import Iterable
+from typing import Any
 
 from statline.core.datasets.resolve import PathLike, resolve_dataset
 
-Row = Dict[str, Any]
-Rows = List[Row]
+Row = dict[str, Any]
+Rows = list[Row]
 
 
 def _coerce_cell(value: str, *, coerce_numbers: bool, strip_cells: bool) -> Any:
@@ -22,17 +23,17 @@ def _coerce_cell(value: str, *, coerce_numbers: bool, strip_cells: bool) -> Any:
             return int(cell)
         if any(character.isdigit() for character in cell):
             return float(cell)
-    except Exception:
-        pass
+    except (TypeError, ValueError, OverflowError):
+        return cell
     return cell
 
 
 def iter_dataset(
     name: PathLike,
     *,
-    root: Optional[PathLike] = None,
+    root: PathLike | None = None,
     offset: int = 0,
-    limit: Optional[int] = None,
+    limit: int | None = None,
     coerce_numbers: bool = True,
     strip_cells: bool = True,
     encoding: str = "utf-8-sig",
@@ -67,9 +68,9 @@ def iter_dataset(
 def load_dataset(
     name: PathLike,
     *,
-    root: Optional[PathLike] = None,
+    root: PathLike | None = None,
     offset: int = 0,
-    limit: Optional[int] = None,
+    limit: int | None = None,
     coerce_numbers: bool = True,
     strip_cells: bool = True,
     allow_external: bool = True,

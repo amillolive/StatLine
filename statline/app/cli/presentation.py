@@ -5,7 +5,7 @@ from __future__ import annotations
 import io
 from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Any, Optional, cast
+from typing import Any, cast
 
 from rich import box
 from rich.console import Console, RenderableType
@@ -55,7 +55,7 @@ def profile_names(
     return resolved
 
 
-def profile_score(result: Mapping[str, Any], profile: str) -> Optional[float]:
+def profile_score(result: Mapping[str, Any], profile: str) -> float | None:
     """Read one score profile from either the scores map or flattened result fields."""
     scores = result.get("scores")
     if isinstance(scores, Mapping):
@@ -137,7 +137,7 @@ def _build_table(
     rows: Sequence[Mapping[str, Any]],
     columns: Sequence[tuple[str, str]],
     *,
-    title: Optional[str] = None,
+    title: str | None = None,
     limit: int = 0,
 ) -> Table:
     """Build one rounded Rich table without choosing an output destination."""
@@ -166,27 +166,32 @@ def _build_table(
                 value = row.get(key, "")
             if key == "pri_raw":
                 try:
-                    cells.append(f"{float(value):.4f}")
-                    continue
+                    rendered = f"{float(value):.4f}"
                 except (TypeError, ValueError):
-                    pass
+                    rendered = None
+                if rendered is not None:
+                    cells.append(rendered)
+                    continue
             if key == "percentile":
                 try:
-                    cells.append(f"{float(value):.1f}")
-                    continue
+                    rendered = f"{float(value):.1f}"
                 except (TypeError, ValueError):
-                    pass
+                    rendered = None
+                if rendered is not None:
+                    cells.append(rendered)
+                    continue
             if key == "score":
                 try:
                     numeric_value = float(value)
+                except (TypeError, ValueError):
+                    numeric_value = None
+                if numeric_value is not None:
                     cells.append(
                         str(int(numeric_value))
                         if numeric_value.is_integer()
                         else f"{numeric_value:.3f}"
                     )
                     continue
-                except (TypeError, ValueError):
-                    pass
             cells.append("" if value is None else str(value))
         table.add_row(*cells)
     return table
@@ -412,7 +417,7 @@ def render_table_text(
     rows: Sequence[Mapping[str, Any]],
     columns: Sequence[tuple[str, str]],
     *,
-    title: Optional[str] = None,
+    title: str | None = None,
     limit: int = 0,
     width: int = 120,
 ) -> str:
@@ -597,8 +602,8 @@ def save_table_svg(
 
 __all__ = [
     "profile_names",
-    "profile_tables",
     "profile_score",
+    "profile_tables",
     "render_profile_tables",
     "render_table_text",
     "render_timing",

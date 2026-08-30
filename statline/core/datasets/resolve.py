@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import List, Optional, Union
 
-PathLike = Union[str, Path]
+PathLike = str | Path
 _DATASET_ROOT = Path(__file__).resolve().parent
 
 
@@ -13,7 +12,7 @@ def dataset_root() -> Path:
     return _DATASET_ROOT
 
 
-def _resolved_root(root: Optional[PathLike]) -> Path:
+def _resolved_root(root: PathLike | None) -> Path:
     return (Path(root) if root is not None else _DATASET_ROOT).expanduser().resolve()
 
 
@@ -25,7 +24,7 @@ def _inside_root(path: Path, root: Path) -> bool:
         return False
 
 
-def list_datasets(*, root: Optional[PathLike] = None) -> List[str]:
+def list_datasets(*, root: PathLike | None = None) -> list[str]:
     base = _resolved_root(root)
     if not base.exists():
         return []
@@ -37,15 +36,15 @@ def list_datasets(*, root: Optional[PathLike] = None) -> List[str]:
 def _candidate_dataset_paths(
     name: str,
     *,
-    root: Optional[PathLike] = None,
+    root: PathLike | None = None,
     allow_external: bool = True,
-) -> List[Path]:
+) -> list[Path]:
     base = _resolved_root(root)
     raw = str(name or "").strip()
     if not raw:
         raise ValueError("dataset name/path is required")
 
-    candidates: List[Path] = []
+    candidates: list[Path] = []
     explicit = Path(raw).expanduser()
     if explicit.is_file():
         resolved_explicit = explicit.resolve()
@@ -69,7 +68,7 @@ def _candidate_dataset_paths(
             candidates.append(item.resolve())
 
     seen: set[Path] = set()
-    matches: List[Path] = []
+    matches: list[Path] = []
     for candidate in candidates:
         if candidate in seen or not candidate.is_file():
             continue
@@ -83,7 +82,7 @@ def _candidate_dataset_paths(
 def resolve_dataset(
     name: str,
     *,
-    root: Optional[PathLike] = None,
+    root: PathLike | None = None,
     allow_external: bool = True,
 ) -> Path:
     """Resolve a dataset name, with optional packaged-root confinement."""

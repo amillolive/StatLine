@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import ast
 import csv
+from collections.abc import Iterable
 from dataclasses import asdict
 from pathlib import Path
-from typing import Any, Dict, Iterable, List
+from typing import Any
 
 from statline.core.adapters import (
     adapter_cache_info,
@@ -17,11 +18,11 @@ from statline.core.adapters import (
 from statline.core.datasets import dataset_root, list_datasets, load_dataset, resolve_dataset
 
 
-def _sorted_unique(values: Iterable[object]) -> List[str]:
+def _sorted_unique(values: Iterable[object]) -> list[str]:
     return list(dict.fromkeys(text for value in values if (text := str(value).strip())))
 
 
-def _expr_identifiers(expr: object) -> List[str]:
+def _expr_identifiers(expr: object) -> list[str]:
     try:
         tree = ast.parse(str(expr), mode="eval")
     except (SyntaxError, TypeError, ValueError):
@@ -37,9 +38,9 @@ def _expr_identifiers(expr: object) -> List[str]:
     return sorted(names.difference(called))
 
 
-def _adapter_inputs(adapter_name: str) -> List[str]:
+def _adapter_inputs(adapter_name: str) -> list[str]:
     spec = load_adapter_spec(adapter_name)
-    keys: List[str] = []
+    keys: list[str] = []
     for metric in spec.metrics:
         source = metric.source
         if source is None:
@@ -53,7 +54,7 @@ def _adapter_inputs(adapter_name: str) -> List[str]:
     return _sorted_unique(keys)
 
 
-def adapter_summary(adapter_name: str) -> Dict[str, Any]:
+def adapter_summary(adapter_name: str) -> dict[str, Any]:
     adapter = load_adapter(adapter_name)
     return {
         "key": adapter.key,
@@ -64,14 +65,14 @@ def adapter_summary(adapter_name: str) -> Dict[str, Any]:
     }
 
 
-def adapter_catalog() -> Dict[str, Any]:
+def adapter_catalog() -> dict[str, Any]:
     return {
         "adapters": [adapter_summary(name) for name in list_adapters()],
         "cache": adapter_cache_info(),
     }
 
 
-def adapter_document(adapter_name: str) -> Dict[str, Any]:
+def adapter_document(adapter_name: str) -> dict[str, Any]:
     spec = load_adapter_spec(adapter_name)
     metadata = spec.metadata
     return {
@@ -130,8 +131,8 @@ def _canonical_dataset_name(path: Path) -> str:
     return path.resolve().relative_to(dataset_root().resolve()).as_posix()
 
 
-def dataset_catalog() -> Dict[str, Any]:
-    linked: Dict[str, List[str]] = {}
+def dataset_catalog() -> dict[str, Any]:
+    linked: dict[str, list[str]] = {}
     for adapter_name in list_adapters():
         adapter = load_adapter(adapter_name)
         dataset = adapter.metadata.dataset
@@ -161,7 +162,7 @@ def dataset_page(
     offset: int,
     limit: int,
     coerce_numbers: bool,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     path = resolve_dataset(dataset_name, allow_external=False)
     canonical = _canonical_dataset_name(path)
     page = load_dataset(
@@ -187,7 +188,7 @@ def dataset_page(
 
 def dataset_rows(
     dataset_name: str, *, limit: int | None = None
-) -> tuple[str, List[Dict[str, Any]]]:
+) -> tuple[str, list[dict[str, Any]]]:
     path = resolve_dataset(dataset_name, allow_external=False)
     canonical = _canonical_dataset_name(path)
     rows = load_dataset(canonical, limit=limit, allow_external=False)

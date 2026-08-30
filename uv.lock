@@ -2084,7 +2084,7 @@ wheels = [
 
 [[package]]
 name = "statline"
-version = "4.0.0"
+version = "4.0.0rc1"
 source = { editable = "." }
 dependencies = [
     { name = "click" },
@@ -2161,7 +2161,7 @@ requires-dist = [
     { name = "pydantic", marker = "extra == 'extras'", specifier = ">=2.6,<3.0" },
     { name = "pydantic", marker = "extra == 'remote'", specifier = ">=2.6,<3.0" },
     { name = "pyright", marker = "extra == 'devpack'", specifier = ">=1.1.370,<2.0" },
-    { name = "pytest", marker = "extra == 'devpack'", specifier = ">=8.1,<9.0" },
+    { name = "pytest", marker = "extra == 'devpack'", specifier = ">=8.1" },
     { name = "pytest-cov", marker = "extra == 'devpack'", specifier = ">=4.1,<7.0" },
     { name = "pyyaml", specifier = ">=6.0,<7.0" },
     { name = "rich", marker = "extra == 'devpack'", specifier = ">=13.0,<15.0" },
@@ -2169,7 +2169,7 @@ requires-dist = [
     { name = "ruff", marker = "extra == 'devpack'", specifier = ">=0.5,<1.0" },
     { name = "textual", marker = "extra == 'devpack'", specifier = ">=8.0,<9.0" },
     { name = "textual", marker = "extra == 'extras'", specifier = ">=8.0,<9.0" },
-    { name = "twine", marker = "extra == 'devpack'", specifier = ">=5.0,<7.0" },
+    { name = "twine", marker = "extra == 'devpack'", specifier = ">=7.0,<8.0" },
     { name = "typer", specifier = ">=0.12,<1.0" },
     { name = "types-pyyaml", marker = "extra == 'devpack'", specifier = ">=6.0.12" },
     { name = "types-requests", marker = "extra == 'devpack'", specifier = ">=2.32" },
@@ -2262,7 +2262,7 @@ wheels = [
 
 [[package]]
 name = "twine"
-version = "6.2.0"
+version = "7.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "id" },
@@ -2275,9 +2275,9 @@ dependencies = [
     { name = "rich" },
     { name = "urllib3" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/e0/a8/949edebe3a82774c1ec34f637f5dd82d1cf22c25e963b7d63771083bbee5/twine-6.2.0.tar.gz", hash = "sha256:e5ed0d2fd70c9959770dce51c8f39c8945c574e18173a7b81802dab51b4b75cf", size = 172262, upload-time = "2025-09-04T15:43:17.255Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/92/3c/58f808a359700f39a967dffede33efeac809262c03303fa3eec6afff8f49/twine-7.0.0.tar.gz", hash = "sha256:85cdb29c518efef867360ae4acd4b0dfd61c8654a22fca08e6f8539f05022177", size = 215032, upload-time = "2026-07-27T15:59:00.825Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/3a/7a/882d99539b19b1490cac5d77c67338d126e4122c8276bf640e411650c830/twine-6.2.0-py3-none-any.whl", hash = "sha256:418ebf08ccda9a8caaebe414433b0ba5e25eb5e4a927667122fbe8f829f985d8", size = 42727, upload-time = "2025-09-04T15:43:15.994Z" },
+    { url = "https://files.pythonhosted.org/packages/96/08/ddcdc06225eaad6de0e48e1002b06d919dbde20582d0662c7af51308e5d6/twine-7.0.0-py3-none-any.whl", hash = "sha256:b854164df26db268af05f49aa5c0344b10e27a494343ff05b1e0bad3b135f5a7", size = 43204, upload-time = "2026-07-27T15:58:59.26Z" },
 ]
 
 [[package]]

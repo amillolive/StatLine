@@ -17,7 +17,7 @@ def clamp01(x: SupportsFloat) -> float:
         return 0.0
     if math.isinf(xf):
         return 1.0 if xf > 0 else 0.0
-    return 0.0 if xf < 0.0 else (1.0 if xf > 1.0 else xf)
+    return 0.0 if xf < 0.0 else (min(xf, 1.0))
 
 
 def norm(value: SupportsFloat, max_value: SupportsFloat) -> float:

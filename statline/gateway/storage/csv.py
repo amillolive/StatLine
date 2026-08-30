@@ -1,29 +1,17 @@
 from __future__ import annotations
 
 import csv
+from collections.abc import Generator, Iterable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from pathlib import Path
-from typing import (
-    Any,
-    Dict,
-    Generator,
-    Iterable,
-    Iterator,
-    List,
-    Mapping,
-    Optional,
-    Sequence,
-    TextIO,
-    Tuple,
-    Union,
-)
+from typing import Any, TextIO
 
 # Public aliases
-Row = Dict[str, Any]
-Rows = List[Row]
+Row = dict[str, Any]
+Rows = list[Row]
 
-_PathLike = Union[str, Path]
-DialectLike = Union[str, csv.Dialect]  # name or instance (never a class)
+_PathLike = str | Path
+DialectLike = str | csv.Dialect  # name or instance (never a class)
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Utilities
@@ -38,7 +26,7 @@ def _maybe_normalize_header(name: str, *, normalize_headers: bool) -> str:
     if not normalize_headers:
         return name
     s = name.strip().lower()
-    out: List[str] = []
+    out: list[str] = []
     prev_us = False
     for ch in s:
         if ch.isalnum():
@@ -59,13 +47,13 @@ def _coerce_cell(x: str, *, coerce_numbers: bool, strip_cells: bool) -> Any:
     if x and (x.isdigit() or (x.startswith("-") and x[1:].isdigit())):
         try:
             return int(x)
-        except Exception:
-            pass
+        except ValueError:
+            return x
     try:
         if x and any(c.isdigit() for c in x):
             return float(x)
-    except Exception:
-        pass
+    except ValueError:
+        return x
     return x
 
 
@@ -75,7 +63,7 @@ def _coerce_cell(x: str, *, coerce_numbers: bool, strip_cells: bool) -> Any:
 
 
 def sniff_dialect_name_or_instance(
-    sample: Union[bytes, str],
+    sample: bytes | str,
     *,
     delimiters: Sequence[str] = (",", ";", "\t", "|"),
 ) -> DialectLike:
@@ -88,7 +76,7 @@ def sniff_dialect_name_or_instance(
     try:
         dial = sniffer.sniff(text, delimiters="".join(delimiters))  # instance in practice
         return dial if isinstance(dial, csv.Dialect) else "excel"
-    except Exception:
+    except csv.Error:
         return "excel"
 
 
@@ -118,11 +106,11 @@ def _open_text(
 def _iter_from_file(
     f: TextIO,
     *,
-    has_header: Optional[bool],
+    has_header: bool | None,
     normalize_headers: bool,
     coerce_numbers: bool,
     strip_cells: bool,
-    dialect: Optional[DialectLike],
+    dialect: DialectLike | None,
     delimiters: Sequence[str],
 ) -> Iterator[Row]:
     """Core iterator that operates on an already-open TextIO handle."""
@@ -143,11 +131,11 @@ def _iter_from_file(
     if header_present is None:
         try:
             header_present = sniffer.has_header(sample)
-        except Exception:
+        except csv.Error:
             header_present = True
 
     reader = csv.reader(f, dialect=dialect_used)
-    header: List[str]
+    header: list[str]
 
     # Read header or first row
     try:
@@ -182,13 +170,13 @@ def _iter_from_file(
 
 
 def iter_csv_rows(
-    src: Union[_PathLike, TextIO],
+    src: _PathLike | TextIO,
     *,
-    has_header: Optional[bool] = None,
+    has_header: bool | None = None,
     normalize_headers: bool = True,
     coerce_numbers: bool = True,
     strip_cells: bool = True,
-    dialect: Optional[DialectLike] = None,
+    dialect: DialectLike | None = None,
     delimiters: Sequence[str] = (",", ";", "\t", "|"),
 ) -> Iterator[Row]:
     """
@@ -235,11 +223,11 @@ def write_csv_rows(
     path: _PathLike,
     rows: Iterable[Mapping[str, Any]],
     *,
-    fieldnames: Optional[Sequence[str]] = None,
+    fieldnames: Sequence[str] | None = None,
     include_header: bool = True,
     encoding: str = "utf-8",
     newline: str = "",
-) -> Tuple[int, List[str]]:
+) -> tuple[int, list[str]]:
     """
     Write rows (mapping-like) to CSV.
     Returns (row_count, fieldnames_used).
@@ -290,7 +278,7 @@ def peek_headers(
     normalize_headers: bool = True,
     delimiters: Sequence[str] = (",", ";", "\t", "|"),
     encoding: str = "utf-8",
-) -> List[str]:
+) -> list[str]:
     """Read just the header row and return normalized names."""
     p = _ensure_path(path)
     with p.open("rb") as rb:

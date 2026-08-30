@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any
 
 from fastapi import APIRouter, Depends, Query
 
@@ -45,7 +45,7 @@ api_router = APIRouter(
     summary="API index",
     operation_id="api_index",
 )
-def root() -> Dict[str, Any]:
+def root() -> dict[str, Any]:
     return {
         "name": "StatLine API",
         "version": __version__,
@@ -66,7 +66,7 @@ def root() -> Dict[str, Any]:
     summary="Health check",
     operation_id="health_v4",
 )
-def health() -> Dict[str, Any]:
+def health() -> dict[str, Any]:
     cache = adapter_cache_info()
     return {"ok": True, "version": __version__, "adapters": cache["adapters"]}
 
@@ -79,7 +79,7 @@ def health() -> Dict[str, Any]:
     description="Returns every canonical adapter once plus process-cache diagnostics.",
     operation_id="list_adapters_v4",
 )
-def adapters() -> Dict[str, Any]:
+def adapters() -> dict[str, Any]:
     return adapter_catalog()
 
 
@@ -94,7 +94,7 @@ def adapters() -> Dict[str, Any]:
     ),
     operation_id="get_adapter_v4",
 )
-def adapter(adapter: str) -> Dict[str, Any]:
+def adapter(adapter: str) -> dict[str, Any]:
     try:
         return adapter_document(adapter)
     except (FileNotFoundError, KeyError, ValueError) as error:
@@ -108,7 +108,7 @@ def adapter(adapter: str) -> Dict[str, Any]:
     summary="Match adapters from headers",
     operation_id="sniff_adapters_v4",
 )
-def sniff(body: SniffIn) -> Dict[str, List[str]]:
+def sniff(body: SniffIn) -> dict[str, list[str]]:
     return {"adapters": sniff_adapters(body.headers)}
 
 
@@ -120,7 +120,7 @@ def sniff(body: SniffIn) -> Dict[str, List[str]]:
     description="Lists CSV resources and the adapters that declare each dataset.",
     operation_id="list_datasets_v4",
 )
-def datasets() -> Dict[str, Any]:
+def datasets() -> dict[str, Any]:
     return dataset_catalog()
 
 
@@ -140,7 +140,7 @@ def dataset(
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=100, ge=1, le=50000),
     coerce_numbers: bool = Query(default=True),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     try:
         return dataset_page(
             dataset,
@@ -164,9 +164,9 @@ def dataset(
     ),
     operation_id="score_v4",
 )
-def score(body: ScoreIn) -> Dict[str, Any]:
+def score(body: ScoreIn) -> dict[str, Any]:
     source: ScoreSource
-    rows: List[Dict[str, Any]]
+    rows: list[dict[str, Any]]
 
     if body.row is not None:
         source = ScoreSource(kind="row")

@@ -6,9 +6,10 @@ apps a small, boring API over the richer internal implementation.
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Mapping
 from collections.abc import Iterable as AbcIterable
 from collections.abc import Mapping as AbcMapping
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Union, cast
+from typing import Any, cast
 
 from statline.core.adapters import CompiledAdapter
 from statline.core.adapters import list_adapters as _list_adapters
@@ -21,14 +22,14 @@ from statline.core.scoring.map import (
     score_rows_from_raw,
 )
 
-Row = Dict[str, Any]
-Rows = List[Row]
-AdapterLike = Union[str, CompiledAdapter, Any]
-WeightsArg = Optional[Union[str, Dict[str, float]]]
-OutputArg = Optional[Dict[str, Any]]
+Row = dict[str, Any]
+Rows = list[Row]
+AdapterLike = str | CompiledAdapter | Any
+WeightsArg = str | dict[str, float] | None
+OutputArg = dict[str, Any] | None
 
 
-def list_adapters() -> List[str]:
+def list_adapters() -> list[str]:
     """Return available adapter keys."""
     return _list_adapters()
 
@@ -62,12 +63,12 @@ def score_row(
     row: Mapping[str, Any],
     *,
     weights: WeightsArg = None,
-    weights_override: Optional[Dict[str, float]] = None,
-    penalties_override: Optional[Dict[str, float]] = None,
+    weights_override: dict[str, float] | None = None,
+    penalties_override: dict[str, float] | None = None,
     output: OutputArg = None,
-    filters: Optional[Dict[str, Any]] = None,
-    context: Optional[Dict[str, Dict[str, float]]] = None,
-    caps_override: Optional[Dict[str, float]] = None,
+    filters: dict[str, Any] | None = None,
+    context: dict[str, dict[str, float]] | None = None,
+    caps_override: dict[str, float] | None = None,
 ) -> Row:
     """Score one raw row with an adapter."""
     return dict(
@@ -90,12 +91,12 @@ def score_batch(
     rows: Iterable[Mapping[str, Any]],
     *,
     weights: WeightsArg = None,
-    weights_override: Optional[Dict[str, float]] = None,
-    penalties_override: Optional[Dict[str, float]] = None,
+    weights_override: dict[str, float] | None = None,
+    penalties_override: dict[str, float] | None = None,
     output: OutputArg = None,
-    filters: Optional[Dict[str, Any]] = None,
-    context: Optional[Dict[str, Dict[str, float]]] = None,
-    caps_override: Optional[Dict[str, float]] = None,
+    filters: dict[str, Any] | None = None,
+    context: dict[str, dict[str, float]] | None = None,
+    caps_override: dict[str, float] | None = None,
 ) -> Rows:
     """Score many raw rows with an adapter."""
     return [
@@ -116,17 +117,17 @@ def score_batch(
 
 def score(
     adapter: AdapterLike,
-    data: Union[Mapping[str, Any], Iterable[Mapping[str, Any]]],
+    data: Mapping[str, Any] | Iterable[Mapping[str, Any]],
     *,
     mode: str = "auto",
     weights: WeightsArg = None,
-    weights_override: Optional[Dict[str, float]] = None,
-    penalties_override: Optional[Dict[str, float]] = None,
+    weights_override: dict[str, float] | None = None,
+    penalties_override: dict[str, float] | None = None,
     output: OutputArg = None,
-    filters: Optional[Dict[str, Any]] = None,
-    context: Optional[Dict[str, Dict[str, float]]] = None,
-    caps_override: Optional[Dict[str, float]] = None,
-) -> Union[Row, Rows]:
+    filters: dict[str, Any] | None = None,
+    context: dict[str, dict[str, float]] | None = None,
+    caps_override: dict[str, float] | None = None,
+) -> Row | Rows:
     """Score raw StatLine data using a compact SDK-style API.
 
     Examples:
@@ -185,13 +186,13 @@ __all__ = [
     "CompiledAdapter",
     "Row",
     "Rows",
-    "load_adapter",
     "list_adapters",
-    "load_dataset",
     "list_datasets",
-    "map_row",
+    "load_adapter",
+    "load_dataset",
     "map_batch",
+    "map_row",
     "score",
-    "score_row",
     "score_batch",
+    "score_row",
 ]

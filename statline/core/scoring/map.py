@@ -1,17 +1,8 @@
 # statline/core/calculator.py
 from __future__ import annotations
 
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    Iterable,
-    List,
-    Mapping,
-    Optional,
-    Union,
-    cast,
-)
+from collections.abc import Callable, Iterable, Mapping
+from typing import Any, cast
 
 from statline.core.adapters.compile import build_dataset_context
 from statline.core.types.scoring import AdapterProtocol
@@ -21,16 +12,16 @@ from .score import calculate_pri
 from .score import passes_mapped_filters as _passes_mapped_filters
 from .score import passes_raw_filters as _passes_raw_filters
 
-WeightsArg = Optional[Union[str, Dict[str, float]]]
-OutputArg = Optional[Dict[str, Any]]
+WeightsArg = str | dict[str, float] | None
+OutputArg = dict[str, Any] | None
 
 
-def _sanitize_numeric_metrics(raw_metrics: Mapping[str, Any]) -> Dict[str, Any]:
+def _sanitize_numeric_metrics(raw_metrics: Mapping[str, Any]) -> dict[str, Any]:
     """
     Coerce string numbers, including comma decimals, to float; blank strings to 0.0.
     Non-numeric fields are preserved for adapter dimensions/filters.
     """
-    numeric_metrics: Dict[str, Any] = {}
+    numeric_metrics: dict[str, Any] = {}
     for k, v in raw_metrics.items():
         if isinstance(v, str):
             s = v.strip()
@@ -38,10 +29,12 @@ def _sanitize_numeric_metrics(raw_metrics: Mapping[str, Any]) -> Dict[str, Any]:
                 numeric_metrics[k] = 0.0
                 continue
             try:
-                numeric_metrics[k] = float(s.replace(",", "."))
-                continue
+                parsed = float(s.replace(",", "."))
             except ValueError:
-                pass
+                parsed = None
+            if parsed is not None:
+                numeric_metrics[k] = parsed
+                continue
         numeric_metrics[k] = v
     return numeric_metrics
 
@@ -57,8 +50,8 @@ def safe_map_raw(
     adapter: AdapterProtocol,
     raw_metrics: Mapping[str, Any],
     *,
-    dataset_context: Optional[Mapping[str, object]] = None,
-) -> Dict[str, Any]:
+    dataset_context: Mapping[str, object] | None = None,
+) -> dict[str, Any]:
     """Map one raw row after tolerant numeric sanitization.
 
     If no batch context is supplied, the row is treated as a one-row dataset so
@@ -90,7 +83,7 @@ def safe_map_raw(
 
 def safe_map_batch(
     adapter: AdapterProtocol, raw_rows: Iterable[Mapping[str, Any]]
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """Map a raw batch with one shared, precomputed dataset aggregate context."""
     rows = list(raw_rows)
     dataset_context = build_dataset_context(rows)
@@ -101,19 +94,19 @@ def score_rows_from_raw(
     raw_rows: Iterable[Mapping[str, Any]],
     adapter: AdapterProtocol,
     *,
-    weights_override: Optional[Dict[str, float]] = None,
+    weights_override: dict[str, float] | None = None,
     weights: WeightsArg = None,
-    penalties_override: Optional[Dict[str, float]] = None,
+    penalties_override: dict[str, float] | None = None,
     output: OutputArg = None,
-    context: Optional[Dict[str, Dict[str, float]]] = None,
-    caps_override: Optional[Dict[str, float]] = None,
-    timing: Optional[StageTimes] = None,
-    filters: Optional[Dict[str, Any]] = None,
-) -> List[Dict[str, Any]]:
+    context: dict[str, dict[str, float]] | None = None,
+    caps_override: dict[str, float] | None = None,
+    timing: StageTimes | None = None,
+    filters: dict[str, Any] | None = None,
+) -> list[dict[str, Any]]:
     """
     Convenience API: raw rows -> adapter mapping -> canonical PRI scoring.
     """
-    raw_list: List[Mapping[str, Any]] = list(raw_rows)
+    raw_list: list[Mapping[str, Any]] = list(raw_rows)
     if filters:
         raw_list = [r for r in raw_list if _passes_raw_filters(r, filters, adapter=adapter)]
 
@@ -144,15 +137,15 @@ def score_row_from_raw(
     raw_row: Mapping[str, Any],
     adapter: AdapterProtocol,
     *,
-    weights_override: Optional[Dict[str, float]] = None,
+    weights_override: dict[str, float] | None = None,
     weights: WeightsArg = None,
-    penalties_override: Optional[Dict[str, float]] = None,
+    penalties_override: dict[str, float] | None = None,
     output: OutputArg = None,
-    context: Optional[Dict[str, Dict[str, float]]] = None,
-    caps_override: Optional[Dict[str, float]] = None,
-    timing: Optional[StageTimes] = None,
-    filters: Optional[Dict[str, Any]] = None,
-) -> Dict[str, Any]:
+    context: dict[str, dict[str, float]] | None = None,
+    caps_override: dict[str, float] | None = None,
+    timing: StageTimes | None = None,
+    filters: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """Single-row convenience wrapper."""
     rows = score_rows_from_raw(
         [raw_row],
@@ -174,6 +167,6 @@ def score_row_from_raw(
 __all__ = [
     "safe_map_batch",
     "safe_map_raw",
-    "score_rows_from_raw",
     "score_row_from_raw",
+    "score_rows_from_raw",
 ]

@@ -3,13 +3,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass(frozen=True)
 class ScopeConfig:
     scope: str
-    last_sync_ts: Optional[int]
+    last_sync_ts: int | None
 
 
 __all__ = ["ScopeConfig"]

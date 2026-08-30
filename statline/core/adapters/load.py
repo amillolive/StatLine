@@ -6,9 +6,10 @@ import math
 import os
 import re
 import warnings
+from collections.abc import Mapping, Sequence
 from collections.abc import Mapping as ABCMapping
 from pathlib import Path, PurePosixPath
-from typing import Mapping, Optional, Sequence, SupportsFloat, SupportsIndex, TypeAlias, cast
+from typing import SupportsFloat, SupportsIndex, TypeAlias, cast
 
 import yaml
 
@@ -57,7 +58,7 @@ def _finite_float(x: object, default: float = 0.0) -> float:
     """Coerce to finite float; warn and return default on failure/NaN/inf."""
     try:
         value = float(cast(_ConvertibleToFloat, x))
-    except Exception:
+    except (TypeError, ValueError, OverflowError):
         _warn(f"Non-numeric value '{x}' coerced to {default}")
         return default
     if not math.isfinite(value):
@@ -70,7 +71,7 @@ def _config_float(value: object, *, ctx: str) -> float:
     """Parse a required finite configuration number."""
     try:
         parsed = float(cast(_ConvertibleToFloat, value))
-    except Exception as error:
+    except (TypeError, ValueError, OverflowError) as error:
         message = f"{ctx} must be numeric, got {value!r}"
         if _STRICT:
             raise TypeError(message) from error
@@ -315,7 +316,7 @@ def _is_meta_scalar(x: object) -> bool:
     return x is None or isinstance(x, (str, int, float, bool))
 
 
-def _coerce_meta_value(v: object, *, ctx: str) -> Optional[MetaValue]:
+def _coerce_meta_value(v: object, *, ctx: str) -> MetaValue | None:
     """
     Coerce into shallow MetaValue:
       - scalar
@@ -367,7 +368,7 @@ def _coerce_meta_map(obj: object, *, ctx: str) -> dict[str, MetaValue]:
     return out
 
 
-def _coerce_dataset_reference(value: object, *, ctx: str) -> Optional[str]:
+def _coerce_dataset_reference(value: object, *, ctx: str) -> str | None:
     """Normalize one portable dataset reference without touching the filesystem."""
     if value is None:
         return None
@@ -479,16 +480,16 @@ def _require_keys(data: Mapping[str, object], name: str, *req: str) -> None:
         raise KeyError(f"Adapter '{name}' is missing required key(s): {', '.join(missing)}")
 
 
-def _as_clamp(v: object) -> Optional[Clamp]:
+def _as_clamp(v: object) -> Clamp | None:
     """Normalize clamp configs to (lo, hi) or None. Swaps if lo > hi. Warns on bad forms."""
     if v is None or v is False:
         return None
 
-    def _pair(lo: object, hi: object) -> Optional[Clamp]:
+    def _pair(lo: object, hi: object) -> Clamp | None:
         try:
             a = float(cast(_ConvertibleToFloat, lo))
             b = float(cast(_ConvertibleToFloat, hi))
-        except Exception:
+        except (TypeError, ValueError, OverflowError):
             _warn(f"Clamp values '{lo}','{hi}' non-numeric — ignoring clamp")
             return None
         if not (math.isfinite(a) and math.isfinite(b)):
@@ -804,7 +805,7 @@ def _coerce_source(v: object, *, ctx: str) -> SourceSpec:
     )
 
 
-def _coerce_transform_param(key: str, value: object, *, ctx: str) -> Optional[MetaValue]:
+def _coerce_transform_param(key: str, value: object, *, ctx: str) -> MetaValue | None:
     if key in _NUMERIC_TRANSFORM_KEYS:
         return _config_float(value, ctx=ctx)
     if key == "ndigits":
@@ -814,7 +815,7 @@ def _coerce_transform_param(key: str, value: object, *, ctx: str) -> Optional[Me
             if _STRICT:
                 raise TypeError(message)
             _warn(message + " — rounding to the nearest integer.")
-        return int(round(number))
+        return round(number)
     if key in {"expr", "name"}:
         result = str(value).strip()
         if not result:
@@ -827,7 +828,7 @@ def _coerce_transform_param(key: str, value: object, *, ctx: str) -> Optional[Me
     return _coerce_meta_value(value, ctx=ctx)
 
 
-def _coerce_transform(v: object, *, ctx: str) -> Optional[TransformSpec]:
+def _coerce_transform(v: object, *, ctx: str) -> TransformSpec | None:
     if v is None:
         return None
     if not isinstance(v, Mapping):
@@ -948,9 +949,13 @@ def _coerce_transform(v: object, *, ctx: str) -> Optional[TransformSpec]:
             return None
         params["name"] = name
 
-    if kind in {"clip", "custom"} and "lo" in params and "hi" in params:
-        if float(cast(float, params["lo"])) > float(cast(float, params["hi"])):
-            raise ValueError(f"{ctx}: transform requires lo <= hi")
+    if (
+        kind in {"clip", "custom"}
+        and "lo" in params
+        and "hi" in params
+        and float(cast(float, params["lo"])) > float(cast(float, params["hi"]))
+    ):
+        raise ValueError(f"{ctx}: transform requires lo <= hi")
     return TransformSpec(kind=kind, params=params)
 
 
@@ -960,7 +965,7 @@ def _coerce_score_profiles(v: object, name: str) -> dict[str, ScoreProfileSpec]:
     vm = _as_str_dict(v, ctx=f"Adapter '{name}': 'score_profiles'")
     out: dict[str, ScoreProfileSpec] = {}
 
-    def _opt_float(pvm: dict[str, object], key: str) -> Optional[float]:
+    def _opt_float(pvm: dict[str, object], key: str) -> float | None:
         if key not in pvm or pvm[key] is None:
             return None
         return _finite_float(pvm[key], default=0.0)
@@ -1123,7 +1128,7 @@ def load_spec(source: str | Path) -> AdapterSpec:
             continue
         output_keys.add(metric_key)
 
-        bucket_name: Optional[str] = None
+        bucket_name: str | None = None
         if metric.get("bucket") is not None:
             candidate = str(metric["bucket"]).strip()
             if candidate:

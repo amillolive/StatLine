@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-from typing import Dict
-
 from statline.core.types.adapters import AdapterHooks, NoOpHooks
 
 # Simple registry for hook modules keyed by adapter key.
-_HOOKS: Dict[str, AdapterHooks] = {}
+_HOOKS: dict[str, AdapterHooks] = {}
 
 
 def register(key: str, hooks: AdapterHooks) -> None:
@@ -20,7 +18,7 @@ def get(key: str) -> AdapterHooks:
     return _HOOKS.get(key.lower(), NoOpHooks())
 
 
-def available() -> Dict[str, AdapterHooks]:
+def available() -> dict[str, AdapterHooks]:
     """Return a shallow copy of the current registry (useful for diagnostics/tests)."""
     return dict(_HOOKS)
 

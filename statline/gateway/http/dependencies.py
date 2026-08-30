@@ -1,8 +1,9 @@
 """Shared FastAPI authentication and scope dependencies."""
 
-from __future__ import annotations  # noqa: I001
+from __future__ import annotations
 
-from typing import Annotated, Any, Awaitable, Callable, Dict
+from collections.abc import Awaitable, Callable
+from typing import Annotated, Any
 
 from fastapi import (  # pyright: ignore[reportUnknownVariableType]
     Depends,
@@ -56,7 +57,7 @@ async def device_dependency(
 
 
 AuthDep = Annotated[Principal, Depends(principal_dependency)]
-DeviceRow = Dict[str, Any]
+DeviceRow = dict[str, Any]
 DeviceRowDep = Annotated[DeviceRow, Depends(device_dependency)]
 
 
@@ -97,13 +98,13 @@ require_any_scope = require_any("*")
 
 
 __all__ = [
-    "AuthDep",
-    "device_dependency",
-    "DeviceRow",
-    "DeviceRowDep",
     "SCOPE_ADMIN",
     "SCOPE_MODERATION",
     "SCOPE_USERBASE",
+    "AuthDep",
+    "DeviceRow",
+    "DeviceRowDep",
+    "device_dependency",
     "principal_dependency",
     "require_any",
     "require_any_scope",

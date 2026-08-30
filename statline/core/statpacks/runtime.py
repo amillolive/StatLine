@@ -8,9 +8,10 @@ import json
 import shutil
 import sys
 import tempfile
+from collections.abc import Mapping, Sequence
 from contextlib import nullcontext
 from pathlib import Path, PurePosixPath
-from typing import Any, Dict, Mapping, Optional, Sequence, TextIO, cast
+from typing import Any, TextIO, cast
 
 import yaml
 
@@ -53,8 +54,8 @@ def _parse_scalar(value: str) -> Any:
         return value
 
 
-def _parse_filters(items: Sequence[str]) -> Dict[str, Any]:
-    output: Dict[str, Any] = {}
+def _parse_filters(items: Sequence[str]) -> dict[str, Any]:
+    output: dict[str, Any] = {}
     for item in items:
         if "=" not in item:
             raise ValueError(f"Filter must use key=value: {item!r}")
@@ -66,8 +67,8 @@ def _parse_filters(items: Sequence[str]) -> Dict[str, Any]:
     return output
 
 
-def _flatten_result(raw: Mapping[str, Any], result: Mapping[str, Any]) -> Dict[str, Any]:
-    flattened: Dict[str, Any] = {}
+def _flatten_result(raw: Mapping[str, Any], result: Mapping[str, Any]) -> dict[str, Any]:
+    flattened: dict[str, Any] = {}
     for raw_key, raw_value in raw.items():
         if isinstance(raw_value, (str, int, float, bool)) and raw_value not in ("", None):
             flattened[str(raw_key)] = raw_value
@@ -87,7 +88,7 @@ def _wide_table(
     results: Sequence[Mapping[str, Any]],
     *,
     profiles: Sequence[str],
-    sort_profile: Optional[str],
+    sort_profile: str | None,
     ascending: bool,
     limit: int,
 ) -> str:
@@ -137,8 +138,7 @@ def _write_machine_output(
         output.write("\n")
         return
     if format_lower == "jsonl":
-        for row in rows:
-            output.write(json.dumps(dict(row), ensure_ascii=False) + "\n")
+        output.writelines(json.dumps(dict(row), ensure_ascii=False) + "\n" for row in rows)
         return
     if format_lower == "csv":
         fields: list[str] = []
@@ -193,10 +193,10 @@ def _parser(prog: str) -> argparse.ArgumentParser:
 
 def run_statpack(
     root: str | Path,
-    argv: Optional[Sequence[str]] = None,
+    argv: Sequence[str] | None = None,
     *,
-    stdout: Optional[TextIO] = None,
-    stderr: Optional[TextIO] = None,
+    stdout: TextIO | None = None,
+    stderr: TextIO | None = None,
 ) -> int:
     """Run an extracted StatPack through the canonical local StatLine SDK."""
     package_root = Path(root).expanduser().resolve()
@@ -223,14 +223,16 @@ def run_statpack(
                 dataset_value,
             )
 
-        with times.stage("compile_adapter") if times else nullcontext():
-            with tempfile.TemporaryDirectory(prefix="statline-statpack-sdk-") as temporary:
-                adapter_path = Path(temporary) / "adapter.yaml"
-                adapter_path.write_text(
-                    dump_yaml(data),
-                    encoding="utf-8",
-                )
-                adapter = compile_adapter(load_spec(adapter_path))
+        with (
+            times.stage("compile_adapter") if times else nullcontext(),
+            tempfile.TemporaryDirectory(prefix="statline-statpack-sdk-") as temporary,
+        ):
+            adapter_path = Path(temporary) / "adapter.yaml"
+            adapter_path.write_text(
+                dump_yaml(data),
+                encoding="utf-8",
+            )
+            adapter = compile_adapter(load_spec(adapter_path))
 
         with times.stage("load_dataset") if times else nullcontext():
             raw_rows = load_dataset(dataset_path)
@@ -246,7 +248,7 @@ def run_statpack(
         )
 
         rendered = ""
-        machine_rows: list[Dict[str, Any]] = []
+        machine_rows: list[dict[str, Any]] = []
 
         with times.stage("render_output") if times else nullcontext():
             if args.format == "table":
@@ -346,7 +348,7 @@ def run_statpack(
 
         return 0
 
-    except Exception as error:
+    except Exception as error:  # noqa: BLE001 - StatPack runner is an execution boundary
         err.write(f"Error: {error}\n")
 
         if times is not None and times.items:

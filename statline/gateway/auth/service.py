@@ -9,10 +9,11 @@ import secrets
 import sqlite3
 import time
 import uuid
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union, cast
+from typing import Any, cast
 
-from cryptography.exceptions import InvalidSignature
+from cryptography.exceptions import InvalidSignature, UnsupportedAlgorithm
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import (
     Ed25519PrivateKey,
@@ -66,7 +67,7 @@ HDR_NONCE = "X-SL-Nonce"
 HDR_SIGNATURE = "X-SL-Signature"
 
 
-def _find_project_root(start: Path) -> Optional[Path]:
+def _find_project_root(start: Path) -> Path | None:
     """
     Heuristic repo root detector.
     Prefers a directory containing:
@@ -152,7 +153,7 @@ def _b64u_decode(s: str) -> bytes:
     return base64.urlsafe_b64decode((s + pad).encode("ascii"))
 
 
-def _sha256_hex(raw: Union[str, bytes]) -> str:
+def _sha256_hex(raw: str | bytes) -> str:
     if isinstance(raw, str):
         raw = raw.encode("utf-8")
     return hashlib.sha256(raw).hexdigest()
@@ -300,16 +301,16 @@ _init_db()
 # =============================================================================
 
 
-def _load_dev_private() -> Optional[Ed25519PrivateKey]:
+def _load_dev_private() -> Ed25519PrivateKey | None:
     if not DEVKEY_PATH.exists():
         return None
     raw = DEVKEY_PATH.read_bytes()
     try:
         key = serialization.load_pem_private_key(raw, password=None)
-    except Exception:
+    except (TypeError, ValueError, UnsupportedAlgorithm):
         return None
     if not isinstance(key, Ed25519PrivateKey):
-        raise RuntimeError("DEVKEY is not an Ed25519 private key")
+        raise TypeError("DEVKEY is not an Ed25519 private key")
     return key
 
 
@@ -328,7 +329,7 @@ def _load_dev_public() -> Ed25519PublicKey:
     raw = DEVKEY_PUB_PATH.read_bytes()
     key = serialization.load_pem_public_key(raw)
     if not isinstance(key, Ed25519PublicKey):
-        raise RuntimeError("DEVKEY.pub is not an Ed25519 public key")
+        raise TypeError("DEVKEY.pub is not an Ed25519 public key")
     return key
 
 
@@ -341,7 +342,7 @@ def devkey_fingerprint() -> str:
     return hashlib.sha256(pub_raw).hexdigest()[:16]
 
 
-def admin_generate_devkey_files(overwrite: bool = False) -> Dict[str, str]:
+def admin_generate_devkey_files(overwrite: bool = False) -> dict[str, str]:
     """
     Convenience helper (for admin/dev):
     Generates DEVKEY (private) and DEVKEY.pub (public) PEM files.
@@ -387,19 +388,19 @@ def _audit(
     *,
     event: str,
     ok: bool,
-    org: Optional[str] = None,
-    subject: Optional[str] = None,
-    device_id: Optional[str] = None,
-    api_prefix: Optional[str] = None,
-    request: Optional[Request] = None,
-    detail: Optional[str] = None,
+    org: str | None = None,
+    subject: str | None = None,
+    device_id: str | None = None,
+    api_prefix: str | None = None,
+    request: Request | None = None,
+    detail: str | None = None,
 ) -> None:
     ip = None
     ua = None
     if request is not None:
         try:
             ip = request.client.host if request.client else None
-        except Exception:
+        except (AttributeError, RuntimeError):
             ip = None
         ua = str(request.headers.get("User-Agent", ""))[:512]
 
@@ -433,7 +434,7 @@ def _audit(
 # =============================================================================
 
 
-def _reg_payload(org: str, scopes: Sequence[str], ttl_days: Optional[int]) -> Dict[str, Any]:
+def _reg_payload(org: str, scopes: Sequence[str], ttl_days: int | None) -> dict[str, Any]:
     now = int(time.time())
     exp = None
     if ttl_days is not None:
@@ -452,8 +453,8 @@ def _reg_payload(org: str, scopes: Sequence[str], ttl_days: Optional[int]) -> Di
 def admin_mint_regtoken(
     *,
     org: str,
-    scopes: Optional[Sequence[str]] = None,
-    ttl_days: Optional[int] = 14,
+    scopes: Sequence[str] | None = None,
+    ttl_days: int | None = 14,
 ) -> str:
     """
     Mint an enrollment token that can be redeemed ONCE to create a PENDING enrollment request.
@@ -471,7 +472,7 @@ def admin_mint_regtoken(
     return tok
 
 
-def verify_regtoken(token: str) -> Dict[str, Any]:
+def verify_regtoken(token: str) -> dict[str, Any]:
     """
     Verify a reg token signature and expiry (does NOT mark redeemed).
     Raises HTTPException on invalid token.
@@ -484,9 +485,9 @@ def verify_regtoken(token: str) -> Dict[str, Any]:
         p_b64, s_b64 = body.split(".", 1)
         payload_raw = _b64u_decode(p_b64)
         sig = _b64u_decode(s_b64)
-        payload = cast(Dict[str, Any], json.loads(payload_raw.decode("utf-8")))
-    except Exception:
-        raise HTTPException(HTTP_401_UNAUTHORIZED, "Malformed reg token")
+        payload = cast(dict[str, Any], json.loads(payload_raw.decode("utf-8")))
+    except (TypeError, ValueError, UnicodeDecodeError):
+        raise HTTPException(HTTP_401_UNAUTHORIZED, "Malformed reg token") from None
 
     if int(payload.get("v", 0)) != 1:
         raise HTTPException(HTTP_401_UNAUTHORIZED, "Unsupported reg token version")
@@ -552,10 +553,10 @@ def create_enrollment_request(
     *,
     reg_token: str,
     user: str,
-    email: Optional[str],
+    email: str | None,
     device_pub_b64: str,
-    meta: Optional[Dict[str, Any]] = None,
-) -> Dict[str, str]:
+    meta: dict[str, Any] | None = None,
+) -> dict[str, str]:
     """
     Redeem a reg token ONCE and create a PENDING enrollment.
     This does not activate the device; admin must approve.
@@ -565,7 +566,7 @@ def create_enrollment_request(
     payload = verify_regtoken(reg_token)
     rid = cast(str, payload["rid"])
     org = cast(str, payload["org"])
-    scopes = cast(List[str], payload["scopes"])
+    scopes = cast(list[str], payload["scopes"])
 
     if _reg_is_redeemed(rid):
         raise HTTPException(HTTP_403_FORBIDDEN, "reg token already redeemed")
@@ -577,8 +578,8 @@ def create_enrollment_request(
     pub_raw = _pubkey_raw_from_b64(device_pub_b64)
     try:
         Ed25519PublicKey.from_public_bytes(pub_raw)
-    except Exception:
-        raise HTTPException(HTTP_400_BAD_REQUEST, "Invalid device public key")
+    except ValueError:
+        raise HTTPException(HTTP_400_BAD_REQUEST, "Invalid device public key") from None
 
     request_id = uuid.uuid4().hex
     device_id = uuid.uuid4().hex
@@ -616,7 +617,7 @@ def create_enrollment_request(
     return {"request_id": request_id, "device_id": device_id, "org": org}
 
 
-def admin_list_enrollments(status: str = "PENDING") -> List[Dict[str, Any]]:
+def admin_list_enrollments(status: str = "PENDING") -> list[dict[str, Any]]:
     conn = _connect()
     try:
         rows = conn.execute(
@@ -628,7 +629,7 @@ def admin_list_enrollments(status: str = "PENDING") -> List[Dict[str, Any]]:
             """,
             (status,),
         ).fetchall()
-        out: List[Dict[str, Any]] = []
+        out: list[dict[str, Any]] = []
         for r in rows:
             out.append(
                 {
@@ -655,7 +656,7 @@ def admin_approve_enrollment(
     *,
     request_id: str,
     decided_by: str = "dev",
-    decision_note: Optional[str] = None,
+    decision_note: str | None = None,
 ) -> bool:
     """
     Approve a pending enrollment request. This activates the device.
@@ -691,7 +692,7 @@ def admin_approve_enrollment(
             meta = json.loads(row["meta_json"] or "{}")
             if not isinstance(meta, dict):
                 meta = {}
-        except Exception:
+        except (TypeError, json.JSONDecodeError):
             meta = {}
 
         # Upsert device record
@@ -721,9 +722,9 @@ def admin_approve_enrollment(
                 row["device_pub_b64"],
                 now,
                 now,
-                cast(Optional[str], meta.get("hostname")),  # pyright: ignore[reportUnknownMemberType]
-                cast(Optional[str], meta.get("os")),  # pyright: ignore[reportUnknownMemberType]
-                cast(Optional[str], meta.get("cli_version")),  # pyright: ignore[reportUnknownMemberType]
+                cast(str | None, meta.get("hostname")),  # pyright: ignore[reportUnknownMemberType]
+                cast(str | None, meta.get("os")),  # pyright: ignore[reportUnknownMemberType]
+                cast(str | None, meta.get("cli_version")),  # pyright: ignore[reportUnknownMemberType]
                 None,
             ),
         )
@@ -738,7 +739,7 @@ def admin_deny_enrollment(
     *,
     request_id: str,
     decided_by: str = "dev",
-    decision_note: Optional[str] = None,
+    decision_note: str | None = None,
 ) -> bool:
     conn = _connect()
     try:
@@ -761,7 +762,7 @@ def admin_deny_enrollment(
         conn.close()
 
 
-def admin_revoke_device(device_id: str, note: Optional[str] = None) -> bool:
+def admin_revoke_device(device_id: str, note: str | None = None) -> bool:
     conn = _connect()
     try:
         row = conn.execute(
@@ -798,9 +799,9 @@ def create_api_key_for_device(
     *,
     device_id: str,
     owner: str,
-    scopes: Optional[Sequence[str]] = None,
-    ttl_days: Optional[int] = 30,
-) -> Tuple[str, Dict[str, Any]]:
+    scopes: Sequence[str] | None = None,
+    ttl_days: int | None = 30,
+) -> tuple[str, dict[str, Any]]:
     """
     Create an api_ token tied to a device. Intended for an authenticated flow
     (e.g., device-proof + admin policy), not for anonymous issuance.
@@ -869,7 +870,7 @@ def create_api_key_for_device(
         conn.close()
 
 
-def admin_list_apikeys(org: Optional[str] = None) -> List[Dict[str, Any]]:
+def admin_list_apikeys(org: str | None = None) -> list[dict[str, Any]]:
     conn = _connect()
     try:
         if org:
@@ -890,7 +891,7 @@ def admin_list_apikeys(org: Optional[str] = None) -> List[Dict[str, Any]]:
                 ORDER BY created_at DESC
                 """
             ).fetchall()
-        out: List[Dict[str, Any]] = []
+        out: list[dict[str, Any]] = []
         for r in rows:
             out.append(
                 {
@@ -954,7 +955,7 @@ def _canonical_target(request: Request) -> str:
     return path + (("?" + q) if q else "")
 
 
-async def require_device(request: Request) -> Dict[str, Any]:
+async def require_device(request: Request) -> dict[str, Any]:
     """
     Validate device proof headers:
       X-SL-Device, X-SL-Timestamp, X-SL-Nonce, X-SL-Signature
@@ -980,7 +981,7 @@ async def require_device(request: Request) -> Dict[str, Any]:
 
     try:
         ts = int(ts_s)
-    except Exception:
+    except ValueError:
         _audit(event="auth.device.bad_timestamp", ok=False, request=request, detail="bad timestamp")
         raise HTTPException(HTTP_401_UNAUTHORIZED, "Invalid device timestamp")
 
@@ -998,7 +999,7 @@ async def require_device(request: Request) -> Dict[str, Any]:
         sig = _b64u_decode(sig_b64)
         if len(sig) != 64:
             raise ValueError("bad sig len")
-    except Exception:
+    except ValueError:
         _audit(
             event="auth.device.bad_signature_encoding",
             ok=False,
@@ -1013,7 +1014,7 @@ async def require_device(request: Request) -> Dict[str, Any]:
     target = _canonical_target(request)
     method = request.method.upper()
 
-    envelope = f"{method}\n{target}\n{ts}\n{nonce}\n{body_hash}".encode("utf-8")
+    envelope = f"{method}\n{target}\n{ts}\n{nonce}\n{body_hash}".encode()
 
     conn = _connect()
     try:
@@ -1134,8 +1135,8 @@ async def require_device(request: Request) -> Dict[str, Any]:
 
 
 def require_api_key(
-    request: Request, *, expect_org: Optional[str] = None, expect_device_id: Optional[str] = None
-) -> Dict[str, Any]:
+    request: Request, *, expect_org: str | None = None, expect_device_id: str | None = None
+) -> dict[str, Any]:
     """
     Validate Authorization: Bearer api_xxx against the keystore.
     Optionally enforce org/device binding.
@@ -1306,12 +1307,12 @@ def need_all(scopes: list[str], p: Principal) -> None:
 # =============================================================================
 
 
-def inspect_regtoken(token: str) -> Dict[str, Any]:
+def inspect_regtoken(token: str) -> dict[str, Any]:
     """Return verified reg token payload without redeeming it."""
     return verify_regtoken(token)
 
 
-def get_enrollment_request(request_id: str) -> Optional[Dict[str, Any]]:
+def get_enrollment_request(request_id: str) -> dict[str, Any] | None:
     conn = _connect()
     try:
         r = conn.execute(
@@ -1348,9 +1349,9 @@ def create_apikey_request(
     *,
     device_id: str,
     owner: str,
-    scopes: Optional[Sequence[str]] = None,
-    ttl_days: Optional[int] = 30,
-) -> Dict[str, Any]:
+    scopes: Sequence[str] | None = None,
+    ttl_days: int | None = 30,
+) -> dict[str, Any]:
     """
     Create a PENDING api key request for an ACTIVE device.
     Token is minted ONLY when the device claims after admin approval.
@@ -1415,8 +1416,8 @@ def create_apikey_request(
 
 
 def admin_list_apikey_requests(
-    status: str = "PENDING", org: Optional[str] = None
-) -> List[Dict[str, Any]]:
+    status: str = "PENDING", org: str | None = None
+) -> list[dict[str, Any]]:
     conn = _connect()
     try:
         if org:
@@ -1444,7 +1445,7 @@ def admin_list_apikey_requests(
                 (status,),
             ).fetchall()
 
-        out: List[Dict[str, Any]] = []
+        out: list[dict[str, Any]] = []
         for r in rows:
             out.append(
                 {
@@ -1475,8 +1476,8 @@ def admin_approve_apikey_request(
     *,
     request_id: str,
     decided_by: str = "dev",
-    decision_note: Optional[str] = None,
-    scopes: Optional[Sequence[str]] = None,
+    decision_note: str | None = None,
+    scopes: Sequence[str] | None = None,
 ) -> bool:
     """
     Approve a PENDING request. Does NOT mint token.
@@ -1533,7 +1534,7 @@ def admin_deny_apikey_request(
     *,
     request_id: str,
     decided_by: str = "dev",
-    decision_note: Optional[str] = None,
+    decision_note: str | None = None,
 ) -> bool:
     conn = _connect()
     try:
@@ -1556,7 +1557,7 @@ def admin_deny_apikey_request(
         conn.close()
 
 
-def list_apikey_requests_for_device(device_id: str) -> List[Dict[str, Any]]:
+def list_apikey_requests_for_device(device_id: str) -> list[dict[str, Any]]:
     conn = _connect()
     try:
         rows = conn.execute(
@@ -1570,7 +1571,7 @@ def list_apikey_requests_for_device(device_id: str) -> List[Dict[str, Any]]:
             """,
             (device_id,),
         ).fetchall()
-        out: List[Dict[str, Any]] = []
+        out: list[dict[str, Any]] = []
         for r in rows:
             out.append(
                 {
@@ -1597,7 +1598,7 @@ def list_apikey_requests_for_device(device_id: str) -> List[Dict[str, Any]]:
         conn.close()
 
 
-def claim_apikey_request(*, request_id: str, device_id: str) -> Tuple[str, Dict[str, Any]]:
+def claim_apikey_request(*, request_id: str, device_id: str) -> tuple[str, dict[str, Any]]:
     """
     Atomically claim an APPROVED request (mint api_ token + mark CLAIMED).
     This is intentionally a single-shot operation.
@@ -1647,8 +1648,8 @@ def claim_apikey_request(*, request_id: str, device_id: str) -> Tuple[str, Dict[
         ttl = int(ttl_days) if ttl_days is not None else 30
 
         # Mint token (retry on prefix collision)
-        token: Optional[str] = None
-        prefix8: Optional[str] = None
+        token: str | None = None
+        prefix8: str | None = None
         now = time.time()
         exp = now + ttl * 86400
         owner = cast(str, r["owner"])
@@ -1715,7 +1716,7 @@ def claim_apikey_request(*, request_id: str, device_id: str) -> Tuple[str, Dict[
         conn.close()
 
 
-def list_apikeys_for_device(device_id: str) -> List[Dict[str, Any]]:
+def list_apikeys_for_device(device_id: str) -> list[dict[str, Any]]:
     conn = _connect()
     try:
         rows = conn.execute(
@@ -1727,7 +1728,7 @@ def list_apikeys_for_device(device_id: str) -> List[Dict[str, Any]]:
             """,
             (device_id,),
         ).fetchall()
-        out: List[Dict[str, Any]] = []
+        out: list[dict[str, Any]] = []
         for r in rows:
             out.append(
                 {
@@ -1763,9 +1764,9 @@ def revoke_apikey_for_device(device_id: str, prefix8: str) -> bool:
 def admin_list_audit(
     *,
     limit: int = 200,
-    event: Optional[str] = None,
-    org: Optional[str] = None,
-) -> List[Dict[str, Any]]:
+    event: str | None = None,
+    org: str | None = None,
+) -> list[dict[str, Any]]:
     limit = max(1, min(int(limit), 1000))
     conn = _connect()
     try:
@@ -1773,8 +1774,8 @@ def admin_list_audit(
             SELECT id, ts, event, ok, org, subject, device_id, api_prefix, ip, ua, detail
             FROM audit
         """
-        params: List[Any] = []
-        wh: List[str] = []
+        params: list[Any] = []
+        wh: list[str] = []
         if event:
             wh.append("event = ?")
             params.append(event)
@@ -1787,7 +1788,7 @@ def admin_list_audit(
         params.append(limit)
 
         rows = conn.execute(q, tuple(params)).fetchall()
-        out: List[Dict[str, Any]] = []
+        out: list[dict[str, Any]] = []
         for r in rows:
             out.append(
                 {
@@ -1814,7 +1815,7 @@ def admin_list_audit(
 # =============================================================================
 
 
-def generate_device_keypair() -> Tuple[str, str]:
+def generate_device_keypair() -> tuple[str, str]:
     """
     Generate an Ed25519 device keypair.
 
@@ -1841,7 +1842,7 @@ def generate_device_keypair() -> Tuple[str, str]:
 def load_device_private_key(pem_text: str) -> Ed25519PrivateKey:
     key = serialization.load_pem_private_key(pem_text.encode("utf-8"), password=None)
     if not isinstance(key, Ed25519PrivateKey):
-        raise ValueError("Not an Ed25519 private key")
+        raise TypeError("Not an Ed25519 private key")
     return key
 
 
@@ -1859,6 +1860,6 @@ def sign_envelope(
     """
     priv = load_device_private_key(device_private_pem)
     body_hash = _sha256_hex(body_bytes)
-    env = f"{method.upper()}\n{target}\n{timestamp}\n{nonce}\n{body_hash}".encode("utf-8")
+    env = f"{method.upper()}\n{target}\n{timestamp}\n{nonce}\n{body_hash}".encode()
     sig = priv.sign(env)
     return _b64u_encode(sig)

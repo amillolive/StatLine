@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import Any, Protocol
 
 
 @dataclass
 class SlapiError(Exception):
     message: str
-    detail: Optional[object] = None
+    detail: object | None = None
 
     def __post_init__(self) -> None:
         self.args = (self.message,)
@@ -48,10 +48,16 @@ class InternalError(SlapiError):
     pass
 
 
+class HTTPExceptionLike(Protocol):
+    status_code: int
+    detail: Any
+
+
 __all__ = [
     "BadRequest",
     "Conflict",
     "Forbidden",
+    "HTTPExceptionLike",
     "InternalError",
     "NotFound",
     "SlapiError",

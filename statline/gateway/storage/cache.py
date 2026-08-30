@@ -5,7 +5,8 @@ from __future__ import annotations
 import importlib
 import sqlite3
 import time
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
+from collections.abc import Callable, Iterable
+from typing import Any
 
 from statline.gateway.storage.sqlite import get_conn
 from statline.gateway.storage.types import ScopeConfig
@@ -23,8 +24,8 @@ def _scope_expression(
     conn: sqlite3.Connection,
     table: str,
     *,
-    alias: Optional[str] = None,
-) -> Optional[str]:
+    alias: str | None = None,
+) -> str | None:
     columns = _table_columns(conn, table)
     prefix = f"{alias}." if alias else ""
     scope = f'{prefix}"scope"'
@@ -54,7 +55,7 @@ def now_ts() -> int:
     return int(time.time())
 
 
-def _legacy_guild_config_lookup(scope: str) -> Optional[ScopeConfig]:
+def _legacy_guild_config_lookup(scope: str) -> ScopeConfig | None:
     with get_conn(read_only=True) as conn:
         columns = _table_columns(conn, "guild_config")
         if not {"guild_id", "last_sync_ts"}.issubset(columns):
@@ -72,7 +73,7 @@ def _legacy_guild_config_lookup(scope: str) -> Optional[ScopeConfig]:
     )
 
 
-def get_scope_config(scope: str) -> Optional[ScopeConfig]:
+def get_scope_config(scope: str) -> ScopeConfig | None:
     _ensure_scope_config_table()
     with get_conn(read_only=True) as conn:
         row = conn.execute(
@@ -88,7 +89,7 @@ def get_scope_config(scope: str) -> Optional[ScopeConfig]:
     return _legacy_guild_config_lookup(scope)
 
 
-def update_scope_config(scope: str, *, last_sync_ts: Optional[int]) -> None:
+def update_scope_config(scope: str, *, last_sync_ts: int | None) -> None:
     _ensure_scope_config_table()
     with get_conn() as conn:
         conn.execute(
@@ -138,8 +139,8 @@ def _coerce_sync(function: Callable[..., Any]) -> SyncFunc:
     return runner
 
 
-def _resolve_sync_func() -> Optional[SyncFunc]:
-    candidates: List[Tuple[str, str]] = [
+def _resolve_sync_func() -> SyncFunc | None:
+    candidates: list[tuple[str, str]] = [
         ("statline.gateway.ingest.sheets", "sync_scope"),
         ("statline.gateway.sync.sheets", "sync_scope"),
     ]
@@ -147,10 +148,10 @@ def _resolve_sync_func() -> Optional[SyncFunc]:
         try:
             module = importlib.import_module(module_name)
             function = getattr(module, attribute, None)
-            if callable(function):
-                return _coerce_sync(function)
         except (ImportError, AttributeError):
-            continue
+            function = None
+        if callable(function):
+            return _coerce_sync(function)
     return None
 
 
@@ -158,7 +159,7 @@ _SYNC_FUNC = _resolve_sync_func()
 DEFAULT_SHEETS_TTL_SEC = 24 * 60 * 60
 
 
-def _stale_since(last_sync_ts: Optional[int], ttl_sec: int) -> bool:
+def _stale_since(last_sync_ts: int | None, ttl_sec: int) -> bool:
     return not last_sync_ts or (now_ts() - int(last_sync_ts)) >= int(ttl_sec)
 
 
@@ -187,17 +188,17 @@ def refresh_all_scopes(
     *,
     ttl_sec: int = DEFAULT_SHEETS_TTL_SEC,
     force: bool = False,
-) -> Dict[str, int]:
-    results: Dict[str, int] = {}
+) -> dict[str, int]:
+    results: dict[str, int] = {}
     for scope in iterate_scopes():
         try:
             results[scope] = sync_scope_if_stale(scope, ttl_sec=ttl_sec, force=force)
-        except Exception:
+        except Exception:  # noqa: BLE001 - refresh failures are isolated per scope
             results[scope] = -1
     return results
 
 
-def get_entities_for_scope(scope: str) -> List[Dict[str, Any]]:
+def get_entities_for_scope(scope: str) -> list[dict[str, Any]]:
     with get_conn(read_only=True) as conn:
         columns = _table_columns(conn, "entities")
         scope_expression = _scope_expression(conn, "entities")
@@ -221,7 +222,7 @@ def get_entities_for_scope(scope: str) -> List[Dict[str, Any]]:
     return [dict(row) for row in rows]
 
 
-def get_metrics_for_entity(scope: str, fuzzy_key: str) -> Dict[str, float]:
+def get_metrics_for_entity(scope: str, fuzzy_key: str) -> dict[str, float]:
     with get_conn(read_only=True) as conn:
         columns = _table_columns(conn, "metrics")
         scope_expression = _scope_expression(conn, "metrics")
@@ -239,7 +240,7 @@ def get_metrics_for_entity(scope: str, fuzzy_key: str) -> Dict[str, float]:
     return {str(row["metric_key"]): float(row["metric_value"]) for row in rows}
 
 
-def get_metrics_for_scope(scope: str) -> List[Dict[str, Any]]:
+def get_metrics_for_scope(scope: str) -> list[dict[str, Any]]:
     with get_conn(read_only=True) as conn:
         entity_columns = _table_columns(conn, "entities")
         metric_columns = _table_columns(conn, "metrics")
@@ -276,7 +277,7 @@ def get_metrics_for_scope(scope: str) -> List[Dict[str, Any]]:
     return [dict(row) for row in rows]
 
 
-def get_distinct_metric_keys(scope: str) -> List[str]:
+def get_distinct_metric_keys(scope: str) -> list[str]:
     with get_conn(read_only=True) as conn:
         columns = _table_columns(conn, "metrics")
         scope_expression = _scope_expression(conn, "metrics")

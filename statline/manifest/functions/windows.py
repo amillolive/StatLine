@@ -163,4 +163,4 @@ def _notify_shell() -> None:
             None,
         )
     except (AttributeError, OSError):
-        pass
+        return

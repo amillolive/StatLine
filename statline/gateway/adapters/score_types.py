@@ -2,44 +2,45 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any, Dict, List, Mapping, Optional, Union
+from typing import Any
 
 Row = Mapping[str, Any]
-Rows = List[Row]
-Weights = Dict[str, float]
-WeightsArg = Union[str, Weights]
-Penalties = Dict[str, float]
-Output = Dict[str, Any]
-Filters = Dict[str, Any]
-Context = Dict[str, Dict[str, float]]
-Caps = Dict[str, float]
-ScoreRowResponse = Dict[str, Any]
-ScoreBatchResponse = List[Dict[str, Any]]
+Rows = list[Row]
+Weights = dict[str, float]
+WeightsArg = str | Weights
+Penalties = dict[str, float]
+Output = dict[str, Any]
+Filters = dict[str, Any]
+Context = dict[str, dict[str, float]]
+Caps = dict[str, float]
+ScoreRowResponse = dict[str, Any]
+ScoreBatchResponse = list[dict[str, Any]]
 
 
 @dataclass(frozen=True)
 class ScoreRowRequest:
     adapter: str
     row: Row
-    weights: Optional[WeightsArg] = None
-    penalties_override: Optional[Penalties] = None
-    output: Optional[Output] = None
-    filters: Optional[Filters] = None
-    context: Optional[Context] = None
-    caps_override: Optional[Caps] = None
+    weights: WeightsArg | None = None
+    penalties_override: Penalties | None = None
+    output: Output | None = None
+    filters: Filters | None = None
+    context: Context | None = None
+    caps_override: Caps | None = None
 
 
 @dataclass(frozen=True)
 class ScoreBatchRequest:
     adapter: str
     rows: Rows
-    weights: Optional[WeightsArg] = None
-    penalties_override: Optional[Penalties] = None
-    output: Optional[Output] = None
-    filters: Optional[Filters] = None
-    context: Optional[Context] = None
-    caps_override: Optional[Caps] = None
+    weights: WeightsArg | None = None
+    penalties_override: Penalties | None = None
+    output: Output | None = None
+    filters: Filters | None = None
+    context: Context | None = None
+    caps_override: Caps | None = None
 
 
 __all__ = [
