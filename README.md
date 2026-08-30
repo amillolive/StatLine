@@ -4,8 +4,8 @@
 
 It can run completely locally for simple scoring workflows, or against **SLAPI**, the optional StatLine API layer for authenticated remote scoring, adapter inspection, and multi-client deployments.
 
-> **Release target:** **v4.0.0rc1**  
-> **Python:** **3.10 through 3.14**  
+> **Release target:** **v4.0.0rc2**
+> **Python:** **3.10 through 3.14**
 > **License:** **AGPL-3.0-or-later**, with separate trademark restrictions for the StatLine name and branding.
 
 ---
@@ -16,30 +16,30 @@ StatLine takes raw rows such as CSV box-score data, maps those rows through an a
 
 At a high level, StatLine provides:
 
-- **Adapter-based scoring** for different games, leagues, datasets, or stat schemas.
-- **Local scoring** through the Python package and `statline` CLI.
-- **Remote/API scoring** through SLAPI when installed with the remote stack.
-- **Weighted score profiles**, including PRI-style outputs and adapter-defined variants.
-- **Batch scoring**, row scoring, mapping-only commands, and already-mapped calculation commands.
-- **Adapter inspection tools** for inputs, metrics, dimensions, filters, weights, and sniffing.
-- **Typed public Python API** for bots, dashboards, notebooks, and application code.
+* **Adapter-based scoring** for different games, leagues, datasets, or stat schemas.
+* **Local scoring** through the Python package and `statline` CLI.
+* **Remote/API scoring** through SLAPI when installed with the remote stack.
+* **Weighted score profiles**, including PRI-style outputs and adapter-defined variants.
+* **Batch scoring**, row scoring, mapping-only commands, and already-mapped calculation commands.
+* **Adapter inspection tools** for inputs, metrics, dimensions, filters, weights, and sniffing.
+* **Typed public Python API** for bots, dashboards, notebooks, and application code.
 
 ---
 
 ## Install
 
-StatLine v4.0.0rc1 has four intended install variants.
+StatLine v4.0.0rc2 has four intended install variants.
 
-| Variant | Command | Use this when you want |
-| --- | --- | --- |
-| **base** | `pip install statline` | Functional local library and local CLI scoring. |
-| **remote** | `pip install "statline[remote]"` | Base plus API client/auth and the SLAPI serving stack. |
-| **extras** | `pip install "statline[extras]"` | Remote plus user conveniences such as richer terminal/UI and Google Sheets-related helpers. |
-| **devpack** | `pip install -e ".[devpack]"` | Everything needed for development, testing, typing, docs, packaging, and release checks. |
+| Variant     | Command                          | Use this when you want                                                                      |
+| ----------- | -------------------------------- | ------------------------------------------------------------------------------------------- |
+| **base**    | `pip install statline`           | Functional local library and local CLI scoring.                                             |
+| **remote**  | `pip install "statline[remote]"` | Base plus API client/auth and the SLAPI serving stack.                                      |
+| **extras**  | `pip install "statline[extras]"` | Remote plus user conveniences such as richer terminal/UI and Google Sheets-related helpers. |
+| **devpack** | `pip install -e ".[devpack]"`    | Everything needed for development, testing, typing, docs, packaging, and release checks.    |
 
 For a source checkout:
 
-```bash
+```bash id="gx7hio"
 python -m venv .venv
 
 # Linux/macOS
@@ -58,7 +58,7 @@ python -m pip install -e ".[devpack]"
 
 Local mode avoids all network probing and uses the installed StatLine core directly.
 
-```bash
+```bash id="y41591"
 statline --mode local adapter list
 statline --mode local adapter inputs demo
 statline --mode local adapter weights demo
@@ -66,7 +66,7 @@ statline --mode local adapter weights demo
 
 Score the bundled demo CSV from a source checkout:
 
-```bash
+```bash id="o3hhff"
 statline --mode local score \
   --adapter demo \
   statline/core/datasets/DEMO/demo.csv \
@@ -78,7 +78,7 @@ statline --mode local score \
 
 Write JSON instead:
 
-```bash
+```bash id="y19azp"
 statline --mode local score \
   --adapter demo \
   statline/core/datasets/DEMO/demo.csv \
@@ -93,7 +93,7 @@ statline --mode local score \
 
 ## Quick start: Python API
 
-```python
+```python id="2eosv5"
 from statline import list_adapters, load_dataset, score
 
 print(list_adapters())
@@ -113,7 +113,7 @@ for row in results[:3]:
 
 For one row:
 
-```python
+```python id="9pi6fe"
 from statline import score_row
 
 player = {
@@ -142,39 +142,39 @@ print(result["pri"])
 
 The main command is:
 
-```bash
+```bash id="6cucra"
 statline --help
 ```
 
 Useful global options:
 
-| Option | Meaning |
-| --- | --- |
-| `--mode auto` | Probe SLAPI; use remote when reachable and authenticated, otherwise local where supported. |
-| `--mode local` | Force offline local scoring and skip SLAPI entirely. |
-| `--mode remote` | Require SLAPI to be reachable and authenticated. |
-| `--url URL` | Set the SLAPI base URL. Also supported through `SLAPI_URL`. |
-| `--timing / --no-timing` | Show or hide timing summaries. |
-| `--version` | Print the CLI version. |
+| Option                   | Meaning                                                                                    |
+| ------------------------ | ------------------------------------------------------------------------------------------ |
+| `--mode auto`            | Probe SLAPI; use remote when reachable and authenticated, otherwise local where supported. |
+| `--mode local`           | Force offline local scoring and skip SLAPI entirely.                                       |
+| `--mode remote`          | Require SLAPI to be reachable and authenticated.                                           |
+| `--url URL`              | Set the SLAPI base URL. Also supported through `SLAPI_URL`.                                |
+| `--timing / --no-timing` | Show or hide timing summaries.                                                             |
+| `--version`              | Print the CLI version.                                                                     |
 
 Primary user commands:
 
-| Command | Purpose |
-| --- | --- |
-| `statline adapter list` | List adapters. |
-| `statline adapter spec <adapter>` | Show adapter metadata/spec details. |
-| `statline adapter inputs <adapter>` | Show raw input keys expected by an adapter. |
-| `statline adapter metrics <adapter>` | Show mapped metric keys. |
-| `statline adapter weights <adapter>` | Show available weight profiles. |
-| `statline adapter filters <adapter>` | Show adapter-declared filters. |
-| `statline adapter sniff --file stats.csv` | Detect matching adapters from headers. |
-| `statline map row` / `statline map batch` | Map raw rows without scoring. |
-| `statline calc row` / `statline calc batch` | Score already-mapped metric rows. |
-| `statline score` | Map and score raw CSV/YAML/JSON rows. |
-| `statline interactive` | Guided CLI scoring flow. |
-| `statline serve` | Start SLAPI locally. Requires the remote stack. |
-| `statline auth ...` | Device enrollment and API key workflows. |
-| `statline sys status` | Runtime, auth, path, and logging status. |
+| Command                                     | Purpose                                         |
+| ------------------------------------------- | ----------------------------------------------- |
+| `statline adapter list`                     | List adapters.                                  |
+| `statline adapter spec <adapter>`           | Show adapter metadata/spec details.             |
+| `statline adapter inputs <adapter>`         | Show raw input keys expected by an adapter.     |
+| `statline adapter metrics <adapter>`        | Show mapped metric keys.                        |
+| `statline adapter weights <adapter>`        | Show available weight profiles.                 |
+| `statline adapter filters <adapter>`        | Show adapter-declared filters.                  |
+| `statline adapter sniff --file stats.csv`   | Detect matching adapters from headers.          |
+| `statline map row` / `statline map batch`   | Map raw rows without scoring.                   |
+| `statline calc row` / `statline calc batch` | Score already-mapped metric rows.               |
+| `statline score`                            | Map and score raw CSV/YAML/JSON rows.           |
+| `statline interactive`                      | Guided CLI scoring flow.                        |
+| `statline serve`                            | Start SLAPI locally. Requires the remote stack. |
+| `statline auth ...`                         | Device enrollment and API key workflows.        |
+| `statline sys status`                       | Runtime, auth, path, and logging status.        |
 
 ---
 
@@ -184,15 +184,15 @@ Primary user commands:
 
 An adapter is a YAML contract that explains how to turn raw fields into StatLine metrics. It defines:
 
-- metadata such as `key`, `version`, `aliases`, and `title`,
-- raw-to-metric mappings,
-- derived efficiency metrics,
-- buckets,
-- weight profiles,
-- penalties,
-- score profiles,
-- optional dimensions and filters,
-- optional sniffing rules for adapter detection.
+* metadata such as `key`, `version`, `aliases`, and `title`,
+* raw-to-metric mappings,
+* derived efficiency metrics,
+* buckets,
+* weight profiles,
+* penalties,
+* score profiles,
+* optional dimensions and filters,
+* optional sniffing rules for adapter detection.
 
 ### Metric
 
@@ -224,7 +224,7 @@ Adapters can reference aggregate values from the current input dataset when mapp
 
 Available dataset aggregate functions include:
 
-```text
+```text id="ub6957"
 dataset_max("FIELD")
 dataset_min("FIELD")
 dataset_mean("FIELD")
@@ -237,7 +237,7 @@ Field lookup is case-insensitive.
 
 This allows adapters to define scoring behavior relative to the current dataset rather than relying exclusively on fixed constants. For example:
 
-```yaml
+```yaml id="4cujrf"
 rel_gp:
   expr: min(1.0, real_gp / max(1.0, dataset_max("GP") * 0.65))
 ```
@@ -252,14 +252,14 @@ The CLI reads CSV, YAML, JSON-like YAML, and stdin CSV for commands that accept 
 
 CSV example:
 
-```csv
+```csv id="gvkm74"
 name,ppg,apg,orpg,drpg,spg,bpg,tov,fgm,fga,win,loss
 Example Player,24.5,6.2,1.0,4.0,1.5,0.7,2.1,9.2,18.4,12,8
 ```
 
 YAML example:
 
-```yaml
+```yaml id="fxaqlq"
 - name: Example Player
   ppg: 24.5
   apg: 6.2
@@ -280,32 +280,32 @@ YAML example:
 
 Install the remote variant:
 
-```bash
+```bash id="wgthnb"
 pip install "statline[remote]"
 ```
 
 Start SLAPI locally:
 
-```bash
+```bash id="b4fpys"
 statline --mode local serve --host 127.0.0.1 --port 8000
 ```
 
 Or use the `slapi` console entry point:
 
-```bash
+```bash id="s5jyot"
 SLAPI_HOST=127.0.0.1 SLAPI_PORT=8000 slapi
 ```
 
 Then point clients at it:
 
-```bash
+```bash id="702qy0"
 export SLAPI_URL="http://127.0.0.1:8000"
 statline --mode remote sys status
 ```
 
 On Windows PowerShell:
 
-```powershell
+```powershell id="gvswq9"
 $env:SLAPI_URL = "http://127.0.0.1:8000"
 statline --mode remote sys status
 ```
@@ -314,7 +314,7 @@ SLAPI supports protected authentication flows. Normal remote use requires both d
 
 Common auth flow:
 
-```bash
+```bash id="uh101l"
 statline auth device-init
 statline auth enroll --token reg_... --user your-handle --email you@example.com
 statline auth apikey-request --owner your-name
@@ -330,13 +330,13 @@ The exact approval steps depend on the SLAPI administrator.
 
 Install the development pack:
 
-```bash
+```bash id="yqoh3s"
 python -m pip install -e ".[devpack]"
 ```
 
 Run checks:
 
-```bash
+```bash id="pguk4i"
 pytest
 ruff check statline tests
 mypy statline
@@ -345,7 +345,7 @@ pyright
 
 Build release artifacts:
 
-```bash
+```bash id="3eg9vw"
 python -m build
 twine check dist/*
 ```
@@ -358,19 +358,19 @@ StatLine source code is licensed under the **GNU Affero General Public License v
 
 See:
 
-- `LICENSE`
-- `TRADEMARK_POLICY.md`
-- `CLA.md`
-- `legal/tos.md`
-- `legal/privacypolicy.md`
-- `legal/aup.md`
+* `LICENSE`
+* `TRADEMARK_POLICY.md`
+* `CLA.md`
+* `legal/tos.md`
+* `legal/privacypolicy.md`
+* `legal/aup.md`
 
 ---
 
 ## Repository
 
-- Homepage: <https://statline.dev>
-- Repository: <https://github.com/amillolive/StatLine>
-- Issues: <https://github.com/amillolive/StatLine/issues>
-- API Documentation: <https://api.statline.dev/redoc>
-- Interactive API Documentation: <https://api.statline.dev/docs>
+* Homepage: <https://statline.dev>
+* Repository: <https://github.com/amillolive/StatLine>
+* Issues: <https://github.com/amillolive/StatLine/issues>
+* API Documentation: <https://api.statline.dev/redoc>
+* Interactive API Documentation: <https://api.statline.dev/docs>

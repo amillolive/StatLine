@@ -396,20 +396,3 @@ jobs:
 
           print("Adapters OK:", ", ".join(names))
           PY
-
-  publish:
-    name: Publish
-    needs:
-      - smoke
-
-    # Production publishing happens ONLY from an actual pushed v* tag.
-    # workflow_dispatch can run CI, but cannot publish.
-    if: >-
-      github.event_name == 'push' &&
-      startsWith(github.ref, 'refs/tags/v')
-
-    permissions:
-      contents: read
-      id-token: write
-
-    uses: ./.github/workflows/publish.yml

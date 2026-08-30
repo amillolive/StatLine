@@ -1,6 +1,6 @@
 # StatLine HOWTO
 
-This guide shows the practical workflows for StatLine v4.0.0rc1: installing the right variant, scoring locally, using SLAPI, writing adapters, and preparing a release.
+This guide shows the practical workflows for **StatLine v4.0.0rc2**: installing the right variant, scoring locally, using SLAPI, writing adapters, and preparing a release.
 
 ---
 
@@ -133,13 +133,13 @@ statline --mode local score \
 
 Available output formats for `score`:
 
-| Format | Use |
-| --- | --- |
+| Format  | Use                            |
+| ------- | ------------------------------ |
 | `table` | Human-readable terminal table. |
-| `md` | Markdown table. |
-| `csv` | Spreadsheet-friendly output. |
-| `json` | JSON array. |
-| `jsonl` | One JSON object per line. |
+| `md`    | Markdown table.                |
+| `csv`   | Spreadsheet-friendly output.   |
+| `json`  | JSON array.                    |
+| `jsonl` | One JSON object per line.      |
 
 > On Windows PowerShell, either enter multiline examples on one line or use PowerShell's backtick continuation character instead of `\`.
 
@@ -429,11 +429,11 @@ statline/core/adapters/defs/<adapter>.yaml
 
 A minimal adapter needs:
 
-- `key`
-- `version`
-- `buckets`
-- `metrics`
-- `weights` or a default uniform PRI profile
+* `key`
+* `version`
+* `buckets`
+* `metrics`
+* `weights` or a default uniform PRI profile
 
 Example:
 
@@ -499,21 +499,21 @@ statline --mode local adapter inputs sample_game
 
 ### Adapter fields
 
-| Field | Required | Purpose |
-| --- | ---: | --- |
-| `key` | Yes | Unique adapter identifier. |
-| `version` | Yes | Adapter SemVer. Results may change across versions. |
-| `aliases` | No | Alternate adapter names. |
-| `title` | No | Human-readable name. |
-| `dimensions` | No | Enumerated fields for grouping/filtering. |
-| `sniff` | No | Header rules for adapter detection. |
-| `filters` | No | Filterable fields and allowed operations. |
-| `buckets` | Yes | Weight categories. |
-| `metrics` | Yes | Raw-to-metric mappings. |
-| `efficiency` | No | Derived ratio/per-X metrics. |
-| `weights` | No | Bucket weight profiles. |
-| `penalties` | No | Profile-specific penalty settings. |
-| `score_profiles` | No | Published scoring profiles such as PRI. |
+| Field            | Required | Purpose                                             |
+| ---------------- | -------: | --------------------------------------------------- |
+| `key`            |      Yes | Unique adapter identifier.                          |
+| `version`        |      Yes | Adapter SemVer. Results may change across versions. |
+| `aliases`        |       No | Alternate adapter names.                            |
+| `title`          |       No | Human-readable name.                                |
+| `dimensions`     |       No | Enumerated fields for grouping/filtering.           |
+| `sniff`          |       No | Header rules for adapter detection.                 |
+| `filters`        |       No | Filterable fields and allowed operations.           |
+| `buckets`        |      Yes | Weight categories.                                  |
+| `metrics`        |      Yes | Raw-to-metric mappings.                             |
+| `efficiency`     |       No | Derived ratio/per-X metrics.                        |
+| `weights`        |       No | Bucket weight profiles.                             |
+| `penalties`      |       No | Profile-specific penalty settings.                  |
+| `score_profiles` |       No | Published scoring profiles such as PRI.             |
 
 ---
 
@@ -537,7 +537,9 @@ Expression:
 source: { expr: "steals + blocks" }
 ```
 
-Expressions are intentionally safe and small. Use arithmetic, parentheses, `min(...)`, `max(...)`, variable names, and dataset aggregate functions. Metric order matters: expressions can reference values computed earlier in the adapter.
+Expressions are intentionally safe and small. Use arithmetic, parentheses, `min(...)`, `max(...)`, variable names, and dataset aggregate functions.
+
+Metric order matters: expressions can reference values computed earlier in the adapter.
 
 Dataset aggregate functions accept any raw input header as a quoted string and are case-insensitive:
 
@@ -702,26 +704,38 @@ pip-audit
 
 ---
 
-## 18. v4.0.0rc1 release checklist
+## 18. v4.0.0rc2 release checklist
 
-1. Confirm `project.version` in `pyproject.toml` is `4.0.0rc1`.
+1. Confirm `project.version` in `pyproject.toml` is `4.0.0rc2`.
+
 2. Confirm `statline/RELEASE` matches the v4 generation and intended component release counters.
+
 3. Confirm bundled adapter metadata and documentation match the intended release.
+
 4. Confirm install variants:
-   - base: `pip install statline`
-   - remote: `pip install "statline[remote]"`
-   - extras: `pip install "statline[extras]"`
-   - devpack: `pip install -e ".[devpack]"`
+
+   * base: `pip install statline`
+   * remote: `pip install "statline[remote]"`
+   * extras: `pip install "statline[extras]"`
+   * devpack: `pip install -e ".[devpack]"`
+
 5. Run tests, linting, and type checks:
-   - `pytest`
-   - `ruff check statline tests`
-   - `mypy statline`
-   - `pyright`
+
+   * `pytest`
+   * `ruff check statline tests`
+   * `mypy statline`
+   * `pyright`
+
 6. Build artifacts with `python -m build`.
+
 7. Run `python -m twine check dist/*`.
+
 8. Confirm the wheel contains required runtime resources such as `statline/RELEASE`, bundled adapters, and bundled datasets.
+
 9. Smoke-test the built wheel in a clean environment.
+
 10. Confirm artifacts do not include local databases, logs, secrets, `.git`, caches, or bytecode.
+
 11. Tag and publish only after package metadata, release metadata, tests, and docs agree.
 
 ---
