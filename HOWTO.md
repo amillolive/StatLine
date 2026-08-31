@@ -1,6 +1,6 @@
 # StatLine HOWTO
 
-This guide shows the practical workflows for **StatLine v4.0.0rc2**: installing the right variant, scoring locally, using SLAPI, writing adapters, and preparing a release.
+This guide shows the practical workflows for **StatLine v4.0.0rc3**: installing the right variant, scoring locally, using SLAPI, writing adapters, and preparing a release.
 
 ---
 
@@ -22,9 +22,19 @@ Use this when you need authenticated SLAPI access or want to run the local API s
 pip install "statline[remote]"
 ```
 
+### StatLine OS install
+
+Use this when you want the persistent Textual REPL/shell/TUI client.
+
+```bash
+pip install "statline[os]"
+```
+
+Launch it with `statline os` (separate Windows window) or `statline os --inline`.
+
 ### Power-user install
 
-Use this when you want the remote stack plus convenience tooling.
+Use this when you want the remote stack, StatLine OS, and convenience tooling.
 
 ```bash
 pip install "statline[extras]"
@@ -63,20 +73,20 @@ Use `--mode local` when you want zero network behavior. Use `--mode remote` when
 
 ## 3. Inspect an adapter before scoring
 
-Start with the adapter metadata. The bundled demo adapter is named `demo`.
+Start with a current adapter such as `eba.players`. Deprecated schemas are hidden from discovery and must be addressed by explicit local YAML path.
 
 ```bash
-statline --mode local adapter spec demo
-statline --mode local adapter inputs demo
-statline --mode local adapter metrics demo
-statline --mode local adapter weights demo
-statline --mode local adapter filters demo
+statline --mode local adapter spec eba.players
+statline --mode local adapter inputs eba.players
+statline --mode local adapter metrics eba.players
+statline --mode local adapter weights eba.players
+statline --mode local adapter filters eba.players
 ```
 
 Detect adapters from a file:
 
 ```bash
-statline --mode local adapter sniff --file statline/core/datasets/DEMO/demo.csv
+statline --mode local adapter sniff --file EBA_Elevate302/eba_s1_players.csv
 ```
 
 Refresh the local adapter registry after changing YAML files:
@@ -93,8 +103,8 @@ From a source checkout:
 
 ```bash
 statline --mode local score \
-  --adapter demo \
-  statline/core/datasets/DEMO/demo.csv \
+  --adapter statline/core/adapters/schemas/deprecated/demo.yaml \
+  DEMO/demo.csv \
   --fmt table \
   --limit 10
 ```
@@ -103,8 +113,8 @@ Include all detected profile columns and client-side percentiles:
 
 ```bash
 statline --mode local score \
-  --adapter demo \
-  statline/core/datasets/DEMO/demo.csv \
+  --adapter statline/core/adapters/schemas/deprecated/demo.yaml \
+  DEMO/demo.csv \
   --fmt table \
   --profile all \
   --percentile
@@ -114,8 +124,8 @@ Write JSON:
 
 ```bash
 statline --mode local score \
-  --adapter demo \
-  statline/core/datasets/DEMO/demo.csv \
+  --adapter statline/core/adapters/schemas/deprecated/demo.yaml \
+  DEMO/demo.csv \
   --fmt json \
   --pretty \
   --out results.json
@@ -125,8 +135,8 @@ Write CSV:
 
 ```bash
 statline --mode local score \
-  --adapter demo \
-  statline/core/datasets/DEMO/demo.csv \
+  --adapter statline/core/adapters/schemas/deprecated/demo.yaml \
+  DEMO/demo.csv \
   --fmt csv \
   --out results.csv
 ```
@@ -151,8 +161,8 @@ Use an adapter-defined preset:
 
 ```bash
 statline --mode local score \
-  --adapter demo \
-  statline/core/datasets/DEMO/demo.csv \
+  --adapter statline/core/adapters/schemas/deprecated/demo.yaml \
+  DEMO/demo.csv \
   --weights-preset pri
 ```
 
@@ -177,8 +187,8 @@ Then run:
 
 ```bash
 statline --mode local score \
-  --adapter demo \
-  statline/core/datasets/DEMO/demo.csv \
+  --adapter statline/core/adapters/schemas/deprecated/demo.yaml \
+  DEMO/demo.csv \
   --weights weights.yaml
 ```
 
@@ -191,8 +201,8 @@ statline --mode local weights normalize aefg=3 tov_eff=2 two_way=1
 Resolve weights against an adapter:
 
 ```bash
-statline --mode local weights resolve --adapter demo --preset pri
-statline --mode local weights resolve --adapter demo --preset pri --override aefg=0.35
+statline --mode local weights resolve --adapter statline/core/adapters/schemas/deprecated/demo.yaml --preset pri
+statline --mode local weights resolve --adapter statline/core/adapters/schemas/deprecated/demo.yaml --preset pri --override aefg=0.35
 ```
 
 ---
@@ -205,7 +215,7 @@ Map one row:
 
 ```bash
 statline --mode local map row \
-  --adapter demo \
+  --adapter statline/core/adapters/schemas/deprecated/demo.yaml \
   --set name="Example Player" \
   --set ppg=24.5 \
   --set apg=6.2 \
@@ -224,8 +234,8 @@ Map a file:
 
 ```bash
 statline --mode local map batch \
-  --adapter demo \
-  statline/core/datasets/DEMO/demo.csv \
+  --adapter statline/core/adapters/schemas/deprecated/demo.yaml \
+  DEMO/demo.csv \
   --fmt json \
   --out mapped.json
 ```
@@ -240,7 +250,7 @@ Score one mapped row:
 
 ```bash
 statline --mode local calc row \
-  --adapter demo \
+  --adapter statline/core/adapters/schemas/deprecated/demo.yaml \
   --set ppg=24.5 \
   --set apg=6.2 \
   --set spg=1.5 \
@@ -257,7 +267,7 @@ statline --mode local calc row \
 Score mapped rows from a file:
 
 ```bash
-statline --mode local calc batch mapped.json --adapter demo --fmt json
+statline --mode local calc batch mapped.json --adapter statline/core/adapters/schemas/deprecated/demo.yaml --fmt json
 ```
 
 ---
@@ -279,7 +289,9 @@ print(list_datasets())
 from statline import load_dataset, score
 
 rows = load_dataset("DEMO/demo", limit=10)
-results = score("demo", rows, mode="batch", weights="pri")
+results = score(
+    "statline/core/adapters/schemas/deprecated/demo.yaml", rows, mode="batch", weights="pri"
+)
 
 for result in results:
     print(result["pri"], result["pri_raw"])
@@ -305,7 +317,7 @@ row = {
     "loss": 8,
 }
 
-result = score_row("demo", row, weights="pri")
+result = score_row("statline/core/adapters/schemas/deprecated/demo.yaml", row, weights="pri")
 print(result)
 ```
 
@@ -328,8 +340,8 @@ raw = {
     "loss": 8,
 }
 
-mapped = map_row("demo", raw)
-result = score_row("demo", raw)
+mapped = map_row("statline/core/adapters/schemas/deprecated/demo.yaml", raw)
+result = score_row("statline/core/adapters/schemas/deprecated/demo.yaml", raw)
 ```
 
 ---
@@ -345,8 +357,12 @@ pip install "statline[remote]"
 Start the API server:
 
 ```bash
-statline --mode local serve --host 127.0.0.1 --port 8000
+statline --mode local serve --host 127.0.0.1 --port 8000 --workers 2
 ```
+
+`--workers` defaults to the available CPU count capped at 4. Override it directly or with
+`SLAPI_WORKERS`. SLAPI keeps HTTP connections alive for 60 seconds by default; tune that with
+`--keep-alive` or `SLAPI_KEEP_ALIVE` when persistent clients need a different idle window.
 
 Start in the background:
 
@@ -704,9 +720,9 @@ pip-audit
 
 ---
 
-## 18. v4.0.0rc2 release checklist
+## 18. v4.0.0rc3 release checklist
 
-1. Confirm `project.version` in `pyproject.toml` is `4.0.0rc2`.
+1. Confirm `project.version` in `pyproject.toml` is `4.0.0rc3`.
 
 2. Confirm `statline/RELEASE` matches the v4 generation and intended component release counters.
 
@@ -747,7 +763,7 @@ pip-audit
 Use local mode:
 
 ```bash
-statline --mode local score --adapter demo stats.csv
+statline --mode local score --adapter statline/core/adapters/schemas/deprecated/demo.yaml stats.csv
 ```
 
 ### `serve` says a dependency is missing
@@ -783,7 +799,7 @@ Pass preferred name columns:
 
 ```bash
 statline --mode local score \
-  --adapter demo \
+  --adapter statline/core/adapters/schemas/deprecated/demo.yaml \
   stats.csv \
   --name-col player_name \
   --name-col name

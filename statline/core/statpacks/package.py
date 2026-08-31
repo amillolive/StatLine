@@ -45,15 +45,6 @@ STANDARD_RUNNER = """from pathlib import Path\n\nfrom statline.sdk import run_st
 _REQUIRED_ROOT = ("metadata.yaml", "runner.py")
 
 
-def _version() -> str:
-    try:
-        from statline import __version__
-
-        return str(__version__)
-    except Exception:  # noqa: BLE001 - version metadata must never block packaging
-        return "unknown"
-
-
 def _normalize_member(value: str) -> str:
     raw = str(value or "").replace("\\", "/")
     while raw.startswith("./"):
@@ -367,7 +358,7 @@ def _render_text(data: Mapping[str, Any], *, source: Path, output: Path) -> str:
         "# AUTO-GENERATED RUNTIME ADAPTER — DO NOT EDIT DIRECTLY\n"
         f"# Source: {_display_path(source)}\n"
         f"# Output: {_display_path(output)}\n"
-        f"# Version: {_version()}\n"
+        f"# Version: {data['metadata']['version']}\n"
         "#\n"
         "# This file is compiler-generated and verified for StatLine.\n"
         "# Manual edits bypass validation and may cause scoring, parsing, or runtime failures.\n"

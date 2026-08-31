@@ -52,6 +52,10 @@ class ScoreIn(StrictModel):
     )
     penalties_override: Penalties | None = None
     output: Output | None = None
+    profiles: Sequence[str] | None = Field(
+        default=None,
+        description="Score profiles to calculate. Omit or use 'all' for every profile.",
+    )
     filters: Filters | None = None
     context: Context | None = None
     caps_override: Caps | None = None

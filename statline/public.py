@@ -6,7 +6,7 @@ apps a small, boring API over the richer internal implementation.
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, Sequence
 from collections.abc import Iterable as AbcIterable
 from collections.abc import Mapping as AbcMapping
 from typing import Any, cast
@@ -66,6 +66,7 @@ def score_row(
     weights_override: dict[str, float] | None = None,
     penalties_override: dict[str, float] | None = None,
     output: OutputArg = None,
+    profiles: Sequence[str] | None = None,
     filters: dict[str, Any] | None = None,
     context: dict[str, dict[str, float]] | None = None,
     caps_override: dict[str, float] | None = None,
@@ -79,6 +80,7 @@ def score_row(
             weights_override=weights_override,
             penalties_override=penalties_override,
             output=output,
+            profiles=profiles,
             filters=filters,
             context=context,
             caps_override=caps_override,
@@ -94,6 +96,7 @@ def score_batch(
     weights_override: dict[str, float] | None = None,
     penalties_override: dict[str, float] | None = None,
     output: OutputArg = None,
+    profiles: Sequence[str] | None = None,
     filters: dict[str, Any] | None = None,
     context: dict[str, dict[str, float]] | None = None,
     caps_override: dict[str, float] | None = None,
@@ -108,6 +111,7 @@ def score_batch(
             weights_override=weights_override,
             penalties_override=penalties_override,
             output=output,
+            profiles=profiles,
             filters=filters,
             context=context,
             caps_override=caps_override,
@@ -124,6 +128,7 @@ def score(
     weights_override: dict[str, float] | None = None,
     penalties_override: dict[str, float] | None = None,
     output: OutputArg = None,
+    profiles: Sequence[str] | None = None,
     filters: dict[str, Any] | None = None,
     context: dict[str, dict[str, float]] | None = None,
     caps_override: dict[str, float] | None = None,
@@ -158,6 +163,7 @@ def score(
             weights_override=weights_override,
             penalties_override=penalties_override,
             output=output,
+            profiles=profiles,
             filters=filters,
             context=context,
             caps_override=caps_override,
@@ -176,6 +182,7 @@ def score(
         weights_override=weights_override,
         penalties_override=penalties_override,
         output=output,
+        profiles=profiles,
         filters=filters,
         context=context,
         caps_override=caps_override,

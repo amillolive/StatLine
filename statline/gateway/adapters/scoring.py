@@ -8,6 +8,8 @@ from typing import Any, Literal, cast
 
 from statline.core.adapters import list_adapters as _list_adapters
 from statline.core.adapters import load_adapter as _load_adapter
+from statline.core.adapters import supported_adapters as _supported_adapters
+from statline.core.adapters.paths import normalize_adapter_name
 from statline.core.scoring import (
     calculate_pri,
     passes_mapped_filters,
@@ -41,6 +43,8 @@ def get_adapter(adapter_key: str) -> CompiledAdapter:
     key = (adapter_key or "").strip()
     if not key:
         raise BadRequest("adapter key is required")
+    if normalize_adapter_name(key) not in _supported_adapters():
+        raise NotFound(f"Unknown adapter: {key}")
     try:
         return _load_adapter(key)
     except (FileNotFoundError, KeyError, ValueError) as error:
@@ -65,6 +69,7 @@ def _score_mapped_rows(
     weights: WeightsArg | None,
     penalties_override: Penalties | None,
     output: Output | None,
+    profiles: Sequence[str] | None,
     context: Context | None,
     caps_override: Caps | None,
     caps_mode: CapsMode,
@@ -83,6 +88,7 @@ def _score_mapped_rows(
                 weights=weights,
                 penalties_override=penalties_override,
                 output=output,
+                profiles=profiles,
                 context=context,
                 caps_override=caps_override,
                 timing=timing,
@@ -97,6 +103,7 @@ def _score_mapped_rows(
         weights=weights,
         penalties_override=penalties_override,
         output=output,
+        profiles=profiles,
         context=context,
         caps_override=caps_override,
         timing=timing,
@@ -113,6 +120,7 @@ def score_rows(
     weights: WeightsArg | None = None,
     penalties_override: Penalties | None = None,
     output: Output | None = None,
+    profiles: Sequence[str] | None = None,
     filters: Filters | None = None,
     context: Context | None = None,
     caps_override: Caps | None = None,
@@ -147,6 +155,7 @@ def score_rows(
             weights=weights,
             penalties_override=penalties_override,
             output=output,
+            profiles=profiles,
             context=context,
             caps_override=caps_override,
             caps_mode=caps_mode,
@@ -167,6 +176,7 @@ def score_row(req: ScoreRowRequest, *, timing: StageTimes | None = None) -> Scor
         weights=req.weights,
         penalties_override=req.penalties_override,
         output=req.output,
+        profiles=req.profiles,
         filters=req.filters,
         context=req.context,
         caps_override=req.caps_override,
@@ -185,6 +195,7 @@ def score_batch(req: ScoreBatchRequest, *, timing: StageTimes | None = None) -> 
         weights=req.weights,
         penalties_override=req.penalties_override,
         output=req.output,
+        profiles=req.profiles,
         filters=req.filters,
         context=req.context,
         caps_override=req.caps_override,

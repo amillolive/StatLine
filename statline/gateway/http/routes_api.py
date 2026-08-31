@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import APIRouter, Depends, Query
+from starlette.concurrency import run_in_threadpool
 
 from statline import __version__
 from statline.core.adapters import adapter_cache_info, sniff_adapters
@@ -152,19 +153,8 @@ def dataset(
         raise NotFound(f"Unknown dataset: {dataset}", detail=str(error)) from error
 
 
-@api_router.post(
-    "/score",
-    response_model=ScoreOut,
-    tags=["scoring"],
-    summary="Score a row, batch, or dataset",
-    description=(
-        "The v4 scoring pipeline replaces /map, /calc/pri, /pri, /score/row, and "
-        "/score/batch. Supply exactly one of `row`, `rows`, or `dataset`. Raw input is "
-        "mapped internally; set `input_kind` to `mapped` only when sending adapter metrics."
-    ),
-    operation_id="score_v4",
-)
-def score(body: ScoreIn) -> dict[str, Any]:
+def _score_request(body: ScoreIn) -> dict[str, Any]:
+    """Run synchronous dataset I/O and CPU scoring away from the async event loop."""
     source: ScoreSource
     rows: list[dict[str, Any]]
 
@@ -189,6 +179,7 @@ def score(body: ScoreIn) -> dict[str, Any]:
         weights=body.weights,
         penalties_override=body.penalties_override,
         output=body.output,
+        profiles=body.profiles,
         filters=body.filters,
         context=body.context,
         caps_override=body.caps_override,
@@ -205,6 +196,22 @@ def score(body: ScoreIn) -> dict[str, Any]:
         "results": results,
         "mapped": mapped if body.include_mapped else None,
     }
+
+
+@api_router.post(
+    "/score",
+    response_model=ScoreOut,
+    tags=["scoring"],
+    summary="Score a row, batch, or dataset",
+    description=(
+        "The v4 scoring pipeline replaces /map, /calc/pri, /pri, /score/row, and "
+        "/score/batch. Supply exactly one of `row`, `rows`, or `dataset`. Raw input is "
+        "mapped internally; set `input_kind` to `mapped` only when sending adapter metrics."
+    ),
+    operation_id="score_v4",
+)
+async def score(body: ScoreIn) -> dict[str, Any]:
+    return await run_in_threadpool(_score_request, body)
 
 
 __all__ = ["api_router", "public_router"]

@@ -20,6 +20,22 @@ _generation = 0
 _LOCK = RLock()
 
 
+def _explicit_adapter_path(name: str) -> Path | None:
+    """Return an explicitly supplied YAML path without searching hidden roots."""
+    candidate = Path(name).expanduser()
+    if candidate.suffix.casefold() not in {".yaml", ".yml"}:
+        return None
+    if not candidate.is_file():
+        return None
+    return candidate.resolve()
+
+
+def _load_explicit_adapter(path: Path) -> tuple[CompiledAdapter, AdapterSpec]:
+    """Compile one explicitly addressed adapter outside normal discovery."""
+    spec = load_spec(path)
+    return compile_adapter(spec), spec
+
+
 def _register_name(
     found: dict[str, _T],
     name: object,
@@ -104,7 +120,11 @@ def list_adapters() -> list[str]:
 
 
 def load_adapter(name: str) -> CompiledAdapter:
-    """Return the one cached compiled adapter instance for ``name``."""
+    """Return a discoverable adapter, or compile an explicitly supplied YAML path."""
+    explicit = _explicit_adapter_path(name)
+    if explicit is not None:
+        adapter, _spec = _load_explicit_adapter(explicit)
+        return adapter
     _discover()
     normalized = _normalized_or_error(name)
     try:
@@ -114,7 +134,11 @@ def load_adapter(name: str) -> CompiledAdapter:
 
 
 def load_adapter_spec(name: str) -> AdapterSpec:
-    """Return the parsed spec paired with the cached compiled adapter."""
+    """Return a discoverable spec, or load an explicitly supplied YAML path."""
+    explicit = _explicit_adapter_path(name)
+    if explicit is not None:
+        _adapter, spec = _load_explicit_adapter(explicit)
+        return spec
     _discover()
     normalized = _normalized_or_error(name)
     try:
@@ -125,6 +149,9 @@ def load_adapter_spec(name: str) -> AdapterSpec:
 
 def adapter_source(name: str) -> Path:
     """Return the packaged YAML source backing a cached adapter."""
+    explicit = _explicit_adapter_path(name)
+    if explicit is not None:
+        return explicit
     _discover()
     normalized = _normalized_or_error(name)
     try:

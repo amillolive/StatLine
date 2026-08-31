@@ -36,16 +36,20 @@ def deprecated_adapter_dir() -> Path:
     return _DEPRECATED_ROOT
 
 
-def adapter_schema_dirs(*, include_deprecated: bool = True) -> tuple[Path, ...]:
-    """Return adapter search roots in precedence order."""
+def adapter_schema_dirs(*, include_deprecated: bool = False) -> tuple[Path, ...]:
+    """Return discoverable adapter search roots in precedence order.
+
+    Deprecated schemas are intentionally excluded from normal discovery.  They
+    remain loadable only by supplying an explicit filesystem path.
+    """
     roots = [_CURRENT_ROOT]
     if include_deprecated:
         roots.append(_DEPRECATED_ROOT)
     return tuple(roots)
 
 
-def iter_adapter_paths(*, include_deprecated: bool = True) -> Iterable[Path]:
-    """Yield packaged adapter YAML files in deterministic precedence order."""
+def iter_adapter_paths(*, include_deprecated: bool = False) -> Iterable[Path]:
+    """Yield discoverable packaged adapter YAML files in deterministic order."""
     seen: set[Path] = set()
     for root in adapter_schema_dirs(include_deprecated=include_deprecated):
         if not root.exists():

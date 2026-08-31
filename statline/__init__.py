@@ -4,10 +4,12 @@ from __future__ import annotations
 
 from importlib.metadata import PackageNotFoundError, version
 
+from statline._version import PACKAGE_VERSION
+
 try:
     __version__ = version("statline")
 except PackageNotFoundError:
-    __version__ = "0+unknown"
+    __version__ = PACKAGE_VERSION
 
 from statline.core.datasets import (
     dataset_root,

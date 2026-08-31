@@ -1,7 +1,7 @@
 # statline/core/calculator.py
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from typing import Any, cast
 
 from statline.core.adapters.compile import build_dataset_context
@@ -14,6 +14,7 @@ from .score import passes_raw_filters as _passes_raw_filters
 
 WeightsArg = str | dict[str, float] | None
 OutputArg = dict[str, Any] | None
+DatasetRequirements = Sequence[tuple[str, str]] | None
 
 
 def _sanitize_numeric_metrics(raw_metrics: Mapping[str, Any]) -> dict[str, Any]:
@@ -46,6 +47,38 @@ def _get_mapper(adapter: AdapterProtocol) -> Callable[..., Mapping[str, Any]]:
     raise RuntimeError("Adapter has no map_raw function.")
 
 
+def _get_dataset_requirements(adapter: AdapterProtocol) -> DatasetRequirements:
+    requirements = getattr(adapter, "dataset_requirements", None)
+    if isinstance(requirements, tuple):
+        return cast(Sequence[tuple[str, str]], requirements)
+    return None
+
+
+def _map_with_resolved_runtime(
+    adapter: AdapterProtocol,
+    mapper: Callable[..., Mapping[str, Any]],
+    sanity: Callable[[dict[str, Any]], Any] | None,
+    raw_metrics: Mapping[str, Any],
+    *,
+    dataset_context: Mapping[str, object],
+) -> dict[str, Any]:
+    numeric_metrics = _sanitize_numeric_metrics(raw_metrics)
+    try:
+        mapped = dict(mapper(numeric_metrics, dataset_context=dataset_context))
+        if sanity is not None:
+            sanity(mapped)
+        return mapped
+    except SyntaxError as se:
+        print("\n=== Mapping Syntax Error ===")
+        print(f"Error: {se}")
+        print("Raw metrics (sanitized):", numeric_metrics)
+        eval_expr = getattr(adapter, "eval_expr", None)
+        if eval_expr:
+            print("Eval expression:", eval_expr)
+        print("============================\n")
+        raise
+
+
 def safe_map_raw(
     adapter: AdapterProtocol,
     raw_metrics: Mapping[str, Any],
@@ -58,27 +91,19 @@ def safe_map_raw(
     dataset aggregate expressions remain well-defined.
     """
     mapper = _get_mapper(adapter)
-    aggregate_context = dataset_context or build_dataset_context([raw_metrics])
-    numeric_metrics = _sanitize_numeric_metrics(raw_metrics)
-    try:
-        mapped_any = mapper(numeric_metrics, dataset_context=aggregate_context)
-        mapped = dict(mapped_any)
-
-        sanity = getattr(adapter, "sanity", None)
-        if callable(sanity):
-            sanity(mapped)
-
-        return mapped
-
-    except SyntaxError as se:
-        print("\n=== Mapping Syntax Error ===")
-        print(f"Error: {se}")
-        print("Raw metrics (sanitized):", numeric_metrics)
-        eval_expr = getattr(adapter, "eval_expr", None)
-        if eval_expr:
-            print("Eval expression:", eval_expr)
-        print("============================\n")
-        raise
+    sanity_any = getattr(adapter, "sanity", None)
+    sanity = cast(Callable[[dict[str, Any]], Any], sanity_any) if callable(sanity_any) else None
+    aggregate_context = dataset_context or build_dataset_context(
+        [raw_metrics],
+        requirements=_get_dataset_requirements(adapter),
+    )
+    return _map_with_resolved_runtime(
+        adapter,
+        mapper,
+        sanity,
+        raw_metrics,
+        dataset_context=aggregate_context,
+    )
 
 
 def safe_map_batch(
@@ -86,8 +111,23 @@ def safe_map_batch(
 ) -> list[dict[str, Any]]:
     """Map a raw batch with one shared, precomputed dataset aggregate context."""
     rows = list(raw_rows)
-    dataset_context = build_dataset_context(rows)
-    return [safe_map_raw(adapter, row, dataset_context=dataset_context) for row in rows]
+    mapper = _get_mapper(adapter)
+    sanity_any = getattr(adapter, "sanity", None)
+    sanity = cast(Callable[[dict[str, Any]], Any], sanity_any) if callable(sanity_any) else None
+    dataset_context = build_dataset_context(
+        rows,
+        requirements=_get_dataset_requirements(adapter),
+    )
+    return [
+        _map_with_resolved_runtime(
+            adapter,
+            mapper,
+            sanity,
+            row,
+            dataset_context=dataset_context,
+        )
+        for row in rows
+    ]
 
 
 def score_rows_from_raw(
@@ -98,6 +138,7 @@ def score_rows_from_raw(
     weights: WeightsArg = None,
     penalties_override: dict[str, float] | None = None,
     output: OutputArg = None,
+    profiles: Sequence[str] | None = None,
     context: dict[str, dict[str, float]] | None = None,
     caps_override: dict[str, float] | None = None,
     timing: StageTimes | None = None,
@@ -127,6 +168,7 @@ def score_rows_from_raw(
         weights=weights,
         penalties_override=penalties_override,
         output=output,
+        profiles=profiles,
         context=context,
         caps_override=caps_override,
         timing=timing,
@@ -141,6 +183,7 @@ def score_row_from_raw(
     weights: WeightsArg = None,
     penalties_override: dict[str, float] | None = None,
     output: OutputArg = None,
+    profiles: Sequence[str] | None = None,
     context: dict[str, dict[str, float]] | None = None,
     caps_override: dict[str, float] | None = None,
     timing: StageTimes | None = None,
@@ -154,6 +197,7 @@ def score_row_from_raw(
         weights=weights,
         penalties_override=penalties_override,
         output=output,
+        profiles=profiles,
         context=context,
         caps_override=caps_override,
         timing=timing,

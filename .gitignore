@@ -1,55 +1,136 @@
 # ─────────────────────────────────────────────────────────────────────────────
+
 # Virtual envs, Python caches, test/cache output
+
 # ─────────────────────────────────────────────────────────────────────────────
+
 /.venv/
 .venv/
 venv/
 env/
 
-__pycache__/
+**pycache**/
 *.py[cod]
 *$py.class
 
 .mypy_cache/
 .ruff_cache/
 .pytest_cache/
+.pyright/
+.pytype/
+.hypothesis/
+.tox/
+.nox/
+
 .coverage
+.coverage.*
 coverage.xml
 htmlcov/
+
 pip-wheel-metadata/
 
+# Local test/CI output
+
+/test-results/
+/.ci-temp/
+/.test-tmp/
+/pytest-temp/
+junit.xml
+junit-*.xml
+coverage-*.xml
+
 # ─────────────────────────────────────────────────────────────────────────────
+
 # Build outputs / package artifacts
+
 # ─────────────────────────────────────────────────────────────────────────────
+
 /dist/
 /build/
 *.egg-info/
 .eggs/
+
 *.whl
 *.tar.gz
 
-# ─────────────────────────────────────────────────────────────────────────────
-# OS / editor
-# ─────────────────────────────────────────────────────────────────────────────
-.DS_Store
-Thumbs.db
-.idea/
-.vscode/
-*.swp
-*.swo
+# Installer build output
+
+/installer/dist/
+/installer/build/
+/installer/runtime/
+/installer/payload/
+/installer/work/
+/installer/tmp/
+
+*.exe
+*.msi
+
+# Temporary package/build staging
+
+/.build-temp/
+/.build-temp/
+/package-temp/
+/wheelhouse/
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Lockfiles
+
+# Git worktrees / local build checkouts
+
 # ─────────────────────────────────────────────────────────────────────────────
+
+/.worktrees/
+/worktrees/
+/.git-worktrees/
+/build-worktree/
+/installer-worktree/
+
+# ─────────────────────────────────────────────────────────────────────────────
+
+# OS / editor
+
+# ─────────────────────────────────────────────────────────────────────────────
+
+.DS_Store
+Thumbs.db
+desktop.ini
+
+.idea/
+.vscode/
+
+*.swp
+*.swo
+*~
+
+# Visual Studio / Windows tooling
+
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Lockfiles
+
+# ─────────────────────────────────────────────────────────────────────────────
+
 # For a library, usually do NOT ignore lockfiles unless you intentionally do not
+
 # want to commit them.
+
 # uv.lock
+
 # poetry.lock
+
 # Pipfile.lock
 
 # ─────────────────────────────────────────────────────────────────────────────
+
 # Local databases / runtime storage
+
 # ─────────────────────────────────────────────────────────────────────────────
+
 *.db
 *.sqlite
 *.sqlite3
@@ -59,39 +140,54 @@ Thumbs.db
 *.rdb
 *.realm
 *.logdb
-*.leveldb/
+*.leveldb
 
 /db/
 /data/db/
 /.db/
 
 # ─────────────────────────────────────────────────────────────────────────────
+
 # Runtime logs / local server output
+
 # ─────────────────────────────────────────────────────────────────────────────
+
 /statline/log/
+
 *.log
 *.pid
 
 # ─────────────────────────────────────────────────────────────────────────────
+
 # Runtime dumps / temp files
+
 # ─────────────────────────────────────────────────────────────────────────────
+
 *.tmp
+*.temp
 *.bak
 *.dump
 *.dmp
 *.trace
 *.stackdump
 
+/tmp/
+/temp/
+
 # ─────────────────────────────────────────────────────────────────────────────
+
 # Secrets / local config / tokens / API keys
+
 # ─────────────────────────────────────────────────────────────────────────────
 
 # Project-specific secrets
+
 /statline/.keys.json
 /statline/secrets/
 pypi.ini
 
 # Secrets folders
+
 **/secrets/
 **/secret/
 **/.secrets/
@@ -100,12 +196,15 @@ pypi.ini
 **/.private/
 
 # Environment / local config files
+
 .env
 .env.*
 *.env
 *.dotenv
+
 config.local.*
 settings.local.*
+
 *.local.json
 *.local.yaml
 *.local.yml
@@ -113,6 +212,7 @@ settings.local.*
 *.local.ini
 
 # Key / certificate / auth material
+
 *.pem
 *.key
 *.crt
@@ -124,42 +224,103 @@ settings.local.*
 *.der
 
 # Explicit secret-like files
+
 **/.keys.json
+
 **/*secrets*.json
 **/*secrets*.toml
 **/*secrets*.yaml
 **/*secrets*.yml
 **/*secrets*.ini
+
 **/*credentials*.json
 **/*credentials*.toml
 **/*credentials*.yaml
 **/*credentials*.yml
 **/*credentials*.ini
+
 **/*creds*.json
 **/*creds*.toml
 **/*creds*.yaml
 **/*creds*.yml
+
 **/*token*.json
 **/*token*.toml
 **/*token*.yaml
 **/*token*.yml
 **/*token*.ini
+
 **/*apikey*.json
 **/*api_key*.json
 **/*api-key*.json
+
 **/*registration*.json
 **/*regkey*.json
 **/*reg_key*.json
 **/*enroll*.json
+
 **/*device_key*.json
 **/*devicekey*.json
 **/*devkey*.json
 **/*dev_key*.json
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Local visual history / repo export artifacts
+
+# Local CLI/runtime state
+
 # ─────────────────────────────────────────────────────────────────────────────
+
+# Device enrollment/auth state
+
+/statline/.device/
+/statline/.state/
+/statline/state/
+/statline/runtime/
+
+# Root-level local runtime state
+
+/.statline/
+/.local-state/
+/runtime/
+
+# Local IPC/socket files
+
+*.sock
+*.socket
+
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Benchmark / profiling output
+
+# ─────────────────────────────────────────────────────────────────────────────
+
+/benchmarks/
+/benchmark-results/
+/profiles/
+
+*.prof
+*.pstats
+*.lprof
+
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Generated documentation / reports
+
+# ─────────────────────────────────────────────────────────────────────────────
+
+/reports/
+/site/
+
+# Keep actual source docs tracked; only ignore generated output.
+
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Local visual history / repo export artifacts
+
+# ─────────────────────────────────────────────────────────────────────────────
+
 /repo-visual-archive/
 /repo-visual-archive.zip
+
 /export-visual-history.ps1
 /scripts/export-visual-history.sh

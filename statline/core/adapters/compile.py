@@ -5,7 +5,7 @@ from __future__ import annotations
 import ast
 import math
 import statistics
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from functools import lru_cache
 from types import MappingProxyType
 from typing import SupportsFloat, SupportsIndex, TypeAlias, cast
@@ -82,6 +82,8 @@ _DATASET_FUNCTIONS = {
     "dataset_sum": "sum",
     "dataset_count": "count",
 }
+_DATASET_OPERATIONS = frozenset(_DATASET_FUNCTIONS.values())
+DatasetRequirement: TypeAlias = tuple[str, str]
 
 
 def _numeric_or_none(value: object) -> float | None:
@@ -101,8 +103,82 @@ def _numeric_or_none(value: object) -> float | None:
     return number if math.isfinite(number) else None
 
 
-def build_dataset_context(rows: Iterable[Mapping[str, object]]) -> Mapping[str, object]:
-    """Precompute case-insensitive per-header aggregates for one submitted dataset."""
+def build_dataset_context(
+    rows: Iterable[Mapping[str, object]],
+    requirements: Sequence[DatasetRequirement] | None = None,
+) -> Mapping[str, object]:
+    """Precompute case-insensitive per-header aggregates for one submitted dataset.
+
+    ``requirements=None`` preserves the public/full aggregate behavior. Compiled
+    adapters pass their exact aggregate requirements so batch mapping only computes
+    the headers and operations referenced by adapter expressions.
+    """
+    if requirements is not None:
+        normalized = {
+            (str(operation).strip().casefold(), str(header).strip().casefold())
+            for operation, header in requirements
+            if str(operation).strip().casefold() in _DATASET_OPERATIONS and str(header).strip()
+        }
+        if not normalized:
+            empty_aggregates: dict[str, Mapping[str, float]] = {}
+            return MappingProxyType({_DATASET_AGGREGATES_KEY: MappingProxyType(empty_aggregates)})
+
+        operations_by_header: dict[str, set[str]] = {}
+        for operation, header in normalized:
+            operations_by_header.setdefault(header, set()).add(operation)
+
+        required_numeric: dict[str, list[float]] = {
+            header: []
+            for header, operations in operations_by_header.items()
+            if operations - {"count"}
+        }
+        required_counts: dict[str, int] = {
+            header: 0
+            for header, operations in operations_by_header.items()
+            if "count" in operations
+        }
+
+        for row in rows:
+            for raw_key, raw_value in row.items():
+                key = str(raw_key).strip().casefold()
+                operations = operations_by_header.get(key)
+                if not operations:
+                    continue
+                if (
+                    "count" in operations
+                    and raw_value is not None
+                    and (not isinstance(raw_value, str) or raw_value.strip())
+                ):
+                    required_counts[key] += 1
+                if operations - {"count"}:
+                    number = _numeric_or_none(raw_value)
+                    if number is not None:
+                        required_numeric[key].append(number)
+
+        required_aggregates: dict[str, Mapping[str, float]] = {}
+        for header, operations in operations_by_header.items():
+            values = required_numeric.get(header, [])
+            aggregate: dict[str, float] = {}
+            total: float | None = None
+            for operation in operations:
+                if operation == "count":
+                    aggregate[operation] = float(required_counts.get(header, 0))
+                elif operation == "max":
+                    aggregate[operation] = max(values, default=0.0)
+                elif operation == "min":
+                    aggregate[operation] = min(values, default=0.0)
+                elif operation in {"mean", "sum"}:
+                    if total is None:
+                        total = math.fsum(values) if values else 0.0
+                    aggregate[operation] = (
+                        total / len(values) if operation == "mean" and values else total
+                    )
+                elif operation == "median":
+                    aggregate[operation] = statistics.median(values) if values else 0.0
+            required_aggregates[header] = MappingProxyType(aggregate)
+
+        return MappingProxyType({_DATASET_AGGREGATES_KEY: MappingProxyType(required_aggregates)})
+
     numeric: dict[str, list[float]] = {}
     counts: dict[str, int] = {}
 
@@ -162,16 +238,15 @@ def _lower_expr_node(node: ast.AST) -> ast.expr:
     if isinstance(node, ast.Expression):
         return _lower_expr_node(node.body)
     if isinstance(node, ast.Constant):
-        return ast.Call(ast.Name("_num", ast.Load()), [ast.Constant(node.value)], [])
+        return ast.Constant(_num(node.value))
     if isinstance(node, ast.Name):
         if node.id == "x":
             return ast.Name("__x", ast.Load())
-        lookup = ast.Call(
+        return ast.Call(
             ast.Attribute(ast.Name("__ctx", ast.Load()), "get", ast.Load()),
             [ast.Constant(node.id), ast.Constant(0.0)],
             [],
         )
-        return ast.Call(ast.Name("_num", ast.Load()), [lookup], [])
     if isinstance(node, ast.UnaryOp) and isinstance(node.op, _ALLOWED_UNARY):
         return ast.UnaryOp(node.op, _lower_expr_node(node.operand))
     if isinstance(node, ast.BinOp) and isinstance(node.op, _ALLOWED_BINOPS):
@@ -238,7 +313,6 @@ def _compile_expr(expr: str) -> ExpressionEvaluator:
     ast.fix_missing_locations(function_ast)
     namespace: dict[str, object] = {
         "__builtins__": {},
-        "_num": _num,
         "_safe_div": _safe_div,
         "_safe_floordiv": _safe_floordiv,
         "_safe_mod": _safe_mod,
@@ -257,14 +331,8 @@ def _eval_expr(  # pyright: ignore[reportUnusedFunction]
 
 
 def _sanitize_row(raw: Mapping[str, object]) -> dict[str, object]:
-    output: dict[str, object] = {}
-    for key, value in raw.items():
-        if isinstance(value, str):
-            stripped = value.strip()
-            output[str(key)] = _num(stripped) if stripped else 0.0
-        else:
-            output[str(key)] = value
-    return output
+    """Create the trusted numeric context consumed by compiled evaluators."""
+    return {str(key): _num(value) for key, value in raw.items()}
 
 
 def _compile_source(source: SourceSpec) -> MetricEvaluator:
@@ -272,7 +340,7 @@ def _compile_source(source: SourceSpec) -> MetricEvaluator:
         field = (source.field or "").strip()
         if not field:
             raise ValueError("Field source requires a non-empty field.")
-        return lambda context: _num(context.get(field, 0.0))
+        return lambda context: cast(float, context.get(field, 0.0))
     if source.kind == "const":
         if source.const is None:
             raise ValueError("Constant source requires const.")
@@ -283,7 +351,7 @@ def _compile_source(source: SourceSpec) -> MetricEvaluator:
         if not expression:
             raise ValueError("Expression source requires a non-empty expr.")
         evaluator = _compile_expr(expression)
-        return lambda context: _finite(evaluator(context, _num(context.get("x", 0.0))))
+        return lambda context: _finite(evaluator(context, cast(float, context.get("x", 0.0))))
     raise ValueError(f"Unsupported source kind: {source.kind}")
 
 
@@ -365,8 +433,9 @@ def _compile_efficiency(efficiency: EffSpec) -> CompiledEfficiency:
         raise ValueError(f"Efficiency '{efficiency.key}' requires min_den > 0.")
 
     def evaluate(context: Mapping[str, object]) -> float:
-        numerator = make(context, _num(context.get("x", 0.0)))
-        attempted = attempt(context, _num(context.get("x", 0.0)))
+        x = cast(float, context.get("x", 0.0))
+        numerator = make(context, x)
+        attempted = attempt(context, x)
         denominator = attempted if attempted >= max(1e-12, minimum) else max(1.0, minimum)
         return _finite(transform(_safe_div(numerator, denominator), context))
 
@@ -377,6 +446,55 @@ def _freeze_nested(table: Mapping[str, Mapping[str, float]]) -> Mapping[str, Map
     return MappingProxyType(
         {name: MappingProxyType(dict(values)) for name, values in table.items()}
     )
+
+
+def _dataset_requirements_from_expr(expr: str) -> set[DatasetRequirement]:
+    """Return dataset aggregate operations referenced by one expression."""
+    try:
+        parsed = ast.parse(expr, mode="eval")
+    except (SyntaxError, ValueError):
+        return set()
+
+    requirements: set[DatasetRequirement] = set()
+    for node in ast.walk(parsed):
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id in _DATASET_FUNCTIONS
+            and not node.keywords
+            and len(node.args) == 1
+            and isinstance(node.args[0], ast.Constant)
+            and isinstance(node.args[0].value, str)
+        ):
+            header = node.args[0].value.strip().casefold()
+            if header:
+                requirements.add((_DATASET_FUNCTIONS[node.func.id], header))
+    return requirements
+
+
+def _dataset_requirements(
+    metrics: Sequence[MetricSpec],
+    efficiency: Sequence[EffSpec],
+) -> tuple[DatasetRequirement, ...]:
+    requirements: set[DatasetRequirement] = set()
+    for metric in metrics:
+        source = metric.source
+        if source is not None and source.kind == "expr" and source.expr:
+            requirements.update(_dataset_requirements_from_expr(source.expr))
+        transform = metric.transform
+        if transform is not None and transform.kind == "expr":
+            requirements.update(
+                _dataset_requirements_from_expr(str(transform.params.get("expr", "")))
+            )
+    for item in efficiency:
+        requirements.update(_dataset_requirements_from_expr(item.make))
+        requirements.update(_dataset_requirements_from_expr(item.attempt))
+        transform = item.transform
+        if transform is not None and transform.kind == "expr":
+            requirements.update(
+                _dataset_requirements_from_expr(str(transform.params.get("expr", "")))
+            )
+    return tuple(sorted(requirements))
 
 
 def map_raw(
@@ -439,6 +557,7 @@ def compile_adapter(spec: AdapterSpec) -> CompiledAdapter:
         efficiency=efficiency,
         metric_plan=tuple(_compile_metric(metric) for metric in metrics),
         efficiency_plan=tuple(_compile_efficiency(item) for item in efficiency),
+        dataset_requirements=_dataset_requirements(metrics, efficiency),
     )
 
 

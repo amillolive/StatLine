@@ -49,17 +49,6 @@ def _to_float_or_none(x: object) -> float | None:
     return None
 
 
-def _to_int(x: object, default: int = 0) -> int:
-    if isinstance(x, int):
-        return x
-    if isinstance(x, (float, str)):
-        try:
-            return int(x)
-        except ValueError:
-            return default
-    return default
-
-
 def _ctx_get(ctx: Mapping[str, Mapping[str, float]], k: str) -> tuple[float, float]:
     info = ctx.get(k) or {}
     leader = _to_float(info.get("leader", 1.0), 1.0)
@@ -304,35 +293,6 @@ def _apply_penalties_to_bucket_weights(
         if b not in out:
             continue
         out[b] = out[b] * max(0.0, 1.0 - pv)
-    return out
-
-
-def _apply_output_toggles(item: dict[str, Any], output: dict[str, Any] | None) -> dict[str, Any]:
-    """
-    If output is None: preserve legacy payload.
-    If output is provided: apply v2.1 toggles.
-    """
-    if output is None:
-        return item
-
-    show_weights = bool(output.get("show_weights", False))
-    hide_pri_raw = bool(output.get("hide_pri_raw", True))
-    show_components = bool(output.get("show_components", True))
-    show_buckets = bool(output.get("show_buckets", True))
-    show_context_used = bool(output.get("show_context_used", False))
-
-    out = dict(item)
-    if not show_weights:
-        out.pop("weights", None)
-    if hide_pri_raw:
-        out.pop("pri_raw", None)
-    if not show_components:
-        out.pop("components", None)
-    if not show_buckets:
-        out.pop("buckets", None)
-    if not show_context_used:
-        out.pop("context_used", None)
-
     return out
 
 
@@ -714,6 +674,7 @@ def calculate_pri(
     weights: str | dict[str, float] | None = None,
     penalties_override: dict[str, float] | None = None,
     output: dict[str, Any] | None = None,
+    profiles: Sequence[str] | None = None,
     context: dict[str, dict[str, float]] | None = None,
     caps_override: dict[str, float] | None = None,
     timing: Any | None = None,
@@ -729,6 +690,7 @@ def calculate_pri(
     weights: str | dict[str, float] | None = None,
     penalties_override: dict[str, float] | None = None,
     output: dict[str, Any] | None = None,
+    profiles: Sequence[str] | None = None,
     context: dict[str, dict[str, float]] | None = None,
     caps_override: dict[str, float] | None = None,
     timing: Any | None = None,
@@ -743,6 +705,7 @@ def calculate_pri(
     weights: str | dict[str, float] | None = None,
     penalties_override: dict[str, float] | None = None,
     output: dict[str, Any] | None = None,
+    profiles: Sequence[str] | None = None,
     context: dict[str, dict[str, float]] | None = None,
     caps_override: dict[str, float] | None = None,
     timing: Any | None = None,
@@ -771,6 +734,7 @@ def calculate_pri(
         weights=weights,
         penalties_override=penalties_override,
         output=output,
+        profiles=profiles,
         context=context,
         caps_override=caps_override,
         _timing=timing,
@@ -793,6 +757,7 @@ def _calculate_pri_batch_mapped(
     weights: str | dict[str, float] | None = None,
     penalties_override: dict[str, float] | None = None,
     output: dict[str, Any] | None = None,
+    profiles: Sequence[str] | None = None,
     context: dict[str, dict[str, float]] | None = None,
     caps_override: dict[str, float] | None = None,
     _timing: Any | None = None,
@@ -801,6 +766,22 @@ def _calculate_pri_batch_mapped(
     Score already-mapped rows. (Kernel API)
     """
     T = _timing
+    legacy_output = output is None
+    output_cfg = output or {}
+    show_weights = legacy_output or bool(output_cfg.get("show_weights", False))
+    hide_pri_raw = False if legacy_output else bool(output_cfg.get("hide_pri_raw", True))
+    show_components = legacy_output or bool(output_cfg.get("show_components", True))
+    show_buckets = legacy_output or bool(output_cfg.get("show_buckets", True))
+    show_context_used = legacy_output or bool(output_cfg.get("show_context_used", False))
+
+    requested_profiles: Sequence[str] | None = profiles
+    if requested_profiles is None and output is not None:
+        requested_any = output_cfg.get("profiles")
+        if isinstance(requested_any, str):
+            requested_profiles = [requested_any]
+        elif isinstance(requested_any, Sequence):
+            requested_values = cast(Sequence[object], requested_any)
+            requested_profiles = [str(value) for value in requested_values]
 
     with T.stage("spec") if T else nullcontext():
         metrics_spec = getattr(adapter, "metrics", []) or []
@@ -881,9 +862,11 @@ def _calculate_pri_batch_mapped(
                 )
 
     with T.stage("ctx_used") if T else nullcontext():
-        context_used = {
-            k: {"leader": _ctx_get(ctx, k)[0], "floor": _ctx_get(ctx, k)[1]} for k in metric_keys
-        }
+        context_used = (
+            {k: {"leader": _ctx_get(ctx, k)[0], "floor": _ctx_get(ctx, k)[1]} for k in metric_keys}
+            if show_context_used
+            else {}
+        )
 
     # ──────────────────────────────────────────────────────────────────────────
     # Score profiles (typed) + weights alignment
@@ -891,17 +874,17 @@ def _calculate_pri_batch_mapped(
 
     with T.stage("profiles") if T else nullcontext():
         profiles_in = getattr(adapter, "score_profiles", None) or {}  # pyright: ignore[reportUnknownVariableType]
-        profiles: dict[str, ScoreProfileSpec] = {}
+        all_profiles: dict[str, ScoreProfileSpec] = {}
         profile_order: list[str] = []
 
         if isinstance(profiles_in, Mapping):
             for name, prof in profiles_in.items():  # pyright: ignore[reportUnknownVariableType]
                 if isinstance(name, str) and isinstance(prof, ScoreProfileSpec):
-                    profiles[name] = prof
+                    all_profiles[name] = prof
                     profile_order.append(name)
 
         # Adapter-defined profiles ONLY
-        if not profiles:
+        if not all_profiles:
             raise ValueError("Adapter defines no score_profiles; cannot score.")
 
         # Choose primary profile:
@@ -909,11 +892,31 @@ def _calculate_pri_batch_mapped(
         # 2) Otherwise first declared (stable order)
         primary_name = (
             "PRI"
-            if "PRI" in profiles
-            else (profile_order[0] if profile_order else next(iter(profiles)))
+            if "PRI" in all_profiles
+            else (profile_order[0] if profile_order else next(iter(all_profiles)))
         )
 
-        primary_profile = profiles[primary_name]
+        if requested_profiles is None or any(
+            str(name).strip().casefold() == "all" for name in requested_profiles
+        ):
+            selected_names = list(profile_order)
+        else:
+            wanted = {
+                str(name).strip().casefold() for name in requested_profiles if str(name).strip()
+            }
+            wanted_slugs = {
+                _slug_profile_key(str(name)) for name in requested_profiles if str(name).strip()
+            }
+            selected_names = [
+                name
+                for name in profile_order
+                if name.casefold() in wanted or _slug_profile_key(name) in wanted_slugs
+            ]
+            if primary_name not in selected_names:
+                selected_names.insert(0, primary_name)
+
+        selected_profiles = {name: all_profiles[name] for name in selected_names}
+        primary_profile = all_profiles[primary_name]
         primary_default_preset = str(primary_profile.weights_profile or "pri").strip() or "pri"
 
     with T.stage("weights") if T else nullcontext():
@@ -934,13 +937,14 @@ def _calculate_pri_batch_mapped(
 
         pri_per_metric = per_metric_weights_from_buckets(metric_to_bucket, pri_bucket_weights)
         pri_unit_w = normalize_weights(pri_per_metric)
-        pri_scored_metrics = {k for k, w in pri_unit_w.items() if abs(w) > 1e-12}
+        pri_scored_metrics: set[str] = (
+            {k for k, w in pri_unit_w.items() if abs(w) > 1e-12} if show_buckets else set()
+        )
 
         # Per-profile unit weights
         unit_w_by_profile: dict[str, dict[str, float]] = {primary_name: dict(pri_unit_w)}
-        preset_used_by_profile: dict[str, str | None] = {primary_name: pri_preset_used}
 
-        for name, prof in profiles.items():
+        for name, prof in selected_profiles.items():
             if name == primary_name:
                 continue
 
@@ -959,19 +963,21 @@ def _calculate_pri_batch_mapped(
             )
             pm = per_metric_weights_from_buckets(metric_to_bucket, bw)
             unit_w_by_profile[name] = normalize_weights(pm)
-            preset_used_by_profile[name] = used
 
     with T.stage("score_rows") if T else nullcontext():
-        buckets_def = getattr(adapter, "buckets", {}) or {}
-        bucket_keys = list(buckets_def.keys())
+        bucket_keys = list((getattr(adapter, "buckets", {}) or {}).keys()) if show_buckets else []
+        normalization_plan = [
+            (key, *_ctx_get(ctx, key), invert_map.get(key, False)) for key in metric_keys
+        ]
 
         # First pass: compute components once, then raw01 per profile
         tmp_rows: list[dict[str, Any]] = []
         raw01_by_profile: dict[str, list[float]] = {name: [] for name in unit_w_by_profile}
+        unscoreable_rows: list[bool] = []
 
         RAW01_SCALE = 1  # tune once
 
-        for idx, r in enumerate(rows_used):
+        for r in rows_used:
             comps: dict[str, float] = {}
 
             # Fail fast if the adapter did not materialize required metrics.
@@ -982,35 +988,37 @@ def _calculate_pri_batch_mapped(
                 raise KeyError(f"Mapped row missing required metrics: {head}{tail}")
 
             # Components are independent of which weights profile is used
-            for k in metric_keys:
-                leader, floor = _ctx_get(ctx, k)
-                comps[k] = _norm01_from_ctx(r.get(k, 0.0), leader, floor, invert_map.get(k, False))
+            for key, leader, floor, invert in normalization_plan:
+                comps[key] = _norm01_from_ctx(r.get(key, 0.0), leader, floor, invert)
 
             # Bucket scores: preserve legacy behavior (based on PRIMARY-scored metrics only)
-            bucket_scores: dict[str, float] = {b: 0.0 for b in bucket_keys}
-            bucket_counts: dict[str, int] = {b: 0 for b in bucket_keys}
+            bucket_scores: dict[str, float] = {}
+            if show_buckets:
+                bucket_scores = {b: 0.0 for b in bucket_keys}
+                bucket_counts: dict[str, int] = {b: 0 for b in bucket_keys}
 
-            for mk, nv in comps.items():
-                if mk not in pri_scored_metrics:
-                    continue
-                b = metric_to_bucket.get(mk)
-                if not b or b not in bucket_scores:
-                    continue
-                bucket_scores[b] += float(nv)
-                bucket_counts[b] += 1
+                for mk, nv in comps.items():
+                    if mk not in pri_scored_metrics:
+                        continue
+                    b = metric_to_bucket.get(mk)
+                    if not b or b not in bucket_scores:
+                        continue
+                    bucket_scores[b] += float(nv)
+                    bucket_counts[b] += 1
 
-            for b in list(bucket_scores):
-                c = bucket_counts.get(b, 0)
-                if c > 0:
-                    bucket_scores[b] /= c
-                else:
-                    bucket_scores.pop(b, None)
+                for b in list(bucket_scores):
+                    c = bucket_counts.get(b, 0)
+                    if c > 0:
+                        bucket_scores[b] /= c
+                    else:
+                        bucket_scores.pop(b, None)
 
             # Compute raw01 per profile
             is_unscoreable = _to_float(r.get("scoreable", 1.0), 1.0) <= 0.0 or (
                 _to_float(r.get("real_gp", r.get("gp", 1.0)), 1.0) <= 0.0
                 and _to_float(r.get("stat_total", 1.0), 1.0) <= 0.0
             )
+            unscoreable_rows.append(is_unscoreable)
 
             for pname, uw in unit_w_by_profile.items():
                 total = 0.0
@@ -1025,42 +1033,42 @@ def _calculate_pri_batch_mapped(
 
                 raw01_by_profile[pname].append(x01)
 
-            payload: dict[str, Any] = {
-                "buckets": bucket_scores,
-                "components": comps,
-                "weights": dict(pri_unit_w),
-                "context_used": context_used,
-                "pri_raw": raw01_by_profile[primary_name][-1],
-                "primary_profile": primary_name,
-                "_i": idx,
-            }
+            payload: dict[str, Any] = {}
+            if show_buckets:
+                payload["buckets"] = bucket_scores
+            if show_components:
+                payload["components"] = comps
+            if show_weights:
+                payload["weights"] = dict(pri_unit_w)
+            if show_context_used:
+                payload["context_used"] = context_used
+            if not hide_pri_raw:
+                payload["pri_raw"] = raw01_by_profile[primary_name][-1]
+            payload["primary_profile"] = primary_name
 
             tmp_rows.append(payload)
 
-        # Percentiles per profile (only used by window profiles, but cheap to compute consistently)
+        # Percentiles are only required by window profiles.
         pct01_by_profile: dict[str, list[float]] = {}
         for pname, xs in raw01_by_profile.items():
-            pct_values = [p / 100.0 for p in _midrank_percentiles(list(xs))]
-
-            for idx, r in enumerate(rows_used):
-                is_unscoreable = _to_float(r.get("scoreable", 1.0), 1.0) <= 0.0 or (
-                    _to_float(r.get("real_gp", r.get("gp", 1.0)), 1.0) <= 0.0
-                    and _to_float(r.get("stat_total", 1.0), 1.0) <= 0.0
-                )
-                if is_unscoreable:
-                    pct_values[idx] = 0.0
+            profile = selected_profiles[pname]
+            if str(profile.kind).strip().lower() == "window":
+                pct_values = [p / 100.0 for p in _midrank_percentiles(list(xs))]
+                for idx, is_unscoreable in enumerate(unscoreable_rows):
+                    if is_unscoreable:
+                        pct_values[idx] = 0.0
+            else:
+                pct_values = [0.5] * len(xs)
 
             pct01_by_profile[pname] = pct_values
 
         # Final pass: build output items
-        by_idx: dict[int, dict[str, Any]] = {}
-        for payload in tmp_rows:
-            idx = _to_int(payload.get("_i", 0), 0)
-            item: dict[str, Any] = dict(payload)
-            item.pop("_i", None)
+        out_list: list[dict[str, Any]] = []
+        for idx, payload in enumerate(tmp_rows):
+            item = payload
 
             scores: dict[str, int] = {}
-            for name, prof in profiles.items():
+            for name, prof in selected_profiles.items():
                 raw01 = raw01_by_profile.get(name, [0.0])[idx]
                 pct01 = pct01_by_profile.get(name, [0.5])[idx]
                 sval = _score_from_profile(prof, raw01=raw01, pct01=pct01)
@@ -1069,7 +1077,7 @@ def _calculate_pri_batch_mapped(
             # Back-compat: keep primary PRI in "pri"
             primary_score = scores.get(primary_name)
             if primary_score is None:
-                pri_raw = _to_float(item.get("pri_raw", 0.0), 0.0)
+                pri_raw = raw01_by_profile[primary_name][idx]
                 primary_score = round(_affine01(pri_raw, 55.0, 99.0))
 
             item["pri"] = primary_score
@@ -1081,17 +1089,15 @@ def _calculate_pri_batch_mapped(
                 if slug != "pri":
                     item[slug] = sval
 
-            by_idx[idx] = item
-
-        out_list = [by_idx[i] for i in range(len(tmp_rows))]
+            out_list.append(item)
 
     want_percentiles = bool(output.get("percentiles", False)) if output is not None else False
     if want_percentiles:
-        pcts = _midrank_percentiles([_to_float(r.get("pri_raw", 0.0), 0.0) for r in out_list])
+        pcts = _midrank_percentiles(list(raw01_by_profile[primary_name]))
         for r, pct in zip(out_list, pcts):
             r["percentile"] = pct
 
-    return [_apply_output_toggles(r, output) for r in out_list]
+    return out_list
 
 
 __all__ = [

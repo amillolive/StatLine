@@ -2084,12 +2084,13 @@ wheels = [
 
 [[package]]
 name = "statline"
-version = "4.0.0rc2"
+version = "4.0.0rc3"
 source = { editable = "." }
 dependencies = [
     { name = "click" },
     { name = "httpx" },
     { name = "pyyaml" },
+    { name = "rich" },
     { name = "typer" },
     { name = "typing-extensions" },
 ]
@@ -2111,7 +2112,6 @@ devpack = [
     { name = "pyright" },
     { name = "pytest" },
     { name = "pytest-cov" },
-    { name = "rich" },
     { name = "ruff" },
     { name = "textual" },
     { name = "twine" },
@@ -2125,9 +2125,11 @@ extras = [
     { name = "google-auth" },
     { name = "gspread" },
     { name = "pydantic" },
-    { name = "rich" },
     { name = "textual" },
     { name = "uvicorn", extra = ["standard"] },
+]
+os = [
+    { name = "textual" },
 ]
 remote = [
     { name = "cryptography" },
@@ -2164,11 +2166,11 @@ requires-dist = [
     { name = "pytest", marker = "extra == 'devpack'", specifier = ">=8.1" },
     { name = "pytest-cov", marker = "extra == 'devpack'", specifier = ">=4.1,<7.0" },
     { name = "pyyaml", specifier = ">=6.0,<7.0" },
-    { name = "rich", marker = "extra == 'devpack'", specifier = ">=13.0,<15.0" },
-    { name = "rich", marker = "extra == 'extras'", specifier = ">=13.0,<15.0" },
+    { name = "rich", specifier = ">=13.0,<15.0" },
     { name = "ruff", marker = "extra == 'devpack'", specifier = ">=0.5,<1.0" },
     { name = "textual", marker = "extra == 'devpack'", specifier = ">=8.0,<9.0" },
     { name = "textual", marker = "extra == 'extras'", specifier = ">=8.0,<9.0" },
+    { name = "textual", marker = "extra == 'os'", specifier = ">=8.0,<9.0" },
     { name = "twine", marker = "extra == 'devpack'", specifier = ">=7.0,<8.0" },
     { name = "typer", specifier = ">=0.12,<1.0" },
     { name = "types-pyyaml", marker = "extra == 'devpack'", specifier = ">=6.0.12" },
@@ -2178,7 +2180,7 @@ requires-dist = [
     { name = "uvicorn", extras = ["standard"], marker = "extra == 'extras'", specifier = ">=0.30,<1.0" },
     { name = "uvicorn", extras = ["standard"], marker = "extra == 'remote'", specifier = ">=0.30,<1.0" },
 ]
-provides-extras = ["remote", "extras", "devpack"]
+provides-extras = ["os", "remote", "extras", "devpack"]
 
 [[package]]
 name = "textual"

@@ -1,242 +1,111 @@
+"""Textual front end for the persistent StatLine OS session."""
+
 from __future__ import annotations
 
-import shlex
-import subprocess
-import sys
-from collections.abc import Iterable
-from dataclasses import dataclass
 from typing import ClassVar
 
-import typer
 from textual.app import App, ComposeResult
 from textual.binding import BindingType
-from textual.containers import Horizontal, Vertical
-from textual.widgets import Button, Footer, Header, Input, Label, ListItem, ListView, Static
+from textual.containers import Vertical
+from textual.widgets import Footer, Header, Input, RichLog, Static
 
-from statline.app.tui.catalog import build_action_catalog
-from statline.app.tui.types import ActionSpec
-
-
-@dataclass(frozen=True)
-class LauncherConfig:
-    title: str = "StatLine HomeShell"
+from statline.app.session import StatLineSession
 
 
-class ActionItem(ListItem):
-    def __init__(self, action: ActionSpec) -> None:
-        super().__init__(Label(f"{action.title}  —  {action.short_help or action.group}"))
-        self.action = action
+class StatLineOS(App[None]):
+    """Persistent REPL/shell/TUI combination over one StatLine session."""
 
-
-class StatLineHomeShell(App[None]):
     CSS = """
     Screen {
         layout: vertical;
     }
 
-    #body {
-        height: 1fr;
+    #session-status {
+        height: auto;
+        padding: 0 1;
+        border-bottom: solid $primary;
     }
 
-    #left {
-        width: 42%;
-        border: solid $primary;
+    #output {
+        height: 1fr;
         padding: 1;
     }
 
-    #right {
-        width: 58%;
-        border: solid $secondary;
-        padding: 1;
-    }
-
-    #search {
-        margin-bottom: 1;
-    }
-
-    #actions {
-        height: 1fr;
-    }
-
-    #help {
-        height: 1fr;
-        overflow-y: auto;
-        margin-bottom: 1;
-    }
-
-    #args {
-        margin-top: 1;
-    }
-
-    #run {
-        margin-top: 1;
+    #command {
+        dock: bottom;
+        margin: 0 1 1 1;
     }
     """
 
     BINDINGS: ClassVar[list[BindingType]] = [
-        ("q", "quit", "Quit"),
-        ("escape", "focus_search", "Search"),
-        ("r", "run_selected", "Run"),
+        ("ctrl+q", "quit", "Quit"),
+        ("ctrl+l", "clear_output", "Clear"),
     ]
 
-    def __init__(
-        self,
-        *,
-        typer_app: typer.Typer,
-        config: LauncherConfig | None = None,
-    ) -> None:
+    def __init__(self, *, session: StatLineSession | None = None) -> None:
         super().__init__()
-        self.typer_app = typer_app
-        self.config = config or LauncherConfig()
-        self.actions: list[ActionSpec] = []
-        self.filtered: list[ActionSpec] = []
+        self.session = session or StatLineSession()
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
-
-        with Horizontal(id="body"):
-            with Vertical(id="left"):
-                yield Static("Search actions")
-                yield Input(
-                    placeholder="Type: score, adapter, auth, cache, storage...",
-                    id="search",
-                )
-                yield ListView(id="actions")
-
-            with Vertical(id="right"):
-                yield Static("Command help")
-                yield Static("", id="help")
-                yield Input(
-                    placeholder="Extra args for now, example: --source local --fmt json",
-                    id="args",
-                )
-                yield Button("Run selected action", id="run", variant="primary")
-
+        with Vertical():
+            yield Static("Starting StatLine OS…", id="session-status")
+            yield RichLog(id="output", wrap=True, highlight=True, markup=True)
+            yield Input(placeholder="statline> type 'help'", id="command")
         yield Footer()
 
-    def on_mount(self) -> None:
-        self.title = self.config.title
-        self.actions = build_action_catalog(
-            self.typer_app,
-            exclude={
-                "launch",
-            },
-        )
-        self.filtered = list(self.actions)
-        self._refresh_actions()
-        self._show_action(self.filtered[0] if self.filtered else None)
+    async def on_mount(self) -> None:
+        self.title = "StatLine OS"
+        status = await self.session.start()
+        self.query_one("#session-status", Static).update(status)
+        output = self.query_one("#output", RichLog)
+        output.write("[bold]StatLine OS[/bold]")
+        output.write("Persistent session ready. Type [bold]help[/bold] for commands.")
+        self.query_one("#command", Input).focus()
 
-    def action_focus_search(self) -> None:
-        self.query_one("#search", Input).focus()
+    async def on_unmount(self) -> None:
+        await self.session.close()
 
-    def _refresh_actions(self) -> None:
-        list_view = self.query_one("#actions", ListView)
-        list_view.clear()
-
-        for action in self.filtered:
-            list_view.append(ActionItem(action))
-
-    def _selected_action(self) -> ActionSpec | None:
-        list_view = self.query_one("#actions", ListView)
-
-        if list_view.index is None:
-            return self.filtered[0] if self.filtered else None
-
-        if 0 <= list_view.index < len(self.filtered):
-            return self.filtered[list_view.index]
-
-        return None
-
-    def _show_action(self, action: ActionSpec | None) -> None:
-        help_panel = self.query_one("#help", Static)
-
-        if action is None:
-            help_panel.update("No action selected.")
+    async def on_input_submitted(self, event: Input.Submitted) -> None:
+        if event.input.id != "command":
+            return
+        command = event.value.strip()
+        event.input.value = ""
+        if not command:
             return
 
-        params = "\n".join(
-            f"  - {param.name}"
-            f"{' required' if param.required else ''}"
-            f" [{param.kind}]"
-            f"{' default=' + repr(param.default) if param.default not in (None, (), []) else ''}"
-            for param in action.params
+        output = self.query_one("#output", RichLog)
+        output.write(f"[bold cyan]statline>[/bold cyan] {command}")
+        result = await self.session.execute(command)
+        if result.clear:
+            output.clear()
+        elif result.text:
+            output.write(result.text)
+        self._refresh_status()
+        if result.quit:
+            self.exit()
+
+    def action_clear_output(self) -> None:
+        self.query_one("#output", RichLog).clear()
+
+    def _refresh_status(self) -> None:
+        latency = (
+            "-"
+            if self.session.last_latency_ms is None
+            else f"{self.session.last_latency_ms:.1f} ms"
         )
-
-        text = (
-            f"{action.title}\n"
-            f"{'=' * len(action.title)}\n\n"
-            f"Command path: {' '.join(action.command_path)}\n"
-            f"Group: {action.group}\n\n"
-            f"Parameters:\n{params or '  none'}\n\n"
-            f"Click/Typer help:\n\n"
-            f"{action.click_help}"
+        status = (
+            f"mode={self.session.mode}  "
+            f"adapter={self.session.adapter_name or '-'}  "
+            f"dataset={self.session.dataset_name or '-'}  "
+            f"rows={len(self.session.rows)}  "
+            f"profile={self.session.profile}  "
+            f"latency={latency}"
         )
+        self.query_one("#session-status", Static).update(status)
 
-        help_panel.update(text)
 
-    def on_input_changed(self, event: Input.Changed) -> None:
-        if event.input.id != "search":
-            return
+# Backwards import compatibility for callers that referenced the old HomeShell name.
+StatLineHomeShell = StatLineOS
 
-        query = event.value.strip().lower()
-
-        if not query:
-            self.filtered = list(self.actions)
-        else:
-            self.filtered = [
-                action
-                for action in self.actions
-                if query in action.id.lower()
-                or query in action.title.lower()
-                or query in action.group.lower()
-                or query in action.short_help.lower()
-                or query in action.click_help.lower()
-            ]
-
-        self._refresh_actions()
-        self._show_action(self.filtered[0] if self.filtered else None)
-
-    def on_list_view_highlighted(self, event: ListView.Highlighted) -> None:
-        item = event.item
-
-        if isinstance(item, ActionItem):
-            self._show_action(item.action)
-
-    def on_list_view_selected(self, event: ListView.Selected) -> None:
-        self.action_run_selected()
-
-    def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id == "run":
-            self.action_run_selected()
-
-    def action_run_selected(self) -> None:
-        action = self._selected_action()
-
-        if action is None:
-            return
-
-        args_box = self.query_one("#args", Input)
-        extra_args = shlex.split(args_box.value.strip()) if args_box.value.strip() else []
-
-        command_args = [*action.command_path, *extra_args]
-
-        self._run_command(command_args)
-
-    def _run_command(self, command_args: Iterable[str]) -> None:
-        args = list(command_args)
-
-        # Leave the TUI temporarily so the normal CLI output still looks like
-        # Typer/Click/Rich output. Then return to the HomeShell.
-        with self.suspend():
-            print()
-            print(f"$ statline {' '.join(args)}")
-            print()
-
-            completed = subprocess.run(
-                [sys.executable, "-m", "statline.cli", *args],
-                check=False,
-            )
-
-            print()
-            print(f"Command exited with code {completed.returncode}.")
-            input("Press Enter to return to StatLine UX...")
+__all__ = ["StatLineHomeShell", "StatLineOS"]

@@ -47,3 +47,24 @@ def test_eba_rel_gp_moves_when_batch_max_gp_moves() -> None:
 
     assert mapped[0]["rel_gp"] == _approx(7.0 / (12.0 * 0.65))
     assert mapped[1]["rel_gp"] == _approx(1.0)
+
+
+def test_compiled_adapter_declares_only_used_dataset_aggregates() -> None:
+    from statline import load_adapter
+
+    adapter = load_adapter("eba.players")
+
+    assert adapter.dataset_requirements == (("max", "gp"),)
+
+
+def test_dataset_context_can_limit_work_to_compiled_requirements() -> None:
+    context = build_dataset_context(
+        [
+            {"GP": 3, "PTS": 10},
+            {"gp": 11, "PTS": 20},
+        ],
+        requirements=(("max", "gp"),),
+    )
+
+    assert _compile_expr('dataset_max("GP")')(context, 0.0) == _approx(11.0)
+    assert _compile_expr('dataset_mean("PTS")')(context, 0.0) == _approx(0.0)

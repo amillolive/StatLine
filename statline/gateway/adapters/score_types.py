@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -26,6 +26,7 @@ class ScoreRowRequest:
     weights: WeightsArg | None = None
     penalties_override: Penalties | None = None
     output: Output | None = None
+    profiles: Sequence[str] | None = None
     filters: Filters | None = None
     context: Context | None = None
     caps_override: Caps | None = None
@@ -38,6 +39,7 @@ class ScoreBatchRequest:
     weights: WeightsArg | None = None
     penalties_override: Penalties | None = None
     output: Output | None = None
+    profiles: Sequence[str] | None = None
     filters: Filters | None = None
     context: Context | None = None
     caps_override: Caps | None = None

@@ -14,12 +14,24 @@ from statline.core.adapters import (
     list_adapters,
     load_adapter,
     load_adapter_spec,
+    supported_adapters,
 )
+from statline.core.adapters.paths import normalize_adapter_name
 from statline.core.datasets import dataset_root, list_datasets, load_dataset, resolve_dataset
 
 
 def _sorted_unique(values: Iterable[object]) -> list[str]:
     return list(dict.fromkeys(text for value in values if (text := str(value).strip())))
+
+
+def _discoverable_adapter_name(adapter_name: str) -> str:
+    """Resolve only adapters intentionally exposed through discovery/API surfaces."""
+    normalized = normalize_adapter_name(adapter_name)
+    exposed = supported_adapters()
+    try:
+        return exposed[normalized]
+    except KeyError as error:
+        raise KeyError(f"Adapter is not discoverable: {adapter_name}") from error
 
 
 def _expr_identifiers(expr: object) -> list[str]:
@@ -39,7 +51,7 @@ def _expr_identifiers(expr: object) -> list[str]:
 
 
 def _adapter_inputs(adapter_name: str) -> list[str]:
-    spec = load_adapter_spec(adapter_name)
+    spec = load_adapter_spec(_discoverable_adapter_name(adapter_name))
     keys: list[str] = []
     for metric in spec.metrics:
         source = metric.source
@@ -55,7 +67,7 @@ def _adapter_inputs(adapter_name: str) -> list[str]:
 
 
 def adapter_summary(adapter_name: str) -> dict[str, Any]:
-    adapter = load_adapter(adapter_name)
+    adapter = load_adapter(_discoverable_adapter_name(adapter_name))
     return {
         "key": adapter.key,
         "title": adapter.title,
@@ -73,7 +85,8 @@ def adapter_catalog() -> dict[str, Any]:
 
 
 def adapter_document(adapter_name: str) -> dict[str, Any]:
-    spec = load_adapter_spec(adapter_name)
+    canonical = _discoverable_adapter_name(adapter_name)
+    spec = load_adapter_spec(canonical)
     metadata = spec.metadata
     return {
         "key": metadata.id,
@@ -82,7 +95,7 @@ def adapter_document(adapter_name: str) -> dict[str, Any]:
         "author": metadata.author,
         "aliases": list(metadata.aliases),
         "dataset": metadata.dataset,
-        "inputs": _adapter_inputs(adapter_name),
+        "inputs": _adapter_inputs(canonical),
         "metrics": [metric.key for metric in spec.metrics]
         + [efficiency.key for efficiency in spec.efficiency],
         "buckets": {

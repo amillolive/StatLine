@@ -4,7 +4,7 @@
 
 It can run completely locally for simple scoring workflows, or against **SLAPI**, the optional StatLine API layer for authenticated remote scoring, adapter inspection, and multi-client deployments.
 
-> **Release target:** **v4.0.0rc2**
+> **Release target:** **v4.0.0rc3**
 > **Python:** **3.10 through 3.14**
 > **License:** **AGPL-3.0-or-later**, with separate trademark restrictions for the StatLine name and branding.
 
@@ -26,16 +26,30 @@ At a high level, StatLine provides:
 
 ---
 
+## v4.0.0rc3 highlights
+
+* Compiled adapters now execute against a trusted numeric context, avoiding repeated numeric coercion in expression hot paths.
+* Dataset aggregate expressions declare their required operations at compile time, so batches only prepare the headers and aggregates an adapter actually uses.
+* Scoring can opt into selected profiles with `profiles=[...]`; existing callers still receive every adapter-defined profile by default.
+* Output-aware scoring skips disabled bucket, component, weight, and context payload construction instead of allocating data only to discard it later.
+* CLI score output uses the lean scoring path when `--details` is not requested while preserving the existing displayed/exported fields.
+* `statline os` launches a persistent Textual REPL/shell/TUI client with pooled SLAPI connections and reusable in-process state.
+* SLAPI scoring is kept off the async event loop and the server runner can use multiple worker processes through `SLAPI_WORKERS`.
+* Deprecated adapter schemas are no longer discoverable through CLI/API lists or sniffing; an explicit local YAML path is required to use one.
+
+---
+
 ## Install
 
-StatLine v4.0.0rc2 has four intended install variants.
+StatLine v4.0.0rc3 has five intended install variants.
 
-| Variant     | Command                          | Use this when you want                                                                      |
-| ----------- | -------------------------------- | ------------------------------------------------------------------------------------------- |
-| **base**    | `pip install statline`           | Functional local library and local CLI scoring.                                             |
-| **remote**  | `pip install "statline[remote]"` | Base plus API client/auth and the SLAPI serving stack.                                      |
-| **extras**  | `pip install "statline[extras]"` | Remote plus user conveniences such as richer terminal/UI and Google Sheets-related helpers. |
-| **devpack** | `pip install -e ".[devpack]"`    | Everything needed for development, testing, typing, docs, packaging, and release checks.    |
+| Variant     | Command                          | Use this when you want                                                                   |
+| ----------- | -------------------------------- | ---------------------------------------------------------------------------------------- |
+| **base**    | `pip install statline`           | Functional local library and CLI scoring.                                                |
+| **os**      | `pip install "statline[os]"`     | Base plus the persistent Textual StatLine OS client.                                     |
+| **remote**  | `pip install "statline[remote]"` | Base plus API client/auth and the SLAPI serving stack.                                   |
+| **extras**  | `pip install "statline[extras]"` | Remote + StatLine OS + Google Sheets-related conveniences.                               |
+| **devpack** | `pip install -e ".[devpack]"`    | Everything needed for development, testing, typing, docs, packaging, and release checks. |
 
 For a source checkout:
 
@@ -60,16 +74,16 @@ Local mode avoids all network probing and uses the installed StatLine core direc
 
 ```bash id="y41591"
 statline --mode local adapter list
-statline --mode local adapter inputs demo
-statline --mode local adapter weights demo
+statline --mode local adapter inputs eba.players
+statline --mode local adapter weights eba.players
 ```
 
-Score the bundled demo CSV from a source checkout:
+Score a bundled EBA CSV from a source checkout:
 
 ```bash id="o3hhff"
 statline --mode local score \
-  --adapter demo \
-  statline/core/datasets/DEMO/demo.csv \
+  --adapter eba.players \
+  EBA_Elevate302/eba_s1_players.csv \
   --fmt table \
   --profile all \
   --percentile \
@@ -80,8 +94,8 @@ Write JSON instead:
 
 ```bash id="y19azp"
 statline --mode local score \
-  --adapter demo \
-  statline/core/datasets/DEMO/demo.csv \
+  --adapter eba.players \
+  EBA_Elevate302/eba_s1_players.csv \
   --fmt json \
   --pretty \
   --out results.json
@@ -98,10 +112,10 @@ from statline import list_adapters, load_dataset, score
 
 print(list_adapters())
 
-rows = load_dataset("DEMO/demo", limit=10)
+rows = load_dataset("EBA_Elevate302/eba_s1_players", limit=10)
 
 results = score(
-    "demo",
+    "eba.players",
     rows,
     mode="batch",
     weights="pri",
@@ -117,21 +131,21 @@ For one row:
 from statline import score_row
 
 player = {
-    "name": "Example Player",
-    "ppg": 24.5,
-    "apg": 6.2,
-    "orpg": 1.0,
-    "drpg": 4.0,
-    "spg": 1.5,
-    "bpg": 0.7,
-    "tov": 2.1,
-    "fgm": 9.2,
-    "fga": 18.4,
-    "win": 12,
-    "loss": 8,
+    "PLAYER": "Example Player",
+    "GP": 12,
+    "PPG": 24.5,
+    "RPG": 5.0,
+    "APG": 6.2,
+    "SPG": 1.5,
+    "BPG": 0.7,
+    "TPG": 2.1,
+    "FGMPG": 9.2,
+    "FGAPG": 18.4,
+    "WIN": 9,
+    "LOSS": 3,
 }
 
-result = score_row("demo", player, weights="pri")
+result = score_row("eba.players", player, weights="pri")
 
 print(result["pri"])
 ```
@@ -168,6 +182,8 @@ Primary user commands:
 | `statline adapter weights <adapter>`        | Show available weight profiles.                 |
 | `statline adapter filters <adapter>`        | Show adapter-declared filters.                  |
 | `statline adapter sniff --file stats.csv`   | Detect matching adapters from headers.          |
+| `statline os`                               | Launch StatLine OS in a separate Windows window. |
+| `statline os --inline`                      | Run StatLine OS in the current terminal.         |
 | `statline map row` / `statline map batch`   | Map raw rows without scoring.                   |
 | `statline calc row` / `statline calc batch` | Score already-mapped metric rows.               |
 | `statline score`                            | Map and score raw CSV/YAML/JSON rows.           |

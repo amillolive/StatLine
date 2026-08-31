@@ -71,6 +71,28 @@ except Exception:  # pragma: no cover
     _http = _requests
     _http_lib = "requests"
 
+_http_client: Any | None = None
+
+
+def _shared_http_client() -> Any:
+    """Return one connection-pooled HTTP client for the lifetime of this CLI process."""
+    global _http_client
+    if _http_client is None:
+        if _http_lib == "httpx" and hasattr(_http, "Client"):
+            _http_client = _http.Client(
+                limits=_http.Limits(
+                    max_connections=20,
+                    max_keepalive_connections=10,
+                    keepalive_expiry=60.0,
+                )
+            )
+        elif hasattr(_http, "Session"):
+            _http_client = _http.Session()
+        else:
+            _http_client = _http
+    return _http_client
+
+
 # ── banner & timing defaults ──────────────────────────────────────────────────
 
 STATLINE_DEBUG_TIMING: bool = os.getenv("STATLINE_DEBUG") == "1"
@@ -257,7 +279,7 @@ def _log_note(path: Path, line: str) -> None:
 
 
 def _local_adapter_names() -> list[str]:
-    """List locally-available adapters for demo/fallback."""
+    """List discoverable current adapters for local fallback."""
     try:
         from statline.core.adapters import list_adapters as _L
 
@@ -265,13 +287,13 @@ def _local_adapter_names() -> list[str]:
         return [str(n) for n in names if str(n).strip()]
     except Exception as e:
         _log_note(BUG_NOTES, f"[local_adapter_names] error: {e!r}")
-        # Last-ditch demo set
-        return ["rbw5", "demo"]
+        # Keep deprecated adapters out of visible fallback surfaces.
+        return ["eba.players"]
 
 
 def _fallback_banner(reason: str) -> None:
     typer.secho(
-        f"Warning: {reason}. Defaulting to demo/local adapters.",
+        f"Warning: {reason}. Defaulting to local adapter discovery.",
         fg=typer.colors.YELLOW,
         bold=True,
     )
@@ -813,10 +835,23 @@ def request_json(
 
     try:
         if _http_lib == "httpx" and hasattr(_http, "Client"):
-            with _http.Client(timeout=timeout) as client:
-                response = client.request(verb, url, headers=headers, content=body or None)
+            client = _shared_http_client()
+            response = client.request(
+                verb,
+                url,
+                headers=headers,
+                content=body or None,
+                timeout=timeout,
+            )
         else:
-            response = _http.request(verb, url, headers=headers, data=body or None, timeout=timeout)
+            client = _shared_http_client()
+            response = client.request(
+                verb,
+                url,
+                headers=headers,
+                data=body or None,
+                timeout=timeout,
+            )
         _raise_for_status(response)
         if verb == "DELETE" and not getattr(response, "content", b""):
             return {}
@@ -1754,6 +1789,7 @@ def _local_fallback_score_batch(
     caps_override: dict[str, float] | None,
     filters: dict[str, Any] | None,
     timing: StageTimes | None = None,
+    output: dict[str, Any] | None = None,
 ) -> Rows:
     # Local core scoring currently doesn't take "filters" at the CLI layer;
     # we pass through if calculator supports it via kwargs (best-effort).
@@ -1769,6 +1805,7 @@ def _local_fallback_score_batch(
             caps_override=caps_override,
             timing=timing,
             filters=filters,
+            output=output,
         )
     except TypeError:
         # Older core versions: no filters kwarg
@@ -1779,6 +1816,7 @@ def _local_fallback_score_batch(
             context=context,
             caps_override=caps_override,
             timing=timing,
+            output=output,
         )
 
     return res
@@ -1792,9 +1830,17 @@ def _local_fallback_score_row(
     caps_override: dict[str, float] | None,
     filters: dict[str, Any] | None,
     timing: StageTimes | None = None,
+    output: dict[str, Any] | None = None,
 ) -> Row:
     res = _local_fallback_score_batch(
-        adapter, [row], weights_override, context, caps_override, filters, timing
+        adapter,
+        [row],
+        weights_override,
+        context,
+        caps_override,
+        filters,
+        timing,
+        output,
     )
     return res[0] if res else {"pri": 99, "pri_raw": 1.0, "context_used": "local-fallback"}
 
@@ -1816,7 +1862,7 @@ def api_list_adapters() -> list[str]:
         _log_note(TAMPER_NOTES, f"[auth-reject] {desc} :: {e}")
         _fallback_banner("Not authenticated")
         typer.secho(
-            f"Auth failed: {e}\n{desc}\nContinuing in demo/local mode.",
+            f"Auth failed: {e}\n{desc}\nContinuing in local mode.",
             fg=typer.colors.YELLOW,
         )
         return _local_adapter_names()
@@ -1838,10 +1884,11 @@ def api_score_batch(
     caps_override: dict[str, float] | None,
     filters: dict[str, Any] | None,
     timing: StageTimes | None = None,
+    output: dict[str, Any] | None = None,
 ) -> Rows:
     if not _online or _mode == "local":
         return _local_fallback_score_batch(
-            adapter, rows, weights_override, context, caps_override, filters, timing
+            adapter, rows, weights_override, context, caps_override, filters, timing, output
         )
 
     payload = {
@@ -1851,6 +1898,7 @@ def api_score_batch(
         "context": context,
         "caps_override": caps_override,
         "filters": filters,
+        "output": output,
     }
     try:
         with timing.stage("remote_request") if timing else contextlib.nullcontext():
@@ -1862,19 +1910,19 @@ def api_score_batch(
         _log_note(BUG_NOTES, f"[score-batch auth] {_describe_auth_state()} :: {e}")
         _fallback_banner("Auth to host refused")
         return _local_fallback_score_batch(
-            adapter, rows, weights_override, context, caps_override, filters, timing
+            adapter, rows, weights_override, context, caps_override, filters, timing, output
         )
     except ConnectionError as e:
         _log_note(BUG_NOTES, f"[score-batch connect] {_slapi_url} :: {e}")
         _fallback_banner("Connection failed; treating as offline")
         return _local_fallback_score_batch(
-            adapter, rows, weights_override, context, caps_override, filters, timing
+            adapter, rows, weights_override, context, caps_override, filters, timing, output
         )
     except Exception as e:
         _log_note(BUG_NOTES, f"[score-batch unexpected] {e!r}")
         _fallback_banner("Unexpected API error")
         return _local_fallback_score_batch(
-            adapter, rows, weights_override, context, caps_override, filters, timing
+            adapter, rows, weights_override, context, caps_override, filters, timing, output
         )
 
 
@@ -2004,6 +2052,7 @@ def api_pri_batch(
     *,
     caps_mode: str = "batch",
     timing: StageTimes | None = None,
+    output: dict[str, Any] | None = None,
 ) -> Rows:
     """
     Score raw rows through POST /v4/score with shared or per-row caps.
@@ -2014,11 +2063,13 @@ def api_pri_batch(
     if not _online or _mode == "local":
         if caps == "clamps":
             return [
-                _local_fallback_score_row(adapter, r, weights_override, None, None, filters, timing)
+                _local_fallback_score_row(
+                    adapter, r, weights_override, None, None, filters, timing, output
+                )
                 for r in rows
             ]
         return _local_fallback_score_batch(
-            adapter, rows, weights_override, None, None, filters, timing
+            adapter, rows, weights_override, None, None, filters, timing, output
         )
 
     payload = {
@@ -2026,6 +2077,7 @@ def api_pri_batch(
         "rows": rows,
         "weights": weights_override,
         "filters": filters,
+        "output": output,
     }
     try:
         with timing.stage("remote_request") if timing else contextlib.nullcontext():
@@ -2038,33 +2090,39 @@ def api_pri_batch(
         _fallback_banner("Auth to host refused")
         if caps == "clamps":
             return [
-                _local_fallback_score_row(adapter, r, weights_override, None, None, filters, timing)
+                _local_fallback_score_row(
+                    adapter, r, weights_override, None, None, filters, timing, output
+                )
                 for r in rows
             ]
         return _local_fallback_score_batch(
-            adapter, rows, weights_override, None, None, filters, timing
+            adapter, rows, weights_override, None, None, filters, timing, output
         )
     except ConnectionError as e:
         _log_note(BUG_NOTES, f"[pri-batch connect] {_slapi_url} :: {e}")
         _fallback_banner("Connection failed; treating as offline")
         if caps == "clamps":
             return [
-                _local_fallback_score_row(adapter, r, weights_override, None, None, filters, timing)
+                _local_fallback_score_row(
+                    adapter, r, weights_override, None, None, filters, timing, output
+                )
                 for r in rows
             ]
         return _local_fallback_score_batch(
-            adapter, rows, weights_override, None, None, filters, timing
+            adapter, rows, weights_override, None, None, filters, timing, output
         )
     except Exception as e:
         _log_note(BUG_NOTES, f"[pri-batch unexpected] {e!r}")
         _fallback_banner("Unexpected API error")
         if caps == "clamps":
             return [
-                _local_fallback_score_row(adapter, r, weights_override, None, None, filters, timing)
+                _local_fallback_score_row(
+                    adapter, r, weights_override, None, None, filters, timing, output
+                )
                 for r in rows
             ]
         return _local_fallback_score_batch(
-            adapter, rows, weights_override, None, None, filters, timing
+            adapter, rows, weights_override, None, None, filters, timing, output
         )
 
 
@@ -2098,7 +2156,7 @@ def _mark_timing_emitted(ctx: typer.Context) -> None:
 
 def _eager_version_callback(value: bool) -> None:
     if value:
-        typer.echo(f"{CLI_NAME} v{CLI_VERSION}")
+        typer.echo(f"{CLI_NAME} {CLI_VERSION}, StatLine {STATLINE_VERSION}")
         raise typer.Exit(0)
 
 
@@ -3105,17 +3163,70 @@ def interactive(
             typer.echo(f"{_profile_header(p)}:  {val}")
 
 
-@app.command("launch")
-def launch() -> None:
-    """Open the StatLine HomeShell."""
-    from statline.app.tui.app import LauncherConfig, StatLineHomeShell
+def _require_textual() -> None:
+    import importlib.util
 
-    shell = StatLineHomeShell(
-        typer_app=app,
-        config=LauncherConfig(title="CLI UX"),
-    )
+    if importlib.util.find_spec("textual") is None:
+        raise typer.BadParameter(
+            "StatLine OS requires Textual. Install with: "
+            "pip install 'statline[os]' (or 'statline[extras]')."
+        )
+
+
+def _run_os_inline() -> None:
+    _require_textual()
+    from statline.app.session import StatLineSession
+    from statline.app.tui.app import StatLineOS
+
+    shell = StatLineOS(session=StatLineSession(base_url=_slapi_url, mode=_mode))
     run_shell = cast(Callable[[], object], shell.run)
     run_shell()
+
+
+def _spawn_os_window() -> None:
+    _require_textual()
+    env = os.environ.copy()
+    env["SLAPI_URL"] = _slapi_url
+    env["STATLINE_MODE"] = _mode
+
+    if os.name != "nt":
+        typer.secho(
+            "A portable detached terminal launcher is not available on this platform; "
+            "running inline.",
+            fg=typer.colors.YELLOW,
+        )
+        _run_os_inline()
+        return
+
+    creationflags = int(getattr(subprocess, "CREATE_NEW_CONSOLE", 0))
+    subprocess.Popen(
+        [sys.executable, "-m", "statline.app.tui"],
+        cwd=str(Path.cwd()),
+        env=env,
+        creationflags=creationflags,
+    )
+    typer.echo("StatLine OS launched in a separate window.")
+
+
+@app.command("os")
+def os_app(
+    inline: bool = typer.Option(
+        False,
+        "--inline",
+        help="Run StatLine OS in this terminal instead of opening a separate Windows console.",
+    ),
+) -> None:
+    """Launch the persistent StatLine OS REPL/shell/TUI client."""
+    if inline:
+        _run_os_inline()
+    else:
+        _spawn_os_window()
+
+
+@app.command("launch", hidden=True)
+def launch_compat() -> None:
+    """Compatibility alias for ``statline os``."""
+    _spawn_os_window()
 
 
 @app.command("score")
@@ -3202,7 +3313,14 @@ def score(
         dataset=input_path,
     )
 
-    adapter_id = selected_adapter.metadata.id
+    explicit_adapter_path = bool(adapter and Path(adapter).expanduser().is_file())
+    if explicit_adapter_path and _mode != "local":
+        raise typer.BadParameter("Explicit adapter paths are local-only. Re-run with --mode local.")
+    adapter_id = (
+        str(adapter)
+        if explicit_adapter_path and adapter is not None
+        else selected_adapter.metadata.id
+    )
     fmt_lower = (fmt or "table").lower()
     caps_mode = (caps or "batch").lower()
     if caps_mode not in {"batch", "clamps"}:
@@ -3238,6 +3356,29 @@ def score(
 
     score_filters: dict[str, Any] | None = None
 
+    prof_in = _split_csvish(profiles)
+    prof_norm = [p for p in prof_in if p.strip()]
+    want_all = any(p.strip().lower() == "all" for p in prof_norm)
+    requested_profiles = prof_norm or ["PRI"]
+    if not want_all and not any(p.strip().upper() == "PRI" for p in requested_profiles):
+        requested_profiles = ["PRI", *requested_profiles]
+
+    # The table/export path only needs lightweight result fields. Keep the
+    # legacy/full payload when --details is requested so existing diagnostics
+    # remain unchanged. ``profiles`` is an rc3 scorer hint carried inside the
+    # already-extensible output mapping; older servers simply ignore it.
+    score_output: dict[str, Any] | None = None
+    if not details:
+        score_output = {
+            "show_weights": False,
+            "hide_pri_raw": False,
+            "show_components": False,
+            "show_buckets": False,
+            "show_context_used": True,
+        }
+        if not want_all:
+            score_output["profiles"] = requested_profiles
+
     if caps_mode == "clamps":
         results = api_pri_batch(
             adapter_id,
@@ -3246,6 +3387,7 @@ def score(
             score_filters,
             caps_mode="clamps",
             timing=stage_times,
+            output=score_output,
         )
     else:
         results = api_score_batch(
@@ -3256,19 +3398,14 @@ def score(
             None,
             score_filters,
             timing=stage_times,
+            output=score_output,
         )
-
-    prof_in = _split_csvish(profiles)
-    prof_norm = [p for p in prof_in if p.strip()]
-    want_all = any(p.strip().lower() == "all" for p in prof_norm)
 
     detected = _detect_profiles_from_results(cast(list[Mapping[str, Any]], results))
     if want_all:
         prof_list = detected
     else:
-        prof_list = prof_norm or ["PRI"]
-        if not any(p.strip().upper() == "PRI" for p in prof_list):
-            prof_list = ["PRI"] + prof_list
+        prof_list = requested_profiles
 
     rows_out: Rows = []
     for i, (src, res) in enumerate(zip(raw_rows, results, strict=False)):
@@ -4091,6 +4228,20 @@ def serve_cmd(
     host: str = typer.Option("127.0.0.1", "--host"),
     port: int = typer.Option(8000, "--port"),
     reload: bool = typer.Option(False, "--reload/--no-reload"),
+    workers: int = typer.Option(
+        max(1, min(4, os.cpu_count() or 1)),
+        "--workers",
+        min=1,
+        envvar="SLAPI_WORKERS",
+        help="Worker processes. Defaults to available CPUs, capped at 4.",
+    ),
+    keep_alive: int = typer.Option(
+        60,
+        "--keep-alive",
+        min=5,
+        envvar="SLAPI_KEEP_ALIVE",
+        help="HTTP keep-alive timeout in seconds.",
+    ),
     background: bool = typer.Option(
         False,
         "--background/--foreground",
@@ -4125,6 +4276,10 @@ def serve_cmd(
             "--port",
             str(port),
             "--no-reload",
+            "--workers",
+            str(workers),
+            "--keep-alive",
+            str(keep_alive),
             "--foreground",
             "--detached-child",
         ]
@@ -4170,11 +4325,16 @@ def serve_cmd(
             "SLAPI serving requires uvicorn. Install with: pip install 'statline[remote]'"
         ) from e
 
+    if reload and workers != 1:
+        raise typer.BadParameter("--reload requires --workers 1.")
+
     uvicorn.run(
         "statline.gateway.http.app:app",
         host=host,
         port=port,
         reload=reload,
+        workers=workers,
+        timeout_keep_alive=keep_alive,
     )
 
 

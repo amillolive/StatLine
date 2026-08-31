@@ -110,6 +110,31 @@ jobs:
             echo "Common causes include redundant casts, unused ignores, missing annotations, Any leakage, or missing generic type arguments."
           } >> "$GITHUB_STEP_SUMMARY"
 
+  pyright:
+    name: Pyright (Pylance parity)
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d
+        with:
+          python-version: "3.14"
+          enable-cache: true
+          cache-dependency-glob: |
+            pyproject.toml
+            uv.lock
+
+      - name: Create venv
+        run: uv venv --python 3.14
+
+      - name: Install devpack
+        run: uv pip install -e ".[devpack]"
+
+      - name: Pyright strict
+        run: uv run --no-sync pyright
+
   tests:
     name: Tests (${{ matrix.os }} / py${{ matrix.python }})
     runs-on: ${{ matrix.os }}
@@ -199,6 +224,7 @@ jobs:
     needs:
       - ruff
       - mypy
+      - pyright
       - tests
 
     steps:
@@ -355,17 +381,18 @@ jobs:
 
           adapters = list_adapters()
           assert adapters, "No adapters discovered"
-          assert "demo" in adapters, (
-              f"demo adapter missing; got {adapters!r}"
+          assert "eba.players" in adapters, (
+              f"eba.players adapter missing; got {adapters!r}"
           )
 
           datasets = list_datasets()
-          assert "DEMO/demo.csv" in datasets, (
-              f"demo dataset missing; got {datasets!r}"
+          dataset_name = "EBA_Elevate302/eba_s1_players.csv"
+          assert dataset_name in datasets, (
+              f"{dataset_name} missing; got {datasets!r}"
           )
 
-          adapter = load_adapter("demo")
-          row = load_dataset("demo", limit=1)[0]
+          adapter = load_adapter("eba.players")
+          row = load_dataset("EBA_Elevate302/eba_s1_players", limit=1)[0]
           result = score_row(adapter, row)
 
           assert isinstance(result["pri"], int), result

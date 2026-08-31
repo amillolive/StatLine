@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import sqlite3
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import asynccontextmanager
+from time import perf_counter
+from typing import Any
 
 try:
     from fastapi import FastAPI
@@ -99,6 +101,20 @@ app = FastAPI(
         sqlite3.Error: _sqlite_error_handler,
     },
 )
+
+
+@app.middleware("http")
+async def server_timing_middleware(
+    request: Any,
+    call_next: Callable[[Any], Awaitable[Any]],
+) -> Any:
+    """Expose end-to-end origin processing time without changing response bodies."""
+    started = perf_counter()
+    response = await call_next(request)
+    elapsed_ms = (perf_counter() - started) * 1000.0
+    response.headers["Server-Timing"] = f"app;dur={elapsed_ms:.2f}"
+    return response
+
 
 app.include_router(public_router)
 app.include_router(api_router)

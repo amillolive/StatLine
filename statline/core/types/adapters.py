@@ -235,6 +235,7 @@ class CompiledAdapter:
     efficiency: tuple[EffSpec, ...]
     metric_plan: tuple[CompiledMetric, ...]
     efficiency_plan: tuple[CompiledEfficiency, ...]
+    dataset_requirements: tuple[tuple[str, str], ...] = ()
 
     @property
     def key(self) -> str:
