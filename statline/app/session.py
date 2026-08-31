@@ -10,7 +10,7 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any, Literal, cast
 
-import httpx
+import httpx2
 
 from statline import __version__
 from statline.app.cli.presentation import render_table_text
@@ -60,10 +60,10 @@ class StatLineSession:
         self.rows: list[dict[str, object]] = []
         self.profile = "PRI"
         self.last_latency_ms: float | None = None
-        self._client = httpx.AsyncClient(
+        self._client = httpx2.AsyncClient(
             base_url=self.base_url,
-            timeout=httpx.Timeout(30.0),
-            limits=httpx.Limits(
+            timeout=httpx2.Timeout(30.0),
+            limits=httpx2.Limits(
                 max_connections=20,
                 max_keepalive_connections=10,
                 keepalive_expiry=60.0,

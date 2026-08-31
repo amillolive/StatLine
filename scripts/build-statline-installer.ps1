@@ -1,7 +1,7 @@
 [CmdletBinding(DefaultParameterSetName = "Source")]
 param(
     # Default: build the exact working tree this script lives under, including uncommitted changes.
-    # Use -Ref main / -Ref v4.0.0rc2 / -Ref <commit> to build an isolated Git snapshot instead.
+    # Use -Ref main / -Ref v4.0.0rc3 / -Ref <commit> to build an isolated Git snapshot instead.
     [Parameter(ParameterSetName = "Source")]
     [string]$Ref,
 

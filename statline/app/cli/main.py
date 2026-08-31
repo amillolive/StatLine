@@ -59,15 +59,15 @@ STATLINE_VERSION = f"v{version.lstrip('v')}"
 # Avoid mypy "no-redef": import into distinct names, then pick one alias.
 _http: Any  # single module-like alias we treat as Any to keep linters quiet
 try:
-    import httpx as _httpx
+    import httpx2 as _httpx2
 
-    _http = _httpx
-    _http_lib = "httpx"
+    _http = _httpx2
+    _http_lib = "httpx2"
 except Exception:  # pragma: no cover
     try:
         import requests as _requests  # pyright: ignore[reportMissingModuleSource]
     except Exception as _e:  # extremely defensive; shouldn't happen in prod
-        raise RuntimeError("Neither httpx nor requests is available") from _e
+        raise RuntimeError("Neither httpx2 nor requests is available") from _e
     _http = _requests
     _http_lib = "requests"
 
@@ -78,7 +78,7 @@ def _shared_http_client() -> Any:
     """Return one connection-pooled HTTP client for the lifetime of this CLI process."""
     global _http_client
     if _http_client is None:
-        if _http_lib == "httpx" and hasattr(_http, "Client"):
+        if _http_lib == "httpx2" and hasattr(_http, "Client"):
             _http_client = _http.Client(
                 limits=_http.Limits(
                     max_connections=20,
@@ -834,7 +834,7 @@ def request_json(
     timeout = 300.0 if verb == "POST" else 60.0
 
     try:
-        if _http_lib == "httpx" and hasattr(_http, "Client"):
+        if _http_lib == "httpx2" and hasattr(_http, "Client"):
             client = _shared_http_client()
             response = client.request(
                 verb,

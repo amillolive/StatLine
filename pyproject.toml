@@ -39,14 +39,14 @@ classifiers = [
 
 # Variant 1: base
 # pip install statline
-# Local library + CLI scoring. httpx remains a direct CLI dependency because the entrypoint imports
+# Local library + CLI scoring. httpx2 remains a direct CLI dependency because the entrypoint imports
 # an HTTP backend at import time; move that import behind remote-only commands if you
 # want a stricter no-network-deps base later.
 dependencies = [
   "typer>=0.12,<1.0",
   "click>=8.1,<9.0",
   "pyyaml>=6.0,<7.0",
-  "httpx>=0.27,<1.0",
+  "httpx2>=2.0,<3.0",
   "rich>=13.0,<15.0",
   'typing-extensions>=4.7; python_version<"3.15"',
 ]

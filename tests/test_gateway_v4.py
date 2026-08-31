@@ -6,11 +6,9 @@ from __future__ import annotations
 
 import inspect
 from pathlib import Path
-from typing import cast
 
 import pytest
 from fastapi.testclient import TestClient
-from httpx import Response
 from statline.core.datasets import load_dataset
 from statline.gateway.http.app import app
 from statline.gateway.http.models import ScoreIn
@@ -58,10 +56,7 @@ def test_score_route_is_async_and_origin_exposes_server_timing() -> None:
     assert inspect.iscoroutinefunction(score)
 
     with TestClient(app) as client:
-        response = cast(
-            Response,
-            client.get("/v4/health"),  # pyright: ignore[reportUnknownMemberType]
-        )
+        response = client.get("/v4/health")
 
     assert response.status_code == 200
     assert response.headers["server-timing"].startswith("app;dur=")

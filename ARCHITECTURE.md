@@ -16,7 +16,7 @@ The supported runtime layers are:
 Concurrency follows an I/O-boundary rule rather than making the scoring core async:
 
 - `statline.core` remains synchronous and deterministic for adapter compilation, mapping, and scoring.
-- persistent clients use pooled `httpx.AsyncClient` connections so network waits do not block the UI/application loop.
+- persistent clients use pooled `httpx2.AsyncClient` connections so network waits do not block the UI/application loop.
 - the FastAPI score route moves synchronous dataset/scoring work to Starlette's thread pool.
 - SLAPI can run multiple Uvicorn worker processes (`SLAPI_WORKERS`) for CPU isolation and parallel request handling.
 

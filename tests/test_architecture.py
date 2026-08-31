@@ -84,9 +84,13 @@ def test_cli_version_and_os_surface_names_are_clean() -> None:
     assert version_result.exit_code == 0, version_result.output
     assert "CLI UX r1" in version_result.output
     assert "CLI UX vr1" not in version_result.output
+
     assert help_result.exit_code == 0, help_result.output
-    assert " os " in help_result.output
-    assert " launch " not in help_result.output
+
+    visible_commands = {command.name for command in app.registered_commands if not command.hidden}
+
+    assert "os" in visible_commands
+    assert "launch" not in visible_commands
 
 
 def test_cli_hides_deprecated_adapters_but_allows_explicit_local_path() -> None:
