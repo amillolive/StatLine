@@ -1,28 +1,25 @@
-"""Persistent StatLine application session shared by interactive front ends."""
+"""Persistent StatLine OS session backed by the real CLI command tree."""
 
 from __future__ import annotations
 
 import asyncio
 import os
+import re
 import shlex
 import time
-from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Any, Literal, cast
+from typing import Literal, cast
 
 import httpx2
+from typer.testing import CliRunner
 
 from statline import __version__
-from statline.app.cli.presentation import render_table_text
-from statline.core.adapters import list_adapters, load_adapter
-from statline.core.datasets import load_dataset
-from statline.public import score_batch
 
-SessionMode = Literal["local", "remote"]
+SessionMode = Literal["auto", "local", "remote"]
 
 
 class SessionCommandResult:
-    """One REPL command result plus UI control signals."""
+    """One OS command result plus UI control signals."""
 
     def __init__(self, text: str = "", *, quit: bool = False, clear: bool = False) -> None:
         self.text = text
@@ -31,7 +28,7 @@ class SessionCommandResult:
 
 
 class StatLineSession:
-    """Long-lived local/remote StatLine state with a pooled async SLAPI client."""
+    """Long-lived StatLine OS state which delegates commands to the canonical CLI."""
 
     @staticmethod
     def _json_object(value: object, *, context: str) -> dict[str, object]:
@@ -42,24 +39,19 @@ class StatLineSession:
             )
         return cast(dict[str, object], value)
 
-    @staticmethod
-    def _float_or_default(value: object, default: float = 0.0) -> float:
-        try:
-            return float(cast(Any, value))
-        except (TypeError, ValueError, OverflowError):
-            return default
-
     def __init__(self, *, base_url: str | None = None, mode: str | None = None) -> None:
-        configured_mode = (mode or os.getenv("STATLINE_MODE") or "remote").strip().casefold()
-        self.mode: SessionMode = "local" if configured_mode == "local" else "remote"
+        configured_mode = (mode or os.getenv("STATLINE_MODE") or "auto").strip().casefold()
+        self.mode: SessionMode = cast(
+            SessionMode,
+            configured_mode if configured_mode in {"auto", "local", "remote"} else "auto",
+        )
         self.base_url = (base_url or os.getenv("SLAPI_URL") or "https://api.statline.dev").rstrip(
             "/"
         )
-        self.adapter_name: str | None = None
-        self.dataset_name: str | None = None
-        self.rows: list[dict[str, object]] = []
-        self.profile = "PRI"
         self.last_latency_ms: float | None = None
+        self.slapi_reachable: bool | None = None
+        self.authenticated: bool | None = None
+        self.last_command = ""
         self._client = httpx2.AsyncClient(
             base_url=self.base_url,
             timeout=httpx2.Timeout(30.0),
@@ -71,64 +63,76 @@ class StatLineSession:
         )
 
     async def start(self) -> str:
-        """Warm the connection pool and return a concise startup status."""
+        """Warm SLAPI state once and report reachability and authentication separately."""
+        if self.mode == "local":
+            self.slapi_reachable = None
+            self.authenticated = None
+            self.last_latency_ms = None
+            return f"StatLine OS · v{__version__} · local core · SLAPI disabled"
+
         try:
             payload = self._json_object(
                 await self._request_json("GET", "/v4/health", authenticated=False),
                 context="health",
             )
-        except Exception as error:  # noqa: BLE001 - interactive shell should stay usable offline
+        except Exception as error:  # noqa: BLE001 - OS stays useful without SLAPI
+            self.slapi_reachable = False
+            self.authenticated = None
             return f"StatLine OS · v{__version__} · SLAPI unavailable: {error}"
+
+        self.slapi_reachable = True
         version = str(payload.get("version", __version__))
         latency = (
-            f"{self.last_latency_ms:.1f} ms" if self.last_latency_ms is not None else "connected"
+            f"{self.last_latency_ms:.1f} ms" if self.last_latency_ms is not None else "reachable"
         )
-        return f"StatLine OS · v{version} · SLAPI {latency}"
+
+        if not self._api_key():
+            self.authenticated = False
+            return f"StatLine OS · v{version} · SLAPI {latency} · unauthenticated"
+
+        try:
+            await self._request_json("GET", "/v4/auth/whoami", authenticated=True)
+        except Exception:  # noqa: BLE001 - health already proved SLAPI is reachable
+            self.authenticated = False
+            return f"StatLine OS · v{version} · SLAPI {latency} · unauthenticated"
+
+        self.authenticated = True
+        return f"StatLine OS · v{version} · SLAPI {latency} · authenticated"
 
     async def close(self) -> None:
         await self._client.aclose()
 
     async def execute(self, command: str) -> SessionCommandResult:
-        """Execute one session-native REPL command without spawning a subprocess."""
+        """Execute an OS control or the same command accepted by the regular CLI."""
         try:
-            parts = shlex.split(command)
+            parts = self._split_command(command)
         except ValueError as error:
             return SessionCommandResult(f"Parse error: {error}")
         if not parts:
             return SessionCommandResult()
 
+        parts = self._strip_cli_prefix(parts)
+        if not parts:
+            return SessionCommandResult(self._help_text())
+
         verb = parts[0].casefold()
-        args = parts[1:]
-        try:
-            if verb in {"quit", "exit"}:
-                return SessionCommandResult("Closing StatLine OS.", quit=True)
-            if verb == "clear":
-                return SessionCommandResult(clear=True)
-            if verb in {"help", "?"}:
-                return SessionCommandResult(self._help_text())
-            if verb == "status":
-                return SessionCommandResult(self._status_text())
-            if verb == "health":
-                return SessionCommandResult(await self._health_text())
-            if verb == "mode":
-                return SessionCommandResult(self._set_mode(args))
-            if verb in {"adapters", "adapter-list"}:
-                return SessionCommandResult(await self._adapters_text())
-            if verb == "use":
-                return SessionCommandResult(await self._use_adapter(args))
-            if verb == "profile":
-                return SessionCommandResult(self._set_profile(args))
-            if verb == "profiles":
-                return SessionCommandResult(await self._profiles_text())
-            if verb == "load":
-                return SessionCommandResult(await self._load_rows(args))
-            if verb == "dataset":
-                return SessionCommandResult(self._dataset_text())
-            if verb == "score":
-                return SessionCommandResult(await self._score(args))
-        except Exception as error:  # noqa: BLE001 - REPL reports errors instead of terminating
-            return SessionCommandResult(f"Error: {error}")
-        return SessionCommandResult(f"Unknown command: {parts[0]}\nType 'help' for commands.")
+        if verb in {"quit", "exit"}:
+            return SessionCommandResult("Closing StatLine OS.", quit=True)
+        if verb == "clear":
+            return SessionCommandResult(clear=True)
+        if verb == "mode":
+            text, changed = self._set_mode(parts[1:])
+            if changed:
+                return SessionCommandResult(f"{text}\n{await self.start()}")
+            return SessionCommandResult(text)
+        if verb in {"help", "?"}:
+            help_args = parts[1:] + ["--help"] if len(parts) > 1 else ["--help"]
+            return SessionCommandResult(await self._run_cli(help_args))
+        if verb == "status" and len(parts) == 1:
+            return SessionCommandResult(await self._run_cli(["system", "status"]))
+
+        self.last_command = " ".join(parts)
+        return SessionCommandResult(await self._run_cli(parts))
 
     async def _request_json(
         self,
@@ -190,226 +194,108 @@ class StatLineSession:
                 return value
         return ""
 
+    @staticmethod
+    def _split_command(command: str) -> list[str]:
+        """Split terminal input while preserving Windows backslashes and quoted paths."""
+        text = command.strip()
+        text = re.sub(r"^statline>\s*", "", text, flags=re.IGNORECASE)
+        text = re.sub(r"^PS\s+[^>]+>\s*", "", text, flags=re.IGNORECASE)
+        if not text:
+            return []
+
+        if os.name == "nt":
+            lexer = shlex.shlex(text, posix=True)
+            lexer.whitespace_split = True
+            lexer.commenters = ""
+            lexer.escape = ""
+            return list(lexer)
+        return shlex.split(text)
+
+    @staticmethod
+    def _strip_cli_prefix(parts: list[str]) -> list[str]:
+        """Accept commands copied from a normal shell with their executable prefix intact."""
+        if not parts:
+            return []
+
+        first = Path(parts[0].strip('"')).name.casefold()
+        if first in {"statline", "statline.exe", "statline.cmd"}:
+            return parts[1:]
+
+        if len(parts) >= 3:
+            python_name = first in {
+                "python",
+                "python.exe",
+                "python3",
+                "python3.exe",
+                "py",
+                "py.exe",
+            }
+            if python_name and parts[1] == "-m" and parts[2].casefold() == "statline":
+                return parts[3:]
+
+        return parts
+
+    def _set_mode(self, args: list[str]) -> tuple[str, bool]:
+        if len(args) != 1 or args[0].casefold() not in {"auto", "local", "remote"}:
+            return "Usage: mode auto|local|remote", False
+        self.mode = cast(SessionMode, args[0].casefold())
+        return f"Mode set to {self.mode}.", True
+
     def _help_text(self) -> str:
         return (
-            "Commands:\n"
-            "  status                      Show current session state\n"
-            "  health                      Ping SLAPI using the pooled connection\n"
-            "  mode local|remote           Switch execution mode\n"
-            "  adapters                    List visible/current adapters\n"
-            "  use <adapter-or-path>       Select adapter (paths are local-only)\n"
-            "  profiles                    List profiles for selected adapter\n"
-            "  profile <name>              Select score profile\n"
-            "  load <csv-or-dataset>       Load rows into the session\n"
-            "  dataset                     Show loaded dataset state\n"
-            "  score [csv-or-dataset]      Score loaded or supplied rows\n"
-            "  clear                       Clear the output pane\n"
-            "  exit | quit                 Close StatLine OS"
+            "StatLine OS accepts the regular StatLine CLI command tree.\n"
+            "Type `help` for root help or `help <command>` for command help.\n"
+            "You can paste commands with or without the leading `statline`.\n"
+            "OS controls: mode auto|local|remote, clear, exit, quit."
         )
 
     def _status_text(self) -> str:
+        if self.mode == "local":
+            slapi = "disabled"
+            auth = "not checked"
+        elif self.slapi_reachable is False:
+            slapi = "unavailable"
+            auth = "not checked"
+        elif self.slapi_reachable is True:
+            slapi = "reachable"
+            auth = "authenticated" if self.authenticated else "unauthenticated"
+        else:
+            slapi = "not checked"
+            auth = "not checked"
         latency = "-" if self.last_latency_ms is None else f"{self.last_latency_ms:.1f} ms"
         return (
             f"Mode: {self.mode}\n"
             f"SLAPI: {self.base_url}\n"
-            f"Last request: {latency}\n"
-            f"Adapter: {self.adapter_name or '-'}\n"
-            f"Dataset: {self.dataset_name or '-'}\n"
-            f"Rows: {len(self.rows)}\n"
-            f"Profile: {self.profile}"
+            f"SLAPI state: {slapi}\n"
+            f"Auth: {auth}\n"
+            f"Last request: {latency}"
         )
 
-    async def _health_text(self) -> str:
-        payload = self._json_object(
-            await self._request_json("GET", "/v4/health", authenticated=False),
-            context="health",
-        )
-        latency = f"{self.last_latency_ms:.1f} ms" if self.last_latency_ms is not None else "-"
-        version = payload.get("version", "?")
-        adapters = payload.get("adapters", "?")
-        return f"SLAPI healthy · {latency} · v{version} · {adapters} adapters"
+    async def _run_cli(self, args: list[str]) -> str:
+        """Invoke the canonical Typer app in-process so OS and CLI cannot drift."""
+        from statline.app.cli.main import app
 
-    def _set_mode(self, args: Sequence[str]) -> str:
-        if len(args) != 1 or args[0].casefold() not in {"local", "remote"}:
-            return "Usage: mode local|remote"
-        self.mode = cast(SessionMode, args[0].casefold())
-        return f"Mode set to {self.mode}."
+        inherited = [
+            "--mode",
+            self.mode,
+            "--url",
+            self.base_url,
+            "--no-timing",
+        ]
 
-    async def _adapters_text(self) -> str:
-        names: list[str]
-        if self.mode == "local":
-            local_names = await asyncio.to_thread(list_adapters)
-            names = [str(name) for name in local_names]
-        else:
-            payload = self._json_object(
-                await self._request_json("GET", "/v4/adapters"),
-                context="adapters",
+        def invoke() -> str:
+            result = CliRunner().invoke(
+                app,
+                inherited + args,
+                env={"STATLINE_OS_SESSION": "1"},
+                catch_exceptions=True,
+                prog_name="statline",
             )
-            raw_adapters = payload.get("adapters", [])
-            names = []
-            if isinstance(raw_adapters, list):
-                for raw_item in cast(list[object], raw_adapters):
-                    if not isinstance(raw_item, dict):
-                        continue
-                    item = cast(dict[str, object], raw_item)
-                    key = str(item.get("key", "")).strip()
-                    if key:
-                        names.append(key)
-        return "Adapters:\n  " + "\n  ".join(names) if names else "No visible adapters."
+            text = result.output.rstrip()
+            if result.exit_code != 0 and not text:
+                if result.exception is not None:
+                    return f"Error: {result.exception}"
+                return f"Command failed with exit code {result.exit_code}."
+            return text
 
-    async def _use_adapter(self, args: Sequence[str]) -> str:
-        if len(args) != 1:
-            return "Usage: use <adapter-or-path>"
-        name = args[0]
-        if self.mode == "local":
-            adapter = await asyncio.to_thread(load_adapter, name)
-            self.adapter_name = name if Path(name).is_file() else adapter.key
-            return f"Using {adapter.key} ({adapter.version})."
-
-        if Path(name).suffix.casefold() in {".yaml", ".yml"}:
-            raise ValueError(
-                "Explicit adapter paths are local-only; the API exposes current adapters only."
-            )
-        payload = self._json_object(
-            await self._request_json("GET", f"/v4/adapters/{name}"),
-            context="adapter",
-        )
-        self.adapter_name = str(payload.get("key", name))
-        return f"Using {self.adapter_name} ({payload.get('version', '?')})."
-
-    def _set_profile(self, args: Sequence[str]) -> str:
-        if len(args) != 1:
-            return "Usage: profile <name>"
-        self.profile = args[0]
-        return f"Profile set to {self.profile}."
-
-    async def _profiles_text(self) -> str:
-        if not self.adapter_name:
-            return "Select an adapter first: use <adapter>"
-        if self.mode == "local":
-            adapter = await asyncio.to_thread(load_adapter, self.adapter_name)
-            names = list(adapter.score_profiles)
-        else:
-            payload = self._json_object(
-                await self._request_json("GET", f"/v4/adapters/{self.adapter_name}"),
-                context="adapter",
-            )
-            raw_profiles = payload.get("score_profiles", {})
-            if isinstance(raw_profiles, dict):
-                profile_map = cast(dict[str, object], raw_profiles)
-                names = list(profile_map)
-            else:
-                names = []
-        return "Profiles: " + ", ".join(names) if names else "No profiles found."
-
-    async def _load_rows(self, args: Sequence[str]) -> str:
-        if len(args) != 1:
-            return "Usage: load <csv-or-dataset>"
-        source = args[0]
-        rows = await asyncio.to_thread(load_dataset, source)
-        self.rows = [{str(key): cast(object, value) for key, value in row.items()} for row in rows]
-        self.dataset_name = source
-        return f"Loaded {len(self.rows)} rows from {source}."
-
-    def _dataset_text(self) -> str:
-        if not self.dataset_name:
-            return "No dataset loaded."
-        return f"{self.dataset_name} · {len(self.rows)} rows"
-
-    async def _score(self, args: Sequence[str]) -> str:
-        if len(args) > 1:
-            return "Usage: score [csv-or-dataset]"
-        if args:
-            await self._load_rows(args)
-        if not self.adapter_name:
-            return "Select an adapter first: use <adapter>"
-        if not self.rows:
-            return "Load a dataset first: load <csv-or-dataset>"
-
-        results: list[dict[str, object]] = []
-        if self.mode == "local":
-            raw_local_results = await asyncio.to_thread(
-                score_batch,
-                self.adapter_name,
-                self.rows,
-                profiles=[self.profile],
-                output={
-                    "show_weights": False,
-                    "hide_pri_raw": False,
-                    "show_components": False,
-                    "show_buckets": False,
-                    "show_context_used": True,
-                },
-            )
-            for local_result in raw_local_results:
-                results.append(
-                    {str(key): cast(object, value) for key, value in local_result.items()}
-                )
-        else:
-            payload = self._json_object(
-                await self._request_json(
-                    "POST",
-                    "/v4/score",
-                    json_body={
-                        "adapter": self.adapter_name,
-                        "rows": self.rows,
-                        "profiles": [self.profile],
-                        "output": {
-                            "show_weights": False,
-                            "hide_pri_raw": False,
-                            "show_components": False,
-                            "show_buckets": False,
-                            "show_context_used": True,
-                        },
-                    },
-                ),
-                context="score",
-            )
-            raw_results = payload.get("results", [])
-            if isinstance(raw_results, list):
-                for remote_result in cast(list[object], raw_results):
-                    if isinstance(remote_result, dict):
-                        results.append(cast(dict[str, object], remote_result))
-
-        display_rows: list[dict[str, Any]] = []
-        for raw, result in zip(self.rows, results, strict=False):
-            display_rows.append(
-                {
-                    "name": self._row_name(raw),
-                    "score": self._profile_score(result),
-                    "pri_raw": result.get("pri_raw", 0.0),
-                }
-            )
-        display_rows.sort(
-            key=lambda item: (float(item.get("score", 0.0)), float(item.get("pri_raw", 0.0))),
-            reverse=True,
-        )
-        table = render_table_text(
-            display_rows,
-            (("Rank", "__rank__"), ("Name", "name"), (self.profile, "score"), ("RAW01", "pri_raw")),
-            title=f"{self.profile} · {len(display_rows)} rows",
-        )
-        latency = "local" if self.mode == "local" else f"SLAPI {self.last_latency_ms:.1f} ms"
-        return table.rstrip() + f"\n{latency}"
-
-    def _row_name(self, row: Mapping[str, object]) -> str:
-        folded = {str(key).casefold(): value for key, value in row.items()}
-        for key in ("player", "name", "display_name", "team_name", "team", "username", "id"):
-            value = folded.get(key)
-            if value not in (None, ""):
-                return str(value)
-        return "-"
-
-    def _profile_score(self, result: Mapping[str, object]) -> float:
-        scores = result.get("scores")
-        if isinstance(scores, Mapping):
-            score_map = cast(Mapping[object, object], scores)
-            wanted = self.profile.casefold().replace("-", "_").replace(" ", "_")
-            for key, value in score_map.items():
-                normalized = str(key).casefold().replace("-", "_").replace(" ", "_")
-                if normalized == wanted:
-                    return self._float_or_default(value)
-        return self._float_or_default(result.get("pri", 0.0))
-
-
-__all__ = ["SessionCommandResult", "SessionMode", "StatLineSession"]
+        return await asyncio.to_thread(invoke)

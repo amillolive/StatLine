@@ -1,0 +1,17 @@
+sniff:
+  require_all_headers:
+  - RANK
+  - NAME
+  - SALARY
+  - GMS PLAYED
+  - GOALS
+  - ASSISTS
+  - SAVES
+  - SHOTS
+  - DEMOS
+  - GOALS/G
+  - ASSISTS/G
+  - SAVES/G
+  - SHOTS/G
+  - DEMOS/G
+  - DEMO +/-

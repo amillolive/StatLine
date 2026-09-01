@@ -4,7 +4,7 @@
 
 It can run completely locally for simple scoring workflows, or against **SLAPI**, the optional StatLine API layer for authenticated remote scoring, adapter inspection, and multi-client deployments.
 
-> **Release target:** **v4.0.0rc3**
+> **Release target:** **v4.0.0rc4**
 > **Python:** **3.10 through 3.14**
 > **License:** **AGPL-3.0-or-later**, with separate trademark restrictions for the StatLine name and branding.
 
@@ -26,14 +26,18 @@ At a high level, StatLine provides:
 
 ---
 
-## v4.0.0rc3 highlights
+## v4.0.0rc4 highlights
 
+* Root CLI help is organized around core workflows, service/access, administration, and one advanced `tools` namespace; rc3 command spellings remain hidden compatibility aliases.
+* Connectivity output now distinguishes **SLAPI unavailable** from **SLAPI reachable but unauthenticated**, and `serve` does not preflight/report unrelated client connectivity.
+* StatLine OS executes the canonical CLI command tree in-process, so command names/help/validation match the regular CLI and copied `statline ...` commands can be pasted directly.
+* The Windows installer builder now keeps Inno Setup candidates as an explicit array under PowerShell StrictMode, fixing the one-candidate `.Count` failure.
 * Compiled adapters now execute against a trusted numeric context, avoiding repeated numeric coercion in expression hot paths.
 * Dataset aggregate expressions declare their required operations at compile time, so batches only prepare the headers and aggregates an adapter actually uses.
 * Scoring can opt into selected profiles with `profiles=[...]`; existing callers still receive every adapter-defined profile by default.
 * Output-aware scoring skips disabled bucket, component, weight, and context payload construction instead of allocating data only to discard it later.
 * CLI score output uses the lean scoring path when `--details` is not requested while preserving the existing displayed/exported fields.
-* `statline os` launches a persistent Textual REPL/shell/TUI client with pooled SLAPI connections and reusable in-process state.
+* `statline os` now mirrors the canonical CLI command tree in-process, accepts pasted `statline ...` commands directly, and keeps persistent OS session state.
 * SLAPI scoring is kept off the async event loop and the server runner can use multiple worker processes through `SLAPI_WORKERS`.
 * Deprecated adapter schemas are no longer discoverable through CLI/API lists or sniffing; an explicit local YAML path is required to use one.
 
@@ -41,7 +45,7 @@ At a high level, StatLine provides:
 
 ## Install
 
-StatLine v4.0.0rc3 has five intended install variants.
+StatLine v4.0.0rc4 has five intended install variants.
 
 | Variant     | Command                          | Use this when you want                                                                   |
 | ----------- | -------------------------------- | ---------------------------------------------------------------------------------------- |
@@ -165,7 +169,7 @@ Useful global options:
 | Option                   | Meaning                                                                                    |
 | ------------------------ | ------------------------------------------------------------------------------------------ |
 | `--mode auto`            | Probe SLAPI; use remote when reachable and authenticated, otherwise local where supported. |
-| `--mode local`           | Force offline local scoring and skip SLAPI entirely.                                       |
+| `--mode local`           | Force local StatLine core execution and skip SLAPI entirely.                               |
 | `--mode remote`          | Require SLAPI to be reachable and authenticated.                                           |
 | `--url URL`              | Set the SLAPI base URL. Also supported through `SLAPI_URL`.                                |
 | `--timing / --no-timing` | Show or hide timing summaries.                                                             |
@@ -184,13 +188,14 @@ Primary user commands:
 | `statline adapter sniff --file stats.csv`   | Detect matching adapters from headers.          |
 | `statline os`                               | Launch StatLine OS in a separate Windows window. |
 | `statline os --inline`                      | Run StatLine OS in the current terminal.         |
-| `statline map row` / `statline map batch`   | Map raw rows without scoring.                   |
-| `statline calc row` / `statline calc batch` | Score already-mapped metric rows.               |
 | `statline score`                            | Map and score raw CSV/YAML/JSON rows.           |
-| `statline interactive`                      | Guided CLI scoring flow.                        |
+| `statline tools map row` / `... map batch`  | Advanced mapping-only pipeline stage.           |
+| `statline tools calc row` / `... calc batch`| Advanced scoring of already-mapped metrics.     |
+| `statline tools ...`                        | Cache, CSV/storage, map/calc, and weight tools. |
+| `statline statpack run <pack>`              | Run a trusted StatPack.                         |
 | `statline serve`                            | Start SLAPI locally. Requires the remote stack. |
 | `statline auth ...`                         | Device enrollment and API key workflows.        |
-| `statline sys status`                       | Runtime, auth, path, and logging status.        |
+| `statline system status`                    | Runtime, backend, auth, paths, and logs.         |
 
 ---
 
@@ -316,14 +321,14 @@ Then point clients at it:
 
 ```bash id="702qy0"
 export SLAPI_URL="http://127.0.0.1:8000"
-statline --mode remote sys status
+statline --mode remote system status
 ```
 
 On Windows PowerShell:
 
 ```powershell id="gvswq9"
 $env:SLAPI_URL = "http://127.0.0.1:8000"
-statline --mode remote sys status
+statline --mode remote system status
 ```
 
 SLAPI supports protected authentication flows. Normal remote use requires both device enrollment and an API key. Administrative and moderation commands require the corresponding scopes.

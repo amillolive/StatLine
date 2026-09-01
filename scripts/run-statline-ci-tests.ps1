@@ -102,7 +102,12 @@ function New-CIEnvironment {
 
     if ($EditableDevpack) {
         # Exact install form from the GitHub mypy/tests jobs.
-        $null = Invoke-Checked "uv" @("pip", "install", "--python", $python, "-e", ".[devpack]") $repoRoot
+        $null = Invoke-Checked "uv" @(
+            "pip", "install",
+            "--no-cache",
+            "--python", $python,
+            "-e", ".[devpack]"
+        ) $repoRoot
     }
     elseif ($Packages.Count -gt 0) {
         $null = Invoke-Checked "uv" (@("pip", "install", "--python", $python) + $Packages) $repoRoot
@@ -199,6 +204,12 @@ foreach ($key in $ciEnv.Keys) {
 
 $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("statline-ci-" + [guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Force -Path $tempRoot | Out-Null
+# Isolate uv's cache to this CI run.
+# This prevents stale/corrupt global uv cache state from breaking disposable test environments.
+$oldUvCacheDir = [Environment]::GetEnvironmentVariable("UV_CACHE_DIR", "Process")
+$uvCacheDir = Join-Path $tempRoot "uv-cache"
+New-Item -ItemType Directory -Force -Path $uvCacheDir | Out-Null
+[Environment]::SetEnvironmentVariable("UV_CACHE_DIR", $uvCacheDir, "Process")
 $failures = New-Object System.Collections.Generic.List[string]
 $advisories = New-Object System.Collections.Generic.List[string]
 $finalExitCode = 1
@@ -350,6 +361,8 @@ finally {
     foreach ($key in $ciEnv.Keys) {
         [Environment]::SetEnvironmentVariable($key, $oldEnv[$key], "Process")
     }
+
+    [Environment]::SetEnvironmentVariable("UV_CACHE_DIR", $oldUvCacheDir, "Process")
 
     if ($KeepEnvs) {
         Write-Host "Temporary CI environments kept at: $tempRoot" -ForegroundColor Yellow

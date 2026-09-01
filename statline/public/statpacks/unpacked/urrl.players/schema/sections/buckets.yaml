@@ -1,0 +1,19 @@
+buckets:
+  offense:
+    title: Offense
+    description: Goal production and finishing efficiency.
+  creation:
+    title: Creation
+    description: Assist production.
+  defense:
+    title: Defense
+    description: Save production.
+  pressure:
+    title: Pressure
+    description: Shot pressure, demos, and demo differential.
+  reliability:
+    title: Sample Reliability
+    description: Rewards a meaningful games-played sample.
+  telem:
+    title: Telemetry
+    description: Raw inputs and helper metrics retained for inspection but not directly weighted.

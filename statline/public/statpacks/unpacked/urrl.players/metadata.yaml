@@ -1,0 +1,8 @@
+metadata:
+  id: urrl.players
+  title: United Rogue Rocket League - Players
+  version: 1.0.0
+  author: StatLine, United Rogue
+  aliases:
+  - urrlp
+  dataset: URRL/S20/RB/FINAL.csv

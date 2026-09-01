@@ -1,6 +1,6 @@
 # StatLine HOWTO
 
-This guide shows the practical workflows for **StatLine v4.0.0rc3**: installing the right variant, scoring locally, using SLAPI, writing adapters, and preparing a release.
+This guide shows the practical workflows for **StatLine v4.0.0rc4**: installing the right variant, scoring locally, using SLAPI, writing adapters, and preparing a release.
 
 ---
 
@@ -63,11 +63,11 @@ python -m pip install -e ".[devpack]"
 
 ```bash
 statline --version
-statline --mode local sys status
+statline --mode local system status
 statline --mode local adapter list
 ```
 
-Use `--mode local` when you want zero network behavior. Use `--mode remote` when a SLAPI server must be reachable and authenticated.
+Use `--mode local` when you want zero SLAPI/network behavior. Use `--mode remote` when a SLAPI server must be reachable and authenticated.
 
 ---
 
@@ -195,14 +195,14 @@ statline --mode local score \
 Normalize arbitrary weights:
 
 ```bash
-statline --mode local weights normalize aefg=3 tov_eff=2 two_way=1
+statline --mode local tools weights normalize aefg=3 tov_eff=2 two_way=1
 ```
 
 Resolve weights against an adapter:
 
 ```bash
-statline --mode local weights resolve --adapter statline/core/adapters/schemas/deprecated/demo.yaml --preset pri
-statline --mode local weights resolve --adapter statline/core/adapters/schemas/deprecated/demo.yaml --preset pri --override aefg=0.35
+statline --mode local tools weights resolve --adapter statline/core/adapters/schemas/deprecated/demo.yaml --preset pri
+statline --mode local tools weights resolve --adapter statline/core/adapters/schemas/deprecated/demo.yaml --preset pri --override aefg=0.35
 ```
 
 ---
@@ -214,7 +214,7 @@ Mapping is useful when you want to check whether an adapter is reading your colu
 Map one row:
 
 ```bash
-statline --mode local map row \
+statline --mode local tools map row \
   --adapter statline/core/adapters/schemas/deprecated/demo.yaml \
   --set name="Example Player" \
   --set ppg=24.5 \
@@ -233,7 +233,7 @@ statline --mode local map row \
 Map a file:
 
 ```bash
-statline --mode local map batch \
+statline --mode local tools map batch \
   --adapter statline/core/adapters/schemas/deprecated/demo.yaml \
   DEMO/demo.csv \
   --fmt json \
@@ -249,7 +249,7 @@ Use `calc` when your input rows already contain adapter metric keys instead of r
 Score one mapped row:
 
 ```bash
-statline --mode local calc row \
+statline --mode local tools calc row \
   --adapter statline/core/adapters/schemas/deprecated/demo.yaml \
   --set ppg=24.5 \
   --set apg=6.2 \
@@ -267,7 +267,7 @@ statline --mode local calc row \
 Score mapped rows from a file:
 
 ```bash
-statline --mode local calc batch mapped.json --adapter statline/core/adapters/schemas/deprecated/demo.yaml --fmt json
+statline --mode local tools calc batch mapped.json --adapter statline/core/adapters/schemas/deprecated/demo.yaml --fmt json
 ```
 
 ---
@@ -374,14 +374,14 @@ Point the CLI at the server:
 
 ```bash
 export SLAPI_URL="http://127.0.0.1:8000"
-statline --mode remote sys status
+statline --mode remote system status
 ```
 
 On Windows PowerShell:
 
 ```powershell
 $env:SLAPI_URL = "http://127.0.0.1:8000"
-statline --mode remote sys status
+statline --mode remote system status
 ```
 
 Health check endpoint:
@@ -428,7 +428,7 @@ Useful status commands:
 statline auth status
 statline auth device
 statline auth apikeys
-statline sys status
+statline system status
 ```
 
 Admin and moderator commands require the appropriate scopes.
@@ -671,7 +671,7 @@ statline --mode local adapter refresh
 statline --mode local adapter spec sample_game --full
 statline --mode local adapter inputs sample_game
 statline --mode local adapter sniff --file stats.csv
-statline --mode local map batch --adapter sample_game stats.csv --fmt json --out mapped.json
+statline --mode local tools map batch --adapter sample_game stats.csv --fmt json --out mapped.json
 statline --mode local score --adapter sample_game stats.csv --fmt table --profile all
 ```
 
@@ -720,9 +720,9 @@ pip-audit
 
 ---
 
-## 18. v4.0.0rc3 release checklist
+## 18. v4.0.0rc4 release checklist
 
-1. Confirm `project.version` in `pyproject.toml` is `4.0.0rc3`.
+1. Confirm `project.version` in `pyproject.toml` is `4.0.0rc4`.
 
 2. Confirm `statline/RELEASE` matches the v4 generation and intended component release counters.
 
@@ -731,6 +731,7 @@ pip-audit
 4. Confirm install variants:
 
    * base: `pip install statline`
+   * os: `pip install "statline[os]"`
    * remote: `pip install "statline[remote]"`
    * extras: `pip install "statline[extras]"`
    * devpack: `pip install -e ".[devpack]"`

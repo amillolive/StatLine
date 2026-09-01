@@ -1,0 +1,6 @@
+score_profiles:
+  PRI:
+    kind: affine
+    lo: 40
+    hi: 125
+    weights_profile: pri

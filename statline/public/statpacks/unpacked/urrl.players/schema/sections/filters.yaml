@@ -1,0 +1,10 @@
+filters:
+  min_games:
+    type: metric
+    field: games_played
+    modes:
+    - include-only
+    - exclude-only
+    description: Minimum games played.
+    meta:
+      display: Min Games

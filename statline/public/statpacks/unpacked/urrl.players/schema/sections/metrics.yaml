@@ -1,0 +1,120 @@
+metrics:
+- key: rank
+  bucket: telem
+  clamp:
+  - 0.0
+  - 1000.0
+  source:
+    field: RANK
+- key: salary
+  bucket: telem
+  clamp:
+  - 0.0
+  - 500.0
+  source:
+    field: SALARY
+- key: games_played
+  bucket: telem
+  clamp:
+  - 0.0
+  - 100.0
+  source:
+    field: GMS PLAYED
+- key: goals
+  bucket: telem
+  clamp:
+  - 0.0
+  - 200.0
+  source:
+    field: GOALS
+- key: assists
+  bucket: telem
+  clamp:
+  - 0.0
+  - 200.0
+  source:
+    field: ASSISTS
+- key: saves
+  bucket: telem
+  clamp:
+  - 0.0
+  - 300.0
+  source:
+    field: SAVES
+- key: shots
+  bucket: telem
+  clamp:
+  - 0.0
+  - 500.0
+  source:
+    field: SHOTS
+- key: demos
+  bucket: telem
+  clamp:
+  - 0.0
+  - 300.0
+  source:
+    field: DEMOS
+- key: demo_diff
+  bucket: telem
+  clamp:
+  - -150.0
+  - 150.0
+  source:
+    field: DEMO +/-
+- key: goals_pg
+  bucket: offense
+  clamp:
+  - 0.0
+  - 1.75
+  source:
+    field: GOALS/G
+- key: assists_pg
+  bucket: creation
+  clamp:
+  - 0.0
+  - 1.1
+  source:
+    field: ASSISTS/G
+- key: saves_pg
+  bucket: defense
+  clamp:
+  - 0.0
+  - 3.0
+  source:
+    field: SAVES/G
+- key: shots_pg
+  bucket: pressure
+  clamp:
+  - 0.0
+  - 4.25
+  source:
+    field: SHOTS/G
+- key: demos_pg
+  bucket: pressure
+  clamp:
+  - 0.0
+  - 2.5
+  source:
+    field: DEMOS/G
+- key: shooting_pct
+  bucket: offense
+  clamp:
+  - 0.0
+  - 0.5
+  source:
+    expr: goals / max(1.0, shots)
+- key: demo_diff_pg
+  bucket: pressure
+  clamp:
+  - -1.0
+  - 1.0
+  source:
+    expr: demo_diff / max(1.0, games_played)
+- key: sample_rel
+  bucket: reliability
+  clamp:
+  - 0.0
+  - 1.0
+  source:
+    expr: min(1.0, games_played / max(1.0, dataset_max("GMS PLAYED") * 0.50))

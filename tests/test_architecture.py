@@ -8,9 +8,11 @@ import ast
 import importlib
 import importlib.metadata
 from pathlib import Path
+from typing import Any
 
 import pytest
 import statline
+import statline.app.cli.main as cli_main
 from statline._version import PACKAGE_VERSION
 from statline.app.cli.main import app
 from statline.core.datasets import dataset_root, list_datasets
@@ -76,7 +78,7 @@ def test_local_cli_prints_main_banner_once() -> None:
     assert result.output.count("CLI UX") == 1
 
 
-def test_cli_version_and_os_surface_names_are_clean() -> None:
+def test_cli_version_and_root_structure_are_clean() -> None:
     runner = CliRunner()
     version_result = runner.invoke(app, ["--version"])
     help_result = runner.invoke(app, ["--mode", "local", "--help"])
@@ -86,11 +88,97 @@ def test_cli_version_and_os_surface_names_are_clean() -> None:
     assert "CLI UX vr1" not in version_result.output
 
     assert help_result.exit_code == 0, help_result.output
+    assert "Core workflows" in help_result.output
+    assert "Service & access" in help_result.output
+    assert "Advanced" in help_result.output
+    assert "os" in help_result.output
+    assert "score" in help_result.output
+    assert "adapter" in help_result.output
+    assert "statpack" in help_result.output
+    assert "system" in help_result.output
+    assert "tools" in help_result.output
 
-    visible_commands = {command.name for command in app.registered_commands if not command.hidden}
+    # rc3 spellings still work, but the root help no longer presents two command languages.
+    assert " interactive " not in help_result.output
+    assert " adapters " not in help_result.output
+    assert " map " not in help_result.output
+    assert " calc " not in help_result.output
+    assert " storage " not in help_result.output
+    assert " weights " not in help_result.output
 
-    assert "os" in visible_commands
-    assert "launch" not in visible_commands
+
+def test_local_connectivity_message_describes_choice_not_machine_offline() -> None:
+    result = CliRunner().invoke(app, ["--mode", "local", "--no-timing", "adapter", "list"])
+    assert result.exit_code == 0, result.output
+    assert "SLAPI is disabled by --mode local" in result.output
+    assert "Offline mode" not in result.output
+
+
+def test_auto_mode_distinguishes_reachable_from_authenticated(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_tcp_probe(_url: str, _timeout: float = 1.5) -> bool:
+        return True
+
+    monkeypatch.setattr(cli_main, "_tcp_probe", fake_tcp_probe)
+    monkeypatch.setattr(cli_main, "_has_apikey", lambda: False)
+
+    original_get = cli_main._get_v3
+
+    def fake_get(path: str, *args: object, **kwargs: Any) -> object:
+        if path == "/v3/health":
+            return {"ok": True}
+        return original_get(path, *args, **kwargs)
+
+    monkeypatch.setattr(cli_main, "_get_v3", fake_get)
+
+    result = CliRunner().invoke(
+        app,
+        ["--mode", "auto", "--no-timing", "adapter", "list"],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "SLAPI is reachable" in result.output
+    assert "unauthenticated" in result.output
+    assert "SLAPI ONLINE" not in result.output
+
+
+def test_serve_omits_client_connectivity_preflight(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[tuple[tuple[object, ...], dict[str, object]]] = []
+
+    class FakeUvicorn:
+        @staticmethod
+        def run(*args: object, **kwargs: object) -> None:
+            calls.append((args, kwargs))
+
+    monkeypatch.setitem(__import__("sys").modules, "uvicorn", FakeUvicorn())
+
+    def fail_tcp_probe(_url: str, _timeout: float = 1.5) -> bool:
+        raise AssertionError("serve must not probe SLAPI")
+
+    monkeypatch.setattr(cli_main, "_tcp_probe", fail_tcp_probe)
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "--mode",
+            "auto",
+            "--no-timing",
+            "serve",
+            "--workers",
+            "1",
+            "--foreground",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert calls
+    assert "LOCAL FALLBACK" not in result.output
+    assert "SLAPI REMOTE" not in result.output
+    assert "SLAPI is reachable" not in result.output
+    assert "SLAPI is unavailable" not in result.output
 
 
 def test_cli_hides_deprecated_adapters_but_allows_explicit_local_path() -> None:
@@ -121,14 +209,28 @@ def test_cli_hides_deprecated_adapters_but_allows_explicit_local_path() -> None:
     assert '"pri"' in scored.output
 
 
-def test_source_tree_version_falls_back_to_rc3(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_installer_strict_mode_keeps_inno_candidates_as_a_collection() -> None:
+    text = (ROOT / "scripts" / "build-statline-installer.ps1").read_text(encoding="utf-8")
+
+    find_iscc = text.split("function Find-Iscc", 1)[1]
+    assignment = find_iscc.split("$candidates = @(", 1)[1].split("if ($candidates.Count", 1)[0]
+
+    # The candidate pipeline must itself be wrapped in @(...), so a one-result
+    # pipeline remains a collection under StrictMode and `.Count` is safe.
+    assert assignment.lstrip().startswith("@(")
+    assert ") | Where-Object" in assignment
+    assert assignment.rstrip().endswith(")")
+    assert "-m statline statpack run --pause" in text
+
+
+def test_source_tree_version_falls_back_to_rc4(monkeypatch: pytest.MonkeyPatch) -> None:
     def missing_distribution(_name: str) -> str:
         raise importlib.metadata.PackageNotFoundError
 
     monkeypatch.setattr(importlib.metadata, "version", missing_distribution)
     reloaded = importlib.reload(statline)
 
-    assert PACKAGE_VERSION == "4.0.0rc3"
+    assert PACKAGE_VERSION == "4.0.0rc4"
     assert reloaded.__version__ == PACKAGE_VERSION
 
 

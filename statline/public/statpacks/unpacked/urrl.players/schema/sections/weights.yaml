@@ -1,0 +1,8 @@
+weights:
+  pri:
+    offense: 0.32
+    creation: 0.18
+    defense: 0.2
+    pressure: 0.25
+    reliability: 0.05
+    telem: 0.0

@@ -1,0 +1,179 @@
+metadata:
+  id: urrl.players
+  title: United Rogue Rocket League - Players
+  version: 1.0.0
+  author: StatLine, United Rogue
+  aliases:
+  - urrlp
+
+  dataset: URRL/S20/RB/FINAL.csv
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Dimensions
+# ─────────────────────────────────────────────────────────────────────────────
+
+dimensions:
+  player:
+    values: []
+    strict: false
+    description: Player name / handle
+    meta: { display: Player }
+
+sniff:
+  require_all_headers:
+    - RANK
+    - NAME
+    - SALARY
+    - GMS PLAYED
+    - GOALS
+    - ASSISTS
+    - SAVES
+    - SHOTS
+    - DEMOS
+    - GOALS/G
+    - ASSISTS/G
+    - SAVES/G
+    - SHOTS/G
+    - DEMOS/G
+    - DEMO +/-
+
+filters:
+  min_games:
+    type: metric
+    field: games_played
+    modes: [include-only, exclude-only]
+    description: Minimum games played.
+    meta: { display: Min Games }
+
+buckets:
+  offense:
+    title: Offense
+    description: Goal production and finishing efficiency.
+
+  creation:
+    title: Creation
+    description: Assist production.
+
+  defense:
+    title: Defense
+    description: Save production.
+
+  pressure:
+    title: Pressure
+    description: Shot pressure, demos, and demo differential.
+
+  reliability:
+    title: Sample Reliability
+    description: Rewards a meaningful games-played sample.
+
+  telem:
+    title: Telemetry
+    description: Raw inputs and helper metrics retained for inspection but not directly weighted.
+
+metrics:
+  # Raw / reference fields
+  - key: rank
+    bucket: telem
+    clamp: [0.0, 1000.0]
+    source: { field: RANK }
+
+  - key: salary
+    bucket: telem
+    clamp: [0.0, 500.0]
+    source: { field: SALARY }
+
+  - key: games_played
+    bucket: telem
+    clamp: [0.0, 100.0]
+    source: { field: GMS PLAYED }
+
+  - key: goals
+    bucket: telem
+    clamp: [0.0, 200.0]
+    source: { field: GOALS }
+
+  - key: assists
+    bucket: telem
+    clamp: [0.0, 200.0]
+    source: { field: ASSISTS }
+
+  - key: saves
+    bucket: telem
+    clamp: [0.0, 300.0]
+    source: { field: SAVES }
+
+  - key: shots
+    bucket: telem
+    clamp: [0.0, 500.0]
+    source: { field: SHOTS }
+
+  - key: demos
+    bucket: telem
+    clamp: [0.0, 300.0]
+    source: { field: DEMOS }
+
+  - key: demo_diff
+    bucket: telem
+    clamp: [-150.0, 150.0]
+    source: { field: DEMO +/- }
+
+  # Published per-game values from URRL
+  - key: goals_pg
+    bucket: offense
+    clamp: [0.0, 1.75]
+    source: { field: GOALS/G }
+
+  - key: assists_pg
+    bucket: creation
+    clamp: [0.0, 1.10]
+    source: { field: ASSISTS/G }
+
+  - key: saves_pg
+    bucket: defense
+    clamp: [0.0, 3.00]
+    source: { field: SAVES/G }
+
+  - key: shots_pg
+    bucket: pressure
+    clamp: [0.0, 4.25]
+    source: { field: SHOTS/G }
+
+  - key: demos_pg
+    bucket: pressure
+    clamp: [0.0, 2.50]
+    source: { field: DEMOS/G }
+
+  # Derived signals
+  - key: shooting_pct
+    bucket: offense
+    clamp: [0.0, 0.50]
+    source:
+      expr: "goals / max(1.0, shots)"
+
+  - key: demo_diff_pg
+    bucket: pressure
+    clamp: [-1.0, 1.0]
+    source:
+      expr: "demo_diff / max(1.0, games_played)"
+
+  - key: sample_rel
+    bucket: reliability
+    clamp: [0.0, 1.0]
+    source:
+      expr: 'min(1.0, games_played / max(1.0, dataset_max("GMS PLAYED") * 0.50))'
+
+weights:
+  pri:
+    offense: 0.32
+    creation: 0.18
+    defense: 0.20
+    pressure: 0.25
+    reliability: 0.05
+    telem: 0.00
+
+score_profiles:
+  PRI:
+    kind: affine
+    lo: 40
+    hi: 125
+    weights_profile: pri

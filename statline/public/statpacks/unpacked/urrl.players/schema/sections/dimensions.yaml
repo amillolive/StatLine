@@ -1,0 +1,7 @@
+dimensions:
+  player:
+    values: []
+    strict: false
+    description: Player name / handle
+    meta:
+      display: Player

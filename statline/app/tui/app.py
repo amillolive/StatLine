@@ -50,8 +50,10 @@ class StatLineOS(App[None]):
         yield Header(show_clock=True)
         with Vertical():
             yield Static("Starting StatLine OS…", id="session-status")
-            yield RichLog(id="output", wrap=True, highlight=True, markup=True)
-            yield Input(placeholder="statline> type 'help'", id="command")
+            yield RichLog(id="output", wrap=True, highlight=False, markup=False)
+            yield Input(
+                placeholder="statline> paste or type any StatLine CLI command", id="command"
+            )
         yield Footer()
 
     async def on_mount(self) -> None:
@@ -59,8 +61,9 @@ class StatLineOS(App[None]):
         status = await self.session.start()
         self.query_one("#session-status", Static).update(status)
         output = self.query_one("#output", RichLog)
-        output.write("[bold]StatLine OS[/bold]")
-        output.write("Persistent session ready. Type [bold]help[/bold] for commands.")
+        output.write("StatLine OS")
+        output.write("Paste any normal `statline ...` command, or type `help` to browse.")
+        output.write("Ctrl+C / Ctrl+V use Textual's normal selection and clipboard behavior.")
         self.query_one("#command", Input).focus()
 
     async def on_unmount(self) -> None:
@@ -75,7 +78,7 @@ class StatLineOS(App[None]):
             return
 
         output = self.query_one("#output", RichLog)
-        output.write(f"[bold cyan]statline>[/bold cyan] {command}")
+        output.write(f"statline> {command}")
         result = await self.session.execute(command)
         if result.clear:
             output.clear()
@@ -94,13 +97,20 @@ class StatLineOS(App[None]):
             if self.session.last_latency_ms is None
             else f"{self.session.last_latency_ms:.1f} ms"
         )
+        if self.session.mode == "local":
+            slapi_state = "disabled"
+            auth_state = "not checked"
+        elif self.session.slapi_reachable is False:
+            slapi_state = "unavailable"
+            auth_state = "not checked"
+        elif self.session.slapi_reachable is True:
+            slapi_state = "reachable"
+            auth_state = "authenticated" if self.session.authenticated else "unauthenticated"
+        else:
+            slapi_state = "not checked"
+            auth_state = "not checked"
         status = (
-            f"mode={self.session.mode}  "
-            f"adapter={self.session.adapter_name or '-'}  "
-            f"dataset={self.session.dataset_name or '-'}  "
-            f"rows={len(self.session.rows)}  "
-            f"profile={self.session.profile}  "
-            f"latency={latency}"
+            f"mode={self.session.mode}  slapi={slapi_state}  auth={auth_state}  latency={latency}"
         )
         self.query_one("#session-status", Static).update(status)
 

@@ -104,7 +104,7 @@ _slapi_url: str = DEFAULT_SLAPI_URL
 
 # Connectivity/auth state decided once per process in the root callback.
 _reachable: bool = False
-_online: bool = False  # reachable + authenticated for guarded endpoints
+_online: bool = False  # legacy name: SLAPI reachable + authenticated for guarded endpoints
 _banner_shown: bool = False
 
 # Explicit mode selection:
@@ -120,6 +120,11 @@ app = typer.Typer(
     rich_markup_mode="rich",
     pretty_exceptions_enable=True,
     pretty_exceptions_show_locals=False,
+    help="Score, inspect, and serve StatLine from one consistent command surface.",
+    epilog=(
+        "Start here: `statline score --help`, `statline adapter list`, or `statline os`. "
+        "Advanced mapping/calculation/storage commands live under `statline tools`."
+    ),
 )
 
 # Subcommands
@@ -142,11 +147,13 @@ statpack_app = typer.Typer(
     rich_markup_mode="rich",
     help="Create, inspect, render, and unpack StatPacks",
 )
-app.add_typer(auth_app, name="auth")
-app.add_typer(mod_app, name="mod")
-app.add_typer(admin_app, name="admin")
-app.add_typer(sys_app, name="sys")
-app.add_typer(statpack_app, name="statpack")
+app.add_typer(auth_app, name="auth", rich_help_panel="Service & access")
+app.add_typer(mod_app, name="mod", rich_help_panel="Administration")
+app.add_typer(admin_app, name="admin", rich_help_panel="Administration")
+app.add_typer(sys_app, name="system", rich_help_panel="Service & access")
+# Compatibility alias retained for rc3-era scripts; canonical spelling is ``system``.
+app.add_typer(sys_app, name="sys", hidden=True)
+app.add_typer(statpack_app, name="statpack", rich_help_panel="Core workflows")
 
 _BANNER_LINE: str = (
     f"{CLI_NAME} {CLI_VERSION}, StatLine {STATLINE_VERSION} — Adapter-Driven Scoring Framework"
@@ -238,6 +245,9 @@ def _collapse_audit_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 def ensure_banner() -> None:
     global _banner_shown
+    if os.getenv("STATLINE_OS_SESSION") == "1":
+        _banner_shown = True
+        return
     if not _banner_shown:
         _print_banner()
         _banner_shown = True
@@ -293,7 +303,7 @@ def _local_adapter_names() -> list[str]:
 
 def _fallback_banner(reason: str) -> None:
     typer.secho(
-        f"Warning: {reason}. Defaulting to local adapter discovery.",
+        f"Warning: {reason}. Using local StatLine fallback.",
         fg=typer.colors.YELLOW,
         bold=True,
     )
@@ -1069,7 +1079,7 @@ def _delete_v3(path_v3: str, *, params: dict[str, Any] | None = None) -> Any:
 
 
 def _tcp_probe(base_url: str, timeout: float = 1.5) -> bool:
-    """Best-effort TCP reachability check to decide online vs local mode."""
+    """Best-effort TCP gate before attempting a StatLine API health request."""
     try:
         import socket
         from urllib.parse import urlparse
@@ -1085,9 +1095,13 @@ def _tcp_probe(base_url: str, timeout: float = 1.5) -> bool:
 
 
 def _print_mode_banner(*, reachable: bool, authed: bool, url: str, mode: Mode) -> None:
+    """Describe StatLine backend state without conflating reachability with authentication."""
+    if os.getenv("STATLINE_OS_SESSION") == "1":
+        return
+
     if mode == "local":
         typer.secho(
-            "[SLAPI LOCAL] Offline mode — using StatLine core scoring (no network).",
+            "[LOCAL] Using StatLine core; SLAPI is disabled by --mode local.",
             fg=typer.colors.YELLOW,
             bold=True,
         )
@@ -1096,38 +1110,41 @@ def _print_mode_banner(*, reachable: bool, authed: bool, url: str, mode: Mode) -
     if not reachable:
         if mode == "remote":
             typer.secho(
-                f"[SLAPI REMOTE] Required SLAPI unreachable at {url}.",
+                f"[SLAPI REMOTE] SLAPI is unavailable at {url}.",
                 fg=typer.colors.RED,
                 bold=True,
             )
             return
         typer.secho(
-            "[SLAPI LOCAL] SLAPI unreachable — using local adapters.",
+            f"[LOCAL FALLBACK] SLAPI is unavailable at {url}; using StatLine core.",
             fg=typer.colors.YELLOW,
             bold=True,
         )
         return
 
     if authed:
-        tag = "[SLAPI REMOTE]" if mode == "remote" else "[SLAPI ONLINE]"
-        typer.secho(f"{tag} Using SLAPI at {url}", fg=typer.colors.GREEN, bold=True)
+        tag = "[SLAPI REMOTE]" if mode == "remote" else "[SLAPI]"
+        typer.secho(
+            f"{tag} SLAPI is reachable and authenticated at {url}.",
+            fg=typer.colors.GREEN,
+            bold=True,
+        )
         return
 
     if mode == "remote":
         typer.secho(
-            f"[SLAPI REMOTE] SLAPI reachable at {url}, but you're not authenticated.",
+            f"[SLAPI REMOTE] SLAPI is reachable at {url}; this client is unauthenticated.",
             fg=typer.colors.RED,
             bold=True,
         )
-        typer.echo("Run: statline auth status  (then enroll / request / claim an API key).")
         return
 
     typer.secho(
-        f"[SLAPI REACHABLE] SLAPI at {url} is reachable, but you're not authenticated.",
+        f"[LOCAL FALLBACK] SLAPI is reachable at {url}; this client is unauthenticated. "
+        "Using StatLine core where local fallback is supported.",
         fg=typer.colors.YELLOW,
         bold=True,
     )
-    typer.echo("Run: statline auth status  (then enroll / request / claim an API key).")
 
 
 # ── dataset picker ────────────────────────────────────────────────────────────
@@ -1151,7 +1168,7 @@ def api_list_datasets() -> list[dict[str, str]]:
 
 
 def local_list_datasets() -> list[dict[str, str]]:
-    """Return the canonical packaged datasets for offline CLI use."""
+    """Return the canonical packaged datasets for local CLI use."""
     root = dataset_root()
     return [{"name": name, "path": str(root / name)} for name in list_datasets()]
 
@@ -1860,7 +1877,7 @@ def api_list_adapters() -> list[str]:
     except PermissionError as e:
         desc = _describe_auth_state()
         _log_note(TAMPER_NOTES, f"[auth-reject] {desc} :: {e}")
-        _fallback_banner("Not authenticated")
+        _fallback_banner("SLAPI rejected authentication")
         typer.secho(
             f"Auth failed: {e}\n{desc}\nContinuing in local mode.",
             fg=typer.colors.YELLOW,
@@ -1868,11 +1885,11 @@ def api_list_adapters() -> list[str]:
         return _local_adapter_names()
     except ConnectionError as e:
         _log_note(BUG_NOTES, f"[connect-fail] {_slapi_url} :: {e}")
-        _fallback_banner("Connection to SLAPI failed")
+        _fallback_banner("SLAPI became unavailable for this request")
         return _local_adapter_names()
     except Exception as e:
         _log_note(BUG_NOTES, f"[api_list_adapters] unexpected: {e!r}")
-        _fallback_banner("Unexpected API error")
+        _fallback_banner("SLAPI request failed unexpectedly")
         return _local_adapter_names()
 
 
@@ -1908,19 +1925,19 @@ def api_score_batch(
         return cast(Rows, data.get("results", []))
     except PermissionError as e:
         _log_note(BUG_NOTES, f"[score-batch auth] {_describe_auth_state()} :: {e}")
-        _fallback_banner("Auth to host refused")
+        _fallback_banner("SLAPI rejected authentication")
         return _local_fallback_score_batch(
             adapter, rows, weights_override, context, caps_override, filters, timing, output
         )
     except ConnectionError as e:
         _log_note(BUG_NOTES, f"[score-batch connect] {_slapi_url} :: {e}")
-        _fallback_banner("Connection failed; treating as offline")
+        _fallback_banner("SLAPI became unavailable for this request")
         return _local_fallback_score_batch(
             adapter, rows, weights_override, context, caps_override, filters, timing, output
         )
     except Exception as e:
         _log_note(BUG_NOTES, f"[score-batch unexpected] {e!r}")
-        _fallback_banner("Unexpected API error")
+        _fallback_banner("SLAPI request failed unexpectedly")
         return _local_fallback_score_batch(
             adapter, rows, weights_override, context, caps_override, filters, timing, output
         )
@@ -1952,19 +1969,19 @@ def api_score_row(
         return cast(Row, data)
     except PermissionError as e:
         _log_note(BUG_NOTES, f"[score-row auth] {_describe_auth_state()} :: {e}")
-        _fallback_banner("Auth to host refused")
+        _fallback_banner("SLAPI rejected authentication")
         return _local_fallback_score_row(
             adapter, row, weights_override, context, caps_override, filters
         )
     except ConnectionError as e:
         _log_note(BUG_NOTES, f"[score-row connect] {_slapi_url} :: {e}")
-        _fallback_banner("Connection failed; treating as offline")
+        _fallback_banner("SLAPI became unavailable for this request")
         return _local_fallback_score_row(
             adapter, row, weights_override, context, caps_override, filters
         )
     except Exception as e:
         _log_note(BUG_NOTES, f"[score-row unexpected] {e!r}")
-        _fallback_banner("Unexpected API error")
+        _fallback_banner("SLAPI request failed unexpectedly")
         return _local_fallback_score_row(
             adapter, row, weights_override, context, caps_override, filters
         )
@@ -1997,15 +2014,15 @@ def api_calc_pri_single(
         return cast(Row, data2)
     except PermissionError as e:
         _log_note(BUG_NOTES, f"[calc-pri auth] {_describe_auth_state()} :: {e}")
-        _fallback_banner("Auth to host refused")
+        _fallback_banner("SLAPI rejected authentication")
         return _local_fallback_score_row(adapter, row, weights_override, None, None, filters)
     except ConnectionError as e:
         _log_note(BUG_NOTES, f"[calc-pri connect] {_slapi_url} :: {e}")
-        _fallback_banner("Connection failed; treating as offline")
+        _fallback_banner("SLAPI became unavailable for this request")
         return _local_fallback_score_row(adapter, row, weights_override, None, None, filters)
     except Exception as e:
         _log_note(BUG_NOTES, f"[calc-pri unexpected] {e!r}")
-        _fallback_banner("Unexpected API error")
+        _fallback_banner("SLAPI request failed unexpectedly")
         return _local_fallback_score_row(adapter, row, weights_override, None, None, filters)
 
 
@@ -2032,15 +2049,15 @@ def api_pri_row(
         return cast(Row, data)
     except PermissionError as e:
         _log_note(BUG_NOTES, f"[pri-row auth] {_describe_auth_state()} :: {e}")
-        _fallback_banner("Auth to host refused")
+        _fallback_banner("SLAPI rejected authentication")
         return _local_fallback_score_row(adapter, row, weights_override, None, None, filters)
     except ConnectionError as e:
         _log_note(BUG_NOTES, f"[pri-row connect] {_slapi_url} :: {e}")
-        _fallback_banner("Connection failed; treating as offline")
+        _fallback_banner("SLAPI became unavailable for this request")
         return _local_fallback_score_row(adapter, row, weights_override, None, None, filters)
     except Exception as e:
         _log_note(BUG_NOTES, f"[pri-row unexpected] {e!r}")
-        _fallback_banner("Unexpected API error")
+        _fallback_banner("SLAPI request failed unexpectedly")
         return _local_fallback_score_row(adapter, row, weights_override, None, None, filters)
 
 
@@ -2087,7 +2104,7 @@ def api_pri_batch(
         return cast(Rows, data.get("results", []))
     except PermissionError as e:
         _log_note(BUG_NOTES, f"[pri-batch auth] {_describe_auth_state()} :: {e}")
-        _fallback_banner("Auth to host refused")
+        _fallback_banner("SLAPI rejected authentication")
         if caps == "clamps":
             return [
                 _local_fallback_score_row(
@@ -2100,7 +2117,7 @@ def api_pri_batch(
         )
     except ConnectionError as e:
         _log_note(BUG_NOTES, f"[pri-batch connect] {_slapi_url} :: {e}")
-        _fallback_banner("Connection failed; treating as offline")
+        _fallback_banner("SLAPI became unavailable for this request")
         if caps == "clamps":
             return [
                 _local_fallback_score_row(
@@ -2113,7 +2130,7 @@ def api_pri_batch(
         )
     except Exception as e:
         _log_note(BUG_NOTES, f"[pri-batch unexpected] {e!r}")
-        _fallback_banner("Unexpected API error")
+        _fallback_banner("SLAPI request failed unexpectedly")
         if caps == "clamps":
             return [
                 _local_fallback_score_row(
@@ -2173,7 +2190,11 @@ def _root(
         _mode,
         "--mode",
         envvar="STATLINE_MODE",
-        help="Runtime mode: auto | local | remote. (local=offline StatLine, remote=require SLAPI)",
+        help=(
+            "Runtime mode: auto | local | remote. "
+            "auto=SLAPI when reachable+authenticated, local=never use SLAPI, "
+            "remote=require authenticated SLAPI."
+        ),
     ),
     timing: bool = typer.Option(
         True,
@@ -2224,8 +2245,14 @@ def _root(
     _banner_shown = False
     ensure_banner()
 
-    # Mode behavior:
-    # - local: never probe, never auth, never use SLAPI
+    # Commands which create/manage the service or own their own persistent session should
+    # not emit a preflight connectivity verdict about some other SLAPI endpoint.
+    if ctx.invoked_subcommand in {"serve", "os", "launch"}:
+        _reachable = False
+        _online = False
+        return
+
+    # local: an explicit execution choice, not a claim that the machine is "offline".
     if _mode == "local":
         _reachable = False
         _online = False
@@ -2235,53 +2262,39 @@ def _root(
             raise typer.Exit(0)
         return
 
-    # auto/remote: probe
-    _reachable = _tcp_probe(_slapi_url)
+    # auto/remote: TCP reachability is only a fast gate. A successful public health
+    # request is what makes the endpoint a reachable SLAPI service.
+    _reachable = False
     authed = False
-
-    if _reachable:
-        # prove server is alive (public endpoint)
+    if _tcp_probe(_slapi_url):
         try:
             _get_v3("/v3/health")
+            _reachable = True
         except Exception as e:
             _log_note(BUG_NOTES, f"[startup-health] {e!r}")
 
-        # authenticated? (requires principal)
-        if _has_apikey():
-            try:
-                _get_v3("/v3/auth/whoami")
-                authed = True
-            except Exception as e:
-                _log_note(BUG_NOTES, f"[startup-whoami] {e!r}")
-                authed = False
-        else:
-            authed = False
+    if _reachable and _has_apikey():
+        try:
+            _get_v3("/v3/auth/whoami")
+            authed = True
+        except Exception as e:
+            _log_note(BUG_NOTES, f"[startup-whoami] {e!r}")
 
     _online = bool(_reachable and authed)
-    _print_mode_banner(reachable=_reachable, authed=_online, url=_slapi_url, mode=_mode)
+    _print_mode_banner(reachable=_reachable, authed=authed, url=_slapi_url, mode=_mode)
 
     if _mode == "remote":
         if not _reachable:
             raise typer.BadParameter(
-                f"SLAPI remote mode requires a reachable server at {_slapi_url}."
+                f"SLAPI remote mode requires a reachable StatLine API at {_slapi_url}."
             )
-        if not _online:
+        if not authed:
             raise typer.BadParameter(
-                "SLAPI remote mode requires a valid API key.\n"
+                "SLAPI is reachable, but this client is unauthenticated.\n"
                 f"{_describe_auth_state()}\n"
-                "For server clients, set STATLINE_API_KEY=api_... .\n"
-                "For device enrollment, use statline auth status."
+                "Set STATLINE_API_KEY=api_... for a portable/server client, or run "
+                "statline auth status for device enrollment."
             )
-
-    if _reachable and not _online and _mode == "auto":
-        typer.secho(
-            "SLAPI reachable but not authenticated.\n"
-            f"{_describe_auth_state()}\n"
-            "Use: statline auth status (then enroll / request / claim) to enable SLAPI.\n"
-            "Tip: use --mode local to silence SLAPI entirely.",
-            fg=typer.colors.YELLOW,
-            bold=True,
-        )
 
     if ctx.invoked_subcommand is None:
         typer.echo(ctx.get_help())
@@ -2300,10 +2313,18 @@ def sys_status() -> None:
     """Print runtime mode, SLAPI reachability, and auth material paths."""
     ensure_banner()
     typer.secho("Runtime", bold=True)
-    typer.echo(f"mode:      {_mode}")
+    slapi_state = "disabled" if _mode == "local" else ("reachable" if _reachable else "unavailable")
+    auth_state = (
+        "not checked"
+        if _mode == "local" or not _reachable
+        else ("authenticated" if _online else "unauthenticated")
+    )
+    backend = "SLAPI" if _online and _mode != "local" else "local core"
+    typer.echo(f"mode:       {_mode}")
+    typer.echo(f"backend:    {backend}")
     typer.echo(f"slapi_url:  {_slapi_url}")
-    typer.echo(f"reachable:  {_reachable}")
-    typer.echo(f"online:     {_online}")
+    typer.echo(f"slapi:      {slapi_state}")
+    typer.echo(f"auth:       {auth_state}")
     typer.secho("\nSecrets", bold=True)
     typer.echo(f"SECRETS_DIR: {SECRETS_DIR}")
     typer.echo(_describe_auth_state())
@@ -2913,7 +2934,7 @@ def admin_apikeys_cmd(org: str | None = typer.Option(None, "--org")) -> None:
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-@app.command("adapters")
+@app.command("adapters", hidden=True)
 def adapters_list() -> None:
     """List available adapter keys (via SLAPI or local)."""
     ensure_banner()
@@ -2924,7 +2945,7 @@ def adapters_list() -> None:
         raise typer.BadParameter(f"Failed to list adapters ({_slapi_url}): {e}")
 
 
-@app.command("interactive")
+@app.command("interactive", hidden=True)
 def interactive(
     ctx: typer.Context,
     timing: bool | None = typer.Option(
@@ -3208,7 +3229,7 @@ def _spawn_os_window() -> None:
     typer.echo("StatLine OS launched in a separate window.")
 
 
-@app.command("os")
+@app.command("os", rich_help_panel="Core workflows")
 def os_app(
     inline: bool = typer.Option(
         False,
@@ -3229,7 +3250,7 @@ def launch_compat() -> None:
     _spawn_os_window()
 
 
-@app.command("score")
+@app.command("score", rich_help_panel="Core workflows")
 def score(
     ctx: typer.Context,
     adapter: str | None = typer.Option(
@@ -3587,13 +3608,31 @@ storage_app = typer.Typer(
     no_args_is_help=True, rich_markup_mode="rich", help="CSV/storage utilities"
 )
 weights_app = typer.Typer(no_args_is_help=True, rich_markup_mode="rich", help="Weight utilities")
+tools_app = typer.Typer(
+    no_args_is_help=True,
+    rich_markup_mode="rich",
+    help="Advanced pipeline, cache, CSV, and weight utilities",
+    epilog=(
+        "These commands expose internal pipeline stages. For normal use, start with "
+        "`statline score` and `statline adapter`."
+    ),
+)
 
-app.add_typer(adapter_app, name="adapter")
-app.add_typer(map_app, name="map")
-app.add_typer(calc_app, name="calc")
-app.add_typer(cache_app, name="cache")
-app.add_typer(storage_app, name="storage")
-app.add_typer(weights_app, name="weights")
+app.add_typer(adapter_app, name="adapter", rich_help_panel="Core workflows")
+app.add_typer(tools_app, name="tools", rich_help_panel="Advanced")
+
+tools_app.add_typer(map_app, name="map")
+tools_app.add_typer(calc_app, name="calc")
+tools_app.add_typer(cache_app, name="cache")
+tools_app.add_typer(storage_app, name="storage")
+tools_app.add_typer(weights_app, name="weights")
+
+# rc3 compatibility aliases: still executable, but no longer crowd root help.
+app.add_typer(map_app, name="map", hidden=True)
+app.add_typer(calc_app, name="calc", hidden=True)
+app.add_typer(cache_app, name="cache", hidden=True)
+app.add_typer(storage_app, name="storage", hidden=True)
+app.add_typer(weights_app, name="weights", hidden=True)
 
 
 def _print_payload(data: Any, *, fmt: str = "json", pretty: bool = True) -> None:
@@ -4223,7 +4262,7 @@ def calc_batch_cmd(
         _print_payload(data, fmt=fmt)
 
 
-@app.command("serve")
+@app.command("serve", rich_help_panel="Service & access")
 def serve_cmd(
     host: str = typer.Option("127.0.0.1", "--host"),
     port: int = typer.Option(8000, "--port"),
@@ -4697,7 +4736,7 @@ def statpack_register_cmd(
     selected = executable or Path(shutil.which("statline") or sys.argv[0])
     register_statpack_file_type(selected)
     typer.secho(
-        'Registered .statpack -> statline run --pause "%1"',
+        'Registered .statpack -> statline statpack run --pause "%1"',
         fg=typer.colors.GREEN,
         bold=True,
     )
@@ -4716,6 +4755,7 @@ def statpack_unregister_cmd() -> None:
 @app.command(
     "run",
     context_settings={"allow_extra_args": True, "ignore_unknown_options": True},
+    hidden=True,
 )
 def statpack_run_cmd(
     ctx: typer.Context,
@@ -4770,3 +4810,10 @@ def statpack_run_cmd(
 
     if exit_code:
         raise typer.Exit(exit_code)
+
+
+# Canonical rc4 location; ``statline run`` remains a hidden rc3 compatibility alias.
+statpack_app.command(
+    "run",
+    context_settings={"allow_extra_args": True, "ignore_unknown_options": True},
+)(statpack_run_cmd)
