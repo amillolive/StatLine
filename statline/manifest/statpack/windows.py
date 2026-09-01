@@ -10,6 +10,19 @@ from statline.manifest.functions.windows import (
 from statline.manifest.statpack.definitions import STATPACK_FILE_TYPE
 
 
+def _statpack_icon_path() -> Path:
+    package_root = Path(__file__).resolve().parents[2]
+    packaged_icon = package_root / "assets" / STATPACK_FILE_TYPE.icon_name
+    if packaged_icon.is_file():
+        return packaged_icon
+
+    source_icon = package_root.parent / "assets" / STATPACK_FILE_TYPE.icon_name
+    if source_icon.is_file():
+        return source_icon
+
+    raise FileNotFoundError(f"StatPack icon was not found: {STATPACK_FILE_TYPE.icon_name}")
+
+
 def register_statpack_file_type(
     executable: str | Path,
 ) -> None:
@@ -24,6 +37,7 @@ def register_statpack_file_type(
         manifest=STATPACK_FILE_TYPE,
         executable=Path(executable),
         arguments=("statpack", "run", "--pause"),
+        icon_path=_statpack_icon_path(),
     )
 
     register_windows_file_type(association)

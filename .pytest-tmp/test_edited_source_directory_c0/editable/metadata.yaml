@@ -1,0 +1,11 @@
+metadata:
+  id: eba.players
+  title: Edited Players
+  version: 4.0.0
+  author: StatLine, EBA
+  aliases:
+  - eba_player
+  - eba
+  - ebap
+  - eba_p
+  dataset: EBA_Elevate302/eba_hybrid_s1_players.csv

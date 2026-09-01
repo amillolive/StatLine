@@ -15,6 +15,7 @@ class WindowsFileAssociation:
     manifest: FileTypeManifest
     executable: Path
     arguments: tuple[str, ...] = ()
+    icon_path: Path | None = None
 
     @property
     def command(self) -> str:
@@ -30,4 +31,7 @@ class WindowsFileAssociation:
 
     @property
     def icon(self) -> str:
+        if self.icon_path is not None:
+            return str(self.icon_path.resolve())
+
         return f"{self.executable.resolve()},0"

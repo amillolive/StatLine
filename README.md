@@ -4,7 +4,7 @@
 
 It can run completely locally for simple scoring workflows, or against **SLAPI**, the optional StatLine API layer for authenticated remote scoring, adapter inspection, and multi-client deployments.
 
-> **Release target:** **v4.0.0rc4**
+> **Release target:** **v4.0.0rc5**
 > **Python:** **3.10 through 3.14**
 > **License:** **AGPL-3.0-or-later**, with separate trademark restrictions for the StatLine name and branding.
 
@@ -26,7 +26,7 @@ At a high level, StatLine provides:
 
 ---
 
-## v4.0.0rc4 highlights
+## v4.0.0rc5 highlights
 
 * Root CLI help is organized around core workflows, service/access, administration, and one advanced `tools` namespace; rc3 command spellings remain hidden compatibility aliases.
 * Connectivity output now distinguishes **SLAPI unavailable** from **SLAPI reachable but unauthenticated**, and `serve` does not preflight/report unrelated client connectivity.
@@ -45,7 +45,7 @@ At a high level, StatLine provides:
 
 ## Install
 
-StatLine v4.0.0rc4 has five intended install variants.
+StatLine v4.0.0rc5 has five intended install variants.
 
 | Variant     | Command                          | Use this when you want                                                                   |
 | ----------- | -------------------------------- | ---------------------------------------------------------------------------------------- |

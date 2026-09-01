@@ -1,6 +1,6 @@
 # StatLine HOWTO
 
-This guide shows the practical workflows for **StatLine v4.0.0rc4**: installing the right variant, scoring locally, using SLAPI, writing adapters, and preparing a release.
+This guide shows the practical workflows for **StatLine v4.0.0rc5**: installing the right variant, scoring locally, using SLAPI, writing adapters, and preparing a release.
 
 ---
 
@@ -720,9 +720,9 @@ pip-audit
 
 ---
 
-## 18. v4.0.0rc4 release checklist
+## 18. v4.0.0rc5 release checklist
 
-1. Confirm `project.version` in `pyproject.toml` is `4.0.0rc4`.
+1. Confirm `project.version` in `pyproject.toml` is `4.0.0rc5`.
 
 2. Confirm `statline/RELEASE` matches the v4 generation and intended component release counters.
 

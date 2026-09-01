@@ -4,7 +4,7 @@ param(
 
     # Default: build the exact working tree this script lives under, including uncommitted changes.
 
-    # Use -Ref main / -Ref v4.0.0rc4 / -Ref <commit> to build an isolated Git snapshot instead.
+    # Use -Ref main / -Ref v4.0.0rc5 / -Ref <commit> to build an isolated Git snapshot instead.
 
     [Parameter(ParameterSetName = "Source")]
 
@@ -268,6 +268,8 @@ $runtimeRoot = Join-Path $payloadRoot "runtime"
 
 $binRoot = Join-Path $payloadRoot "bin"
 
+$assetsRoot = Join-Path $payloadRoot "assets"
+
 $issPath = Join-Path $tempRoot "installer\StatLine.iss"
 
 try {
@@ -373,6 +375,18 @@ try {
     New-Item -ItemType Directory -Force -Path $runtimeRoot | Out-Null
 
     New-Item -ItemType Directory -Force -Path $binRoot | Out-Null
+
+    New-Item -ItemType Directory -Force -Path $assetsRoot | Out-Null
+
+    $statpackIconSource = Join-Path $sourceRoot "assets\statpack-icon-main.png"
+
+    if (-not (Test-Path -LiteralPath $statpackIconSource -PathType Leaf)) {
+
+        throw "StatPack icon was not found: $statpackIconSource"
+
+    }
+
+    Copy-Item -LiteralPath $statpackIconSource -Destination (Join-Path $assetsRoot "statpack-icon-main.png") -Force
 
     $embedZip = Join-Path $tempRoot "python-embed.zip"
 
@@ -618,6 +632,8 @@ Root: HKCU; Subkey: "Software\Classes\.statpack"; ValueType: string; ValueName: 
 Root: HKCU; Subkey: "Software\Classes\StatLine.StatPack"; ValueType: string; ValueName: ""; ValueData: "StatLine StatPack"; Flags: uninsdeletekey
 
 Root: HKCU; Subkey: "Software\Classes\StatLine.StatPack"; ValueType: string; ValueName: "FriendlyTypeName"; ValueData: "StatLine StatPack"
+
+Root: HKCU; Subkey: "Software\Classes\StatLine.StatPack\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\assets\statpack-icon-main.png"
 
 Root: HKCU; Subkey: "Software\Classes\StatLine.StatPack\shell"; ValueType: string; ValueName: ""; ValueData: "open"
 

@@ -9,5 +9,5 @@ STATPACK_FILE_TYPE = FileTypeManifest(
     description="StatLine scoring package",
     mime_type="application/vnd.statline.statpack",
     uniform_type_identifier="dev.statline.statpack",
-    icon_name="statpack.ico",
+    icon_name="statpack-icon-main.png",
 )

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "statline"
-version = "4.0.0rc4"
+version = "4.0.0rc5"
 description = "StatLine — weighted player scoring, efficiency modeling, CLI + adapter tooling"
 readme = "README.md"
 requires-python = ">=3.10,<3.15"
@@ -222,6 +222,7 @@ packages = ["statline"]
 
 [tool.hatch.build.targets.wheel.force-include]
 "statline/RELEASE" = "statline/RELEASE"
+"assets/statpack-icon-main.png" = "statline/assets/statpack-icon-main.png"
 
 [tool.hatch.build.targets.sdist]
 include = [
@@ -237,6 +238,7 @@ include = [
   "tests/**/*.py",
   "scripts/**/*.py",
   "typings/**/*.pyi",
+  "assets/statpack-icon-main.png",
   "README.md",
   "HOWTO.md",
   "ARCHITECTURE.md",
