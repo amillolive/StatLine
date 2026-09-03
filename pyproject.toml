@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "statline"
-version = "4.0.0rc5"
+version = "4.0.0"
 description = "StatLine — weighted player scoring, efficiency modeling, CLI + adapter tooling"
 readme = "README.md"
 requires-python = ">=3.10,<3.15"
@@ -237,6 +237,7 @@ include = [
   "statline/core/datasets/**/*.csv",
   "tests/**/*.py",
   "scripts/**/*.py",
+  "scripts/build-statline-installer.ps1",
   "typings/**/*.pyi",
   "assets/statpack-icon-main.png",
   "README.md",

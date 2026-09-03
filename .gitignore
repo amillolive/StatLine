@@ -68,7 +68,6 @@ coverage-*.xml
 # Temporary package/build staging
 
 /.build-temp/
-/.build-temp/
 /package-temp/
 /wheelhouse/
 
