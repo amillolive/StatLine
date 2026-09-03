@@ -4,12 +4,21 @@ from __future__ import annotations
 
 import sys
 
-import click
-
-from statline.app.cli.main import app
-
 
 def main() -> None:
+    try:
+        import click
+        from statline.app.cli.main import app
+    except ModuleNotFoundError as error:
+        if error.name in {"click", "httpx2", "typer"}:
+            print(
+                "StatLine App is not installed. Install it with: "
+                "pip install 'statline[app]'",
+                file=sys.stderr,
+            )
+            raise SystemExit(2) from None
+        raise
+
     try:
         app()
     except click.exceptions.Exit as error:

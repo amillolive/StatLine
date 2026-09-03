@@ -15,7 +15,7 @@ from typing import Any, TextIO, cast
 
 import yaml
 
-from statline.app.cli.presentation import (
+from statline.core.presentation import (
     profile_names,
     profile_score,
     render_profile_tables,

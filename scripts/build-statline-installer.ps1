@@ -4,7 +4,7 @@ param(
 
     # Default: build the exact working tree this script lives under, including uncommitted changes.
 
-    # Use -Ref main / -Ref v4.0.0rc5 / -Ref <commit> to build an isolated Git snapshot instead.
+    # Use -Ref main / -Ref v4.0.0rc6 / -Ref <commit> to build an isolated Git snapshot instead.
 
     [Parameter(ParameterSetName = "Source")]
 
@@ -16,11 +16,11 @@ param(
 
     [string]$Wheel,
 
-    # The installer historically shipped the full StatLine experience, so extras is the default.
+    # Gateway includes App, so it remains the full runtime installer default.
 
-    [ValidateSet("base", "os", "remote", "extras")]
+    [ValidateSet("base", "app", "gateway", "dev")]
 
-    [string]$Variant = "extras",
+    [string]$Variant = "gateway",
 
     # A major/minor selector is fine; uv resolves it to an exact CPython release.
 
@@ -281,6 +281,8 @@ try {
         $worktreePath = Join-Path $tempRoot "source"
 
         Invoke-Native "git" @("-C", $repoRoot, "worktree", "add", "--detach", $worktreePath, $Ref)
+
+        Invoke-Native "git" @("-C", $worktreePath, "submodule", "update", "--init", "--recursive")
 
         $sourceRoot = $worktreePath
 
@@ -559,9 +561,15 @@ try {
 
     Invoke-Native $runtimePython @("-m", "statline", "--help")
 
-    if ($Variant -eq "extras") {
+    if ($Variant -eq "app") {
 
-        Invoke-Native $runtimePython @("-c", "import cryptography, fastapi, textual, uvicorn; print('extras: OK')")
+        Invoke-Native $runtimePython @("-c", "import click, httpx2, textual, typer; print('app: OK')")
+
+    }
+
+    elseif ($Variant -in @("gateway", "dev")) {
+
+        Invoke-Native $runtimePython @("-c", "import click, cryptography, fastapi, httpx2, textual, typer, uvicorn; print('gateway: OK')")
 
     }
 

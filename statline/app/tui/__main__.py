@@ -8,7 +8,7 @@ def main() -> None:
         if error.name == "textual":
             raise SystemExit(
                 "StatLine OS requires Textual. Install with: "
-                "pip install 'statline[os]' (or 'statline[extras]')."
+                "pip install 'statline[app]' (or 'statline[gateway]')."
             ) from None
         raise
 

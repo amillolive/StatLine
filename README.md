@@ -4,7 +4,7 @@
 
 It can run completely locally for simple scoring workflows, or against **SLAPI**, the optional StatLine API layer for authenticated remote scoring, adapter inspection, and multi-client deployments.
 
-> **Release target:** **v4.0.0rc5**
+> **Release target:** **v4.0.0rc6**
 > **Python:** **3.10 through 3.14**
 > **License:** **AGPL-3.0-or-later**, with separate trademark restrictions for the StatLine name and branding.
 
@@ -26,8 +26,10 @@ At a high level, StatLine provides:
 
 ---
 
-## v4.0.0rc5 highlights
+## v4.0.0rc6 highlights
 
+* Core, App, and Gateway are now separately owned Git submodules while preserving `statline.core`, `statline.app`, and `statline.gateway` import paths.
+* Core now has an enforced no-App/no-Gateway import boundary; the canonical extras are `app`, `gateway`, and `dev`, with Gateway including App dependencies.
 * Root CLI help is organized around core workflows, service/access, administration, and one advanced `tools` namespace; rc3 command spellings remain hidden compatibility aliases.
 * Connectivity output now distinguishes **SLAPI unavailable** from **SLAPI reachable but unauthenticated**, and `serve` does not preflight/report unrelated client connectivity.
 * StatLine OS executes the canonical CLI command tree in-process, so command names/help/validation match the regular CLI and copied `statline ...` commands can be pasted directly.
@@ -45,19 +47,21 @@ At a high level, StatLine provides:
 
 ## Install
 
-StatLine v4.0.0rc5 has five intended install variants.
+StatLine v4.0.0rc6 has four intended install variants. The parent StatLine repository is the release-composition surface; `statline/core`, `statline/app`, and `statline/gateway` are separately owned Git submodules mounted at their existing Python package paths.
 
-| Variant     | Command                          | Use this when you want                                                                   |
-| ----------- | -------------------------------- | ---------------------------------------------------------------------------------------- |
-| **base**    | `pip install statline`           | Functional local library and CLI scoring.                                                |
-| **os**      | `pip install "statline[os]"`     | Base plus the persistent Textual StatLine OS client.                                     |
-| **remote**  | `pip install "statline[remote]"` | Base plus API client/auth and the SLAPI serving stack.                                   |
-| **extras**  | `pip install "statline[extras]"` | Remote + StatLine OS + Google Sheets-related conveniences.                               |
-| **devpack** | `pip install -e ".[devpack]"`    | Everything needed for development, testing, typing, docs, packaging, and release checks. |
+| Variant | Command | Capability set |
+| --- | --- | --- |
+| **core** | `pip install statline` | Core Python API, scoring, adapters, datasets, and StatPack runtime. |
+| **app** | `pip install "statline[app]"` | Core + CLI/application dependencies + Textual StatLine OS. |
+| **gateway** | `pip install "statline[gateway]"` | Core + App + authentication, API, and SLAPI serving dependencies. |
+| **dev** | `pip install -e ".[dev]"` | Core + App + Gateway plus tests, typing, docs, packaging, and release tooling. |
 
-For a source checkout:
+For a source checkout, initialize the component repositories before installing:
 
-```bash id="gx7hio"
+```bash
+git clone --recurse-submodules https://github.com/amillolive/StatLine.git
+cd StatLine
+git submodule update --init --recursive
 python -m venv .venv
 
 # Linux/macOS
@@ -67,12 +71,16 @@ source .venv/bin/activate
 # .\.venv\Scripts\Activate.ps1
 
 python -m pip install --upgrade pip
-python -m pip install -e ".[devpack]"
+python -m pip install -e ".[dev]"
 ```
+
+Core is intentionally one-way: `statline/core` must never import App or Gateway. App and Gateway may consume Core; cross-capability App/Gateway integration must remain behind the capability that supplies its dependencies.
 
 ---
 
 ## Quick start: local CLI
+
+The CLI is part of the App capability; install `statline[app]` (or `statline[gateway]`) before using these commands.
 
 Local mode avoids all network probing and uses the installed StatLine core directly.
 
@@ -302,7 +310,7 @@ YAML example:
 Install the remote variant:
 
 ```bash id="wgthnb"
-pip install "statline[remote]"
+pip install "statline[gateway]"
 ```
 
 Start SLAPI locally:
@@ -352,7 +360,7 @@ The exact approval steps depend on the SLAPI administrator.
 Install the development pack:
 
 ```bash id="yqoh3s"
-python -m pip install -e ".[devpack]"
+python -m pip install -e ".[dev]"
 ```
 
 Run checks:

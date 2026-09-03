@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "statline"
-version = "4.0.0"
+version = "4.0.0rc6"
 description = "StatLine — weighted player scoring, efficiency modeling, CLI + adapter tooling"
 readme = "README.md"
 requires-python = ">=3.10,<3.15"
@@ -37,61 +37,52 @@ classifiers = [
   "Environment :: Console",
 ]
 
-# Variant 1: base
+# Variant 1: core/base
 # pip install statline
-# Local library + CLI scoring. httpx2 remains a direct CLI dependency because the entrypoint imports
-# an HTTP backend at import time; move that import behind remote-only commands if you
-# want a stricter no-network-deps base later.
+# Core Python API + local scoring runtime. App/CLI and Gateway dependencies are optional.
 dependencies = [
-  "typer>=0.12,<1.0",
-  "click>=8.1,<9.0",
   "pyyaml>=6.0,<7.0",
-  "httpx2>=2.0,<3.0",
   "rich>=13.0,<15.0",
   'typing-extensions>=4.7; python_version<"3.15"',
 ]
 
 [project.optional-dependencies]
-# Persistent Textual application surface.
-# pip install "statline[os]"
-os = [
+# Variant 2: application
+# pip install "statline[app]"
+# App dependencies sit above Core; base remains Core-oriented.
+app = [
+  "typer>=0.12,<1.0",
+  "click>=8.1,<9.0",
+  "httpx2>=2.0,<3.0",
   "textual>=8.0,<9.0",
 ]
 
-# Variant 2: remote
-# pip install "statline[remote]"
-# API client/auth + local SLAPI serving stack.
-remote = [
+# Variant 3: gateway
+# pip install "statline[gateway]"
+# Gateway is intentionally a superset of App.
+gateway = [
+  "typer>=0.12,<1.0",
+  "click>=8.1,<9.0",
+  "httpx2>=2.0,<3.0",
+  "textual>=8.0,<9.0",
   "cryptography>=42.0,<47.0",
   "pydantic>=2.6,<3.0",
   "fastapi>=0.110,<1.0",
   "uvicorn[standard]>=0.30,<1.0",
 ]
 
-# Variant 3: extras
-# pip install "statline[extras]"
-# Power-user install: remote stack plus UI/data conveniences.
-extras = [
+# Variant 4: development
+# pip install -e ".[dev]"
+# Core + App + Gateway plus testing, typing, docs, packaging, and release checks.
+dev = [
+  "typer>=0.12,<1.0",
+  "click>=8.1,<9.0",
+  "httpx2>=2.0,<3.0",
+  "textual>=8.0,<9.0",
   "cryptography>=42.0,<47.0",
   "pydantic>=2.6,<3.0",
   "fastapi>=0.110,<1.0",
   "uvicorn[standard]>=0.30,<1.0",
-  "textual>=8.0,<9.0",
-  "gspread>=6.0,<7.0",
-  "google-auth>=2.0,<3.0",
-]
-
-# Variant 4: devpack
-# pip install -e ".[devpack]"
-# Everything needed for development, testing, typing, docs, packaging, and release checks.
-devpack = [
-  "cryptography>=42.0,<47.0",
-  "pydantic>=2.6,<3.0",
-  "fastapi>=0.110,<1.0",
-  "uvicorn[standard]>=0.30,<1.0",
-  "textual>=8.0,<9.0",
-  "gspread>=6.0,<7.0",
-  "google-auth>=2.0,<3.0",
   "pytest>=8.1",
   "pytest-cov>=4.1,<7.0",
   "coverage[toml]>=7.5,<8.0",

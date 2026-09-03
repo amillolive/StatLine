@@ -1,50 +1,41 @@
 # StatLine HOWTO
 
-This guide shows the practical workflows for **StatLine v4.0.0rc5**: installing the right variant, scoring locally, using SLAPI, writing adapters, and preparing a release.
+This guide shows the practical workflows for **StatLine v4.0.0rc6**: installing the right variant, scoring locally, using SLAPI, writing adapters, and preparing a release.
 
 ---
 
 ## 1. Choose the right install variant
 
-### Local user install
+### Core
 
-Use this when you only need local scoring and the Python library.
+Use this for the Python scoring API, adapters, datasets, and StatPack runtime without App/Gateway dependencies.
 
 ```bash
 pip install statline
 ```
 
-### Remote/API user install
+### App
 
-Use this when you need authenticated SLAPI access or want to run the local API server.
+Use this for the canonical CLI/application surface and Textual StatLine OS.
 
 ```bash
-pip install "statline[remote]"
+pip install "statline[app]"
 ```
 
-### StatLine OS install
+### Gateway
 
-Use this when you want the persistent Textual REPL/shell/TUI client.
+Use this for Core + App + authenticated SLAPI/API/server capabilities. Gateway includes the App dependency set.
 
 ```bash
-pip install "statline[os]"
+pip install "statline[gateway]"
 ```
 
-Launch it with `statline os` (separate Windows window) or `statline os --inline`.
+### Development
 
-### Power-user install
-
-Use this when you want the remote stack, StatLine OS, and convenience tooling.
+Use this from a recursive source checkout. Dev includes Core + App + Gateway plus testing, typing, docs, packaging, and release tooling.
 
 ```bash
-pip install "statline[extras]"
-```
-
-### Developer install
-
-Use this from a cloned repository.
-
-```bash
+git submodule update --init --recursive
 python -m venv .venv
 
 # Linux/macOS
@@ -54,12 +45,20 @@ source .venv/bin/activate
 # .\.venv\Scripts\Activate.ps1
 
 python -m pip install --upgrade pip
-python -m pip install -e ".[devpack]"
+python -m pip install -e ".[dev]"
 ```
 
 ---
 
 ## 2. Verify the install
+
+Core-only install:
+
+```bash
+python -c "import statline; print(statline.__version__)"
+```
+
+App/Gateway install:
 
 ```bash
 statline --version
@@ -67,7 +66,7 @@ statline --mode local system status
 statline --mode local adapter list
 ```
 
-Use `--mode local` when you want zero SLAPI/network behavior. Use `--mode remote` when a SLAPI server must be reachable and authenticated.
+Use `--mode local` when you want zero SLAPI/network behavior. Use `--mode remote` when a Gateway/SLAPI server must be reachable and authenticated.
 
 ---
 
@@ -351,7 +350,7 @@ result = score_row("statline/core/adapters/schemas/deprecated/demo.yaml", raw)
 Install the remote variant first:
 
 ```bash
-pip install "statline[remote]"
+pip install "statline[gateway]"
 ```
 
 Start the API server:
@@ -688,7 +687,7 @@ STATLINE_LOADER_STRICT=1 statline --mode local adapter spec sample_game --full
 Install everything:
 
 ```bash
-python -m pip install -e ".[devpack]"
+python -m pip install -e ".[dev]"
 ```
 
 Run tests:
@@ -720,9 +719,9 @@ pip-audit
 
 ---
 
-## 18. v4.0.0rc5 release checklist
+## 18. v4.0.0rc6 release checklist
 
-1. Confirm `project.version` in `pyproject.toml` is `4.0.0rc5`.
+1. Confirm `project.version` in `pyproject.toml` is `4.0.0rc6`.
 
 2. Confirm `statline/RELEASE` matches the v4 generation and intended component release counters.
 
@@ -730,78 +729,7 @@ pip-audit
 
 4. Confirm install variants:
 
-   * base: `pip install statline`
-   * os: `pip install "statline[os]"`
-   * remote: `pip install "statline[remote]"`
-   * extras: `pip install "statline[extras]"`
-   * devpack: `pip install -e ".[devpack]"`
-
-5. Run tests, linting, and type checks:
-
-   * `pytest`
-   * `ruff check statline tests`
-   * `mypy statline`
-   * `pyright`
-
-6. Build artifacts with `python -m build`.
-
-7. Run `python -m twine check dist/*`.
-
-8. Confirm the wheel contains required runtime resources such as `statline/RELEASE`, bundled adapters, and bundled datasets.
-
-9. Smoke-test the built wheel in a clean environment.
-
-10. Confirm artifacts do not include local databases, logs, secrets, `.git`, caches, or bytecode.
-
-11. Tag and publish only after package metadata, release metadata, tests, and docs agree.
-
----
-
-## 19. Troubleshooting
-
-### The CLI is trying to reach SLAPI when I only want local scoring
-
-Use local mode:
-
-```bash
-statline --mode local score --adapter statline/core/adapters/schemas/deprecated/demo.yaml stats.csv
-```
-
-### `serve` says a dependency is missing
-
-Install the remote stack:
-
-```bash
-pip install "statline[remote]"
-```
-
-### My adapter does not appear
-
-Refresh the registry and inspect errors:
-
-```bash
-statline --mode local adapter refresh
-STATLINE_LOADER_STRICT=1 statline --mode local adapter spec your_adapter --full
-```
-
-### Scores look compressed or inflated
-
-Inspect clamps, score profiles, and the normalization context:
-
-```bash
-statline --mode local adapter spec your_adapter --full
-statline --mode local score --adapter your_adapter stats.csv --caps batch
-statline --mode local score --adapter your_adapter stats.csv --caps clamps
-```
-
-### CSV names are wrong in output
-
-Pass preferred name columns:
-
-```bash
-statline --mode local score \
-  --adapter statline/core/adapters/schemas/deprecated/demo.yaml \
-  stats.csv \
-  --name-col player_name \
-  --name-col name
-```
+   * core: `pip install statline`
+   * app: `pip install "statline[app]"`
+   * gateway: `pip install "statline[gateway]"`
+   * dev: `pip install -e ".[dev]"`

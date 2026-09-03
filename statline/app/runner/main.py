@@ -10,7 +10,7 @@ def main() -> None:
         import uvicorn
     except ImportError:
         print(
-            "Missing dependency: uvicorn. Install with: pip install '.[remote]'\n", file=sys.stderr
+            "Missing dependency: uvicorn. Install with: pip install 'statline[gateway]'\n", file=sys.stderr
         )
         raise
 

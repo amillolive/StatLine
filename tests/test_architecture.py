@@ -7,6 +7,7 @@ from __future__ import annotations
 import ast
 import importlib
 import importlib.metadata
+import re
 from pathlib import Path
 from typing import Any
 
@@ -225,16 +226,59 @@ def test_installer_strict_mode_keeps_inno_candidates_as_a_collection() -> None:
     assert "{app}\\assets\\statpack-icon-main.png" in text
 
 
-def test_source_tree_version_falls_back_to_rc5(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_source_tree_version_falls_back_to_rc6(monkeypatch: pytest.MonkeyPatch) -> None:
     def missing_distribution(_name: str) -> str:
         raise importlib.metadata.PackageNotFoundError
 
     monkeypatch.setattr(importlib.metadata, "version", missing_distribution)
     reloaded = importlib.reload(statline)
 
-    assert PACKAGE_VERSION == "4.0.0rc5"
+    assert PACKAGE_VERSION == "4.0.0rc6"
     assert reloaded.__version__ == PACKAGE_VERSION
 
+
+
+def test_core_never_imports_app_or_gateway() -> None:
+    forbidden = ("statline.app", "statline.gateway")
+    for path in sorted((ROOT / "statline" / "core").rglob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        for node in ast.walk(tree):
+            names: list[str] = []
+            if isinstance(node, ast.Import):
+                names.extend(alias.name for alias in node.names)
+            elif isinstance(node, ast.ImportFrom) and node.module:
+                names.append(node.module)
+            for name in names:
+                assert not name.startswith(forbidden), (
+                    f"Core dependency inversion in {path.relative_to(ROOT)}: {name}"
+                )
+
+
+def test_rc6_install_extras_are_canonical() -> None:
+    text = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    optional = text.split("[project.optional-dependencies]", 1)[1].split(
+        "[tool.statline.release]", 1
+    )[0]
+    names = set(re.findall(r"(?m)^([a-z][a-z0-9_-]*)\s*=\s*\[", optional))
+    assert names == {"app", "gateway", "dev"}
+
+    def extra_body(name: str) -> str:
+        match = re.search(rf"(?ms)^{name}\s*=\s*\[(.*?)^\]", optional)
+        assert match is not None
+        return match.group(1)
+
+    app = extra_body("app")
+    gateway = extra_body("gateway")
+    dev = extra_body("dev")
+
+    for dependency in ("typer", "click", "httpx2", "textual"):
+        assert dependency in app
+        assert dependency in gateway
+        assert dependency in dev
+    for dependency in ("cryptography", "pydantic", "fastapi", "uvicorn"):
+        assert dependency in gateway
+        assert dependency in dev
+    assert "pytest" in dev
 
 def test_moved_modules_resolve_package_paths() -> None:
     from statline.app.cli.main import LOG_DIR

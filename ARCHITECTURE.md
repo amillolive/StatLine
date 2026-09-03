@@ -23,3 +23,16 @@ Concurrency follows an I/O-boundary rule rather than making the scoring core asy
 Deprecated adapter schemas remain packaged for explicit local compatibility paths, but they are excluded from registry discovery, sniffing, CLI lists, and API resource catalogs.
 
 Legacy `statline.slapi`, flat scoring/dataset modules, `statline.tui`, `statline.services`, and `statline.utils` are removed rather than forwarded. No compatibility shims are part of the rebase.
+
+
+## v4.0.0rc6 repository boundaries
+
+The canonical StatLine repository composes three Git submodules at stable Python package paths:
+
+- `statline/core` → `StatLine-core`
+- `statline/app` → `StatLine-app`
+- `statline/gateway` → `StatLine-gateway`
+
+The dependency graph is intentionally directional: Core must never import App or Gateway. App and Gateway may import Core. App/Gateway cross-integration is allowed only behind the capability whose optional dependencies support it.
+
+The parent StatLine repository owns release composition, public compatibility surfaces, packaging metadata, documentation, and integration tests. A source checkout must initialize the submodules with `git submodule update --init --recursive`; release builds from a Git ref must do the same before packaging.

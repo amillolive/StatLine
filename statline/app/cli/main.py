@@ -449,7 +449,7 @@ def _load_ed25519_private() -> Any:
     except Exception as e:
         raise typer.BadParameter(
             "Missing dependency: cryptography (required for v4 auth).\n"
-            "Install with: pip install 'statline[remote]'  (or)  pip install cryptography"
+            "Install with: pip install 'statline[gateway]'  (or)  pip install cryptography"
         ) from e
 
     if not DEVICEKEY_PATH.exists():
@@ -477,7 +477,7 @@ def ensure_device_keypair(*, force: bool = False) -> Any:
     except Exception as e:
         raise typer.BadParameter(
             "Missing dependency: cryptography (required for v4 auth).\n"
-            "Install with: pip install 'statline[remote]'  (or)  pip install cryptography"
+            "Install with: pip install 'statline[gateway]'  (or)  pip install cryptography"
         ) from e
 
     if DEVICEKEY_PATH.exists() and not force:
@@ -3190,7 +3190,7 @@ def _require_textual() -> None:
     if importlib.util.find_spec("textual") is None:
         raise typer.BadParameter(
             "StatLine OS requires Textual. Install with: "
-            "pip install 'statline[os]' (or 'statline[extras]')."
+            "pip install 'statline[app]' (or 'statline[gateway]')."
         )
 
 
@@ -4361,7 +4361,7 @@ def serve_cmd(
         import uvicorn
     except Exception as e:
         raise typer.BadParameter(
-            "SLAPI serving requires uvicorn. Install with: pip install 'statline[remote]'"
+            "SLAPI serving requires uvicorn. Install with: pip install 'statline[gateway]'"
         ) from e
 
     if reload and workers != 1:

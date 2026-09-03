@@ -14,7 +14,7 @@ try:
 except ModuleNotFoundError as error:
     raise RuntimeError(
         "StatLine Gateway requires optional dependencies. Install with: "
-        "pip install 'statline[remote]'  (or)  pip install -e '.[remote]'"
+        "pip install 'statline[gateway]'  (or)  pip install -e 'statline[gateway]'"
     ) from error
 
 from statline import __version__
