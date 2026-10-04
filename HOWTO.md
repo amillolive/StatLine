@@ -59,7 +59,7 @@ python -m pip install -e ".[dev]"
 
 ## 2. Sync component mirrors
 
-Core, App, and Gateway are developed in the StatLine monorepo. After committing on `main`, `next`, or `dev`, publish the matching subtree mirrors with either helper:
+Core, App, and Gateway are developed in the StatLine monorepo. After committing on `main` or `next`, publish the matching subtree mirrors with either helper:
 
 ```bash
 ./scripts/sync-components.sh
@@ -69,7 +69,7 @@ Core, App, and Gateway are developed in the StatLine monorepo. After committing 
 .\scripts\sync-components.ps1
 ```
 
-Feature branches are intentionally not mirrored. GitHub also performs the same synchronization after CI succeeds on `main`, `next`, or `dev` when `STATLINE_COMPONENT_SYNC_TOKEN` is configured.
+Feature branches are intentionally not mirrored. GitHub also performs the same synchronization as the final CI job after a successful push build on `main` or `next` when `STATLINE_COMPONENT_SYNC_TOKEN` is configured.
 
 ---
 

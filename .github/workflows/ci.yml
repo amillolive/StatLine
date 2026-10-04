@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: ["main", "next", "dev"]
+    branches: ["main", "next"]
     tags: ["v*"]
   pull_request:
     types: ["opened", "synchronize", "reopened"]
@@ -440,3 +440,52 @@ jobs:
 
           print("Adapters OK:", ", ".join(names))
           PY
+
+  sync-components:
+    name: Sync component mirrors
+
+    # Component mirrors follow only the canonical release branches.
+    # Pull requests and tag builds never publish mirror refs.
+    if: >-
+      github.event_name == 'push' &&
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/next')
+
+    # smoke depends on build, and build depends on lint/type/test jobs,
+    # so reaching this job means the complete CI chain is green.
+    needs:
+      - smoke
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Require component sync credential
+        env:
+          SYNC_TOKEN: ${{ secrets.STATLINE_COMPONENT_SYNC_TOKEN }}
+        run: |
+          if [ -z "$SYNC_TOKEN" ]; then
+            echo "::error::STATLINE_COMPONENT_SYNC_TOKEN is not configured."
+            exit 1
+          fi
+
+      - name: Configure component remotes
+        env:
+          SYNC_TOKEN: ${{ secrets.STATLINE_COMPONENT_SYNC_TOKEN }}
+        run: |
+          git remote add core \
+            "https://x-access-token:${SYNC_TOKEN}@github.com/amillolive/StatLine-core.git"
+          git remote add app \
+            "https://x-access-token:${SYNC_TOKEN}@github.com/amillolive/StatLine-app.git"
+          git remote add gateway \
+            "https://x-access-token:${SYNC_TOKEN}@github.com/amillolive/StatLine-gateway.git"
+
+      - name: Sync component mirrors
+        run: |
+          git checkout -B "$GITHUB_REF_NAME" "$GITHUB_SHA"
+          bash scripts/sync-components.sh

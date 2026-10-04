@@ -32,10 +32,10 @@ The canonical StatLine repository is a true monorepo with three Python component
 - `statline/app` → generated mirror `StatLine-app`
 - `statline/gateway` → generated mirror `StatLine-gateway`
 
-The monorepo is the source of truth. Component repositories are produced from the matching prefixes with `git subtree split`; development does not occur through nested repositories or submodules. The `main`, `next`, and `dev` branches map to the same branch names in each generated component mirror.
+The monorepo is the source of truth. Component repositories are produced from the matching prefixes with `git subtree split`; development does not occur through nested repositories or submodules. The `main` and `next` branches map to the same branch names in each generated component mirror.
 
 The dependency graph is intentionally directional: Core must never import App or Gateway. App and Gateway may import Core, but neither capability requires the other. App/Gateway cross-integration must remain optional and activate only when both capability dependency sets are present.
 
 The StatLine repository owns release composition, public compatibility surfaces, packaging metadata, documentation, integration tests, and component synchronization. A normal `git clone` contains the complete source tree required to build StatLine.
 
-Local mirror synchronization is available through `scripts/sync-components.sh` or `scripts/sync-components.ps1`. Remote synchronization runs only after CI succeeds on `main`, `next`, or `dev`; the mirror workflow requires the `STATLINE_COMPONENT_SYNC_TOKEN` repository secret with write access to the three component repositories.
+Local mirror synchronization is available through `scripts/sync-components.sh` or `scripts/sync-components.ps1`. Remote synchronization is the final CI job after a successful push build on `main` or `next`; it requires the `STATLINE_COMPONENT_SYNC_TOKEN` repository secret with write access to the three component repositories.

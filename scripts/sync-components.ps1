@@ -9,7 +9,7 @@ if ($LASTEXITCODE -ne 0) {
     throw "Unable to determine the current Git branch."
 }
 
-if ($branch -notin @("main", "next", "dev")) {
+if ($branch -notin @("main", "next")) {
     Write-Host "Not syncing component mirrors from branch: $branch"
     exit 0
 }

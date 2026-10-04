@@ -4,7 +4,7 @@ set -euo pipefail
 branch="$(git branch --show-current)"
 
 case "$branch" in
-    main|next|dev)
+    main|next)
         ;;
     *)
         echo "Not syncing component mirrors from branch: $branch"
