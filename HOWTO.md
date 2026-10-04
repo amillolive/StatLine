@@ -24,18 +24,25 @@ pip install "statline[app]"
 
 ### Gateway
 
-Use this for Core + App + authenticated SLAPI/API/server capabilities. Gateway includes the App dependency set.
+Use this for Core + authenticated SLAPI/API/server capabilities without requiring the App/CLI dependency set.
 
 ```bash
 pip install "statline[gateway]"
 ```
 
-### Development
+### All runtime capabilities
 
-Use this from a recursive source checkout. Dev includes Core + App + Gateway plus testing, typing, docs, packaging, and release tooling.
+Use this when App and Gateway should coexist in the same runtime.
 
 ```bash
-git submodule update --init --recursive
+pip install "statline[all]"
+```
+
+### Development
+
+Use this from the canonical monorepo checkout. Dev includes Core + App + Gateway plus testing, typing, docs, packaging, and release tooling.
+
+```bash
 python -m venv .venv
 
 # Linux/macOS
@@ -50,7 +57,23 @@ python -m pip install -e ".[dev]"
 
 ---
 
-## 2. Verify the install
+## 2. Sync component mirrors
+
+Core, App, and Gateway are developed in the StatLine monorepo. After committing on `main`, `next`, or `dev`, publish the matching subtree mirrors with either helper:
+
+```bash
+./scripts/sync-components.sh
+```
+
+```powershell
+.\scripts\sync-components.ps1
+```
+
+Feature branches are intentionally not mirrored. GitHub also performs the same synchronization after CI succeeds on `main`, `next`, or `dev` when `STATLINE_COMPONENT_SYNC_TOKEN` is configured.
+
+---
+
+## 3. Verify the install
 
 Core-only install:
 
@@ -58,7 +81,7 @@ Core-only install:
 python -c "import statline; print(statline.__version__)"
 ```
 
-App/Gateway install:
+App install:
 
 ```bash
 statline --version
@@ -70,7 +93,7 @@ Use `--mode local` when you want zero SLAPI/network behavior. Use `--mode remote
 
 ---
 
-## 3. Inspect an adapter before scoring
+## 4. Inspect an adapter before scoring
 
 Start with a current adapter such as `eba.players`. Deprecated schemas are hidden from discovery and must be addressed by explicit local YAML path.
 
@@ -96,7 +119,7 @@ statline --mode local adapter refresh
 
 ---
 
-## 4. Score raw rows from CSV
+## 5. Score raw rows from CSV
 
 From a source checkout:
 
@@ -154,7 +177,7 @@ Available output formats for `score`:
 
 ---
 
-## 5. Use custom weights
+## 6. Use custom weights
 
 Use an adapter-defined preset:
 
@@ -206,7 +229,7 @@ statline --mode local tools weights resolve --adapter statline/core/adapters/sch
 
 ---
 
-## 6. Map raw data without scoring
+## 7. Map raw data without scoring
 
 Mapping is useful when you want to check whether an adapter is reading your columns correctly.
 
@@ -241,7 +264,7 @@ statline --mode local tools map batch \
 
 ---
 
-## 7. Score already-mapped rows
+## 8. Score already-mapped rows
 
 Use `calc` when your input rows already contain adapter metric keys instead of raw source fields.
 
@@ -271,7 +294,7 @@ statline --mode local tools calc batch mapped.json --adapter statline/core/adapt
 
 ---
 
-## 8. Use StatLine from Python
+## 9. Use StatLine from Python
 
 ### List adapters and datasets
 
@@ -345,31 +368,30 @@ result = score_row("statline/core/adapters/schemas/deprecated/demo.yaml", raw)
 
 ---
 
-## 9. Run SLAPI locally
+## 10. Run SLAPI locally
 
-Install the remote variant first:
+Install the Gateway capability first:
 
 ```bash
 pip install "statline[gateway]"
 ```
 
-Start the API server:
+Start the API server through the dedicated Gateway entry point:
 
 ```bash
+SLAPI_HOST=127.0.0.1 SLAPI_PORT=8000 SLAPI_WORKERS=2 slapi
+```
+
+`SLAPI_WORKERS` defaults to the available CPU count capped at 4. SLAPI keeps HTTP connections alive for 60 seconds by default; tune that with `SLAPI_KEEP_ALIVE` when persistent clients need a different idle window.
+
+If you want the App CLI to manage the server, install both runtime capabilities:
+
+```bash
+pip install "statline[all]"
 statline --mode local serve --host 127.0.0.1 --port 8000 --workers 2
 ```
 
-`--workers` defaults to the available CPU count capped at 4. Override it directly or with
-`SLAPI_WORKERS`. SLAPI keeps HTTP connections alive for 60 seconds by default; tune that with
-`--keep-alive` or `SLAPI_KEEP_ALIVE` when persistent clients need a different idle window.
-
-Start in the background:
-
-```bash
-statline --mode local serve --host 127.0.0.1 --port 8000 --background
-```
-
-Point the CLI at the server:
+Point the CLI at the server (requires App or All):
 
 ```bash
 export SLAPI_URL="http://127.0.0.1:8000"
@@ -398,7 +420,7 @@ http://127.0.0.1:8000/redoc
 
 ---
 
-## 10. Enroll a device and claim an API key
+## 11. Enroll a device and claim an API key
 
 SLAPI protects private endpoints with device proof plus API key authentication. A typical flow is:
 
@@ -434,7 +456,7 @@ Admin and moderator commands require the appropriate scopes.
 
 ---
 
-## 11. Build an adapter
+## 12. Build an adapter
 
 Adapters live in:
 
@@ -532,7 +554,7 @@ statline --mode local adapter inputs sample_game
 
 ---
 
-## 12. Metric source patterns
+## 13. Metric source patterns
 
 Direct field:
 
@@ -573,7 +595,7 @@ Aggregates are computed once from the submitted raw batch after raw filters and 
 
 ---
 
-## 13. Transforms and clamps
+## 14. Transforms and clamps
 
 Clamp forms:
 
@@ -609,7 +631,7 @@ linear, capped_linear, minmax, pct01, softcap, log1p
 
 ---
 
-## 14. Efficiency metrics
+## 15. Efficiency metrics
 
 Efficiency metrics are derived after primary metrics.
 
@@ -627,7 +649,7 @@ efficiency:
 
 ---
 
-## 15. Filters and dimensions
+## 16. Filters and dimensions
 
 Dimensions describe enumerated context.
 
@@ -661,7 +683,7 @@ statline --mode local score \
 
 ---
 
-## 16. Validate adapter behavior
+## 17. Validate adapter behavior
 
 A practical adapter test loop:
 
@@ -682,7 +704,7 @@ STATLINE_LOADER_STRICT=1 statline --mode local adapter spec sample_game --full
 
 ---
 
-## 17. Development workflow
+## 18. Development workflow
 
 Install everything:
 
@@ -719,7 +741,7 @@ pip-audit
 
 ---
 
-## 18. v4.0.0rc6 release checklist
+## 19. v4.0.0rc6 release checklist
 
 1. Confirm `project.version` in `pyproject.toml` is `4.0.0rc6`.
 
@@ -732,4 +754,5 @@ pip-audit
    * core: `pip install statline`
    * app: `pip install "statline[app]"`
    * gateway: `pip install "statline[gateway]"`
+   * all: `pip install "statline[all]"`
    * dev: `pip install -e ".[dev]"`

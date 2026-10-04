@@ -106,7 +106,7 @@ function New-CIEnvironment {
             "pip", "install",
             "--no-cache",
             "--python", $python,
-            "-e", ".[devpack]"
+            "-e", ".[dev]"
         ) $repoRoot
     }
     elseif ($Packages.Count -gt 0) {

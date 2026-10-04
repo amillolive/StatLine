@@ -2,7 +2,7 @@
 
 Canonical Core source for StatLine.
 
-This repository is mounted into the parent **StatLine** repository at `statline/core` as a Git submodule. It is intentionally source-owned separately while the parent repository remains the release-composition and `pip install statline...` surface.
+The canonical source lives in the **StatLine** monorepo at `statline/core`. The standalone **StatLine-core** repository is a generated subtree mirror; development should occur in the monorepo.
 
 ## Dependency contract
 
@@ -12,5 +12,6 @@ Canonical installs are owned by the parent repository:
 
 - `pip install statline` — Core
 - `pip install "statline[app]"` — Core + App capability
-- `pip install "statline[gateway]"` — Core + App + Gateway capability
+- `pip install "statline[gateway]"` — Core + Gateway capability
+- `pip install "statline[all]"` — Core + App + Gateway capabilities
 - `pip install "statline[dev]"` — all capabilities + development/test tooling

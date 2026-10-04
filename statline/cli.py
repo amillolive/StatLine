@@ -8,15 +8,19 @@ import sys
 def main() -> None:
     try:
         import click
+
         from statline.app.cli.main import app
     except ModuleNotFoundError as error:
-        if error.name in {"click", "httpx2", "typer"}:
+        missing = (error.name or "").split(".", 1)[0]
+
+        if missing in {"click", "httpx2", "typer", "textual"}:
             print(
                 "StatLine App is not installed. Install it with: "
                 "pip install 'statline[app]'",
                 file=sys.stderr,
             )
             raise SystemExit(2) from None
+
         raise
 
     try:

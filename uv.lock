@@ -563,51 +563,12 @@ wheels = [
 ]
 
 [[package]]
-name = "google-auth"
-version = "2.56.1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "cryptography" },
-    { name = "pyasn1-modules" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/ed/a6/be1b705ceadfbcbb20dd501ed3682560ed574ea3c756a3944deca5187df6/google_auth-2.56.1.tar.gz", hash = "sha256:9fd80dc51a58f44407d11f8e8e3ed3e26b407606e0ca181be728ad4dd77d1cdf", size = 364946, upload-time = "2026-07-21T16:34:03.206Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/f2/fd/3a0c054918478bbb8d72a5401c3567d2173e51bb3a323679b4b02103d26d/google_auth-2.56.1-py3-none-any.whl", hash = "sha256:dd8a555988ca88c7158927fe22883ec065ca0f0f27d0077b419365a004df77d3", size = 258235, upload-time = "2026-07-21T16:33:59.596Z" },
-]
-
-[[package]]
-name = "google-auth-oauthlib"
-version = "1.4.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "google-auth" },
-    { name = "requests-oauthlib" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/70/18/90c7fac516e63cf2058166fce0c88c353647c677b51cc036c09c49bb5cbb/google_auth_oauthlib-1.4.0.tar.gz", hash = "sha256:18b5e28880eb8eba9065c436becdc0ee8e4b59117a73a510679c82f70cd363d2", size = 21675, upload-time = "2026-05-07T08:03:47.816Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/37/d3/d7dff0d58a9e9244b48044bfb6a898bfcc8ecc42e0031d1bebc695344725/google_auth_oauthlib-1.4.0-py3-none-any.whl", hash = "sha256:251314f213a9ee46a5ae73988e84fd7cca8bb68e7ecf4bfd45940f9e7f51d070", size = 19261, upload-time = "2026-05-07T08:02:13.798Z" },
-]
-
-[[package]]
 name = "griffelib"
 version = "2.1.0"
 source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/33/e4/8d187ea29c2e30b3a09505c567513077d6117861bde1fbd997a167f262ec/griffelib-2.1.0.tar.gz", hash = "sha256:762a186d2c6fd6794d4ea20d428d597ffb857cb56b66421651cbba15bdd5e813", size = 216234, upload-time = "2026-06-19T12:05:42.278Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/e4/d3/5268aeabf2ad82658c4e2ff3a060648d0f02f3926cb53247c0e4d0dab49e/griffelib-2.1.0-py3-none-any.whl", hash = "sha256:cc7b3d2d2865ad0b909fcc38086e3f554b5ea7acbaa7bbb7ecaa3f5dfb7d9f00", size = 142560, upload-time = "2026-06-19T12:05:38.742Z" },
-]
-
-[[package]]
-name = "gspread"
-version = "6.2.1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "google-auth" },
-    { name = "google-auth-oauthlib" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/91/83/42d1d813822ed016d77aabadc99b09de3b5bd68532fd6bae23fd62347c41/gspread-6.2.1.tar.gz", hash = "sha256:2c7c99f7c32ebea6ec0d36f2d5cbe8a2be5e8f2a48bde87ad1ea203eff32bd03", size = 82590, upload-time = "2025-05-14T15:56:25.254Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/27/76/563fb20dedd0e12794d9a12cfe0198458cc0501fdc7b034eee2166d035d5/gspread-6.2.1-py3-none-any.whl", hash = "sha256:6d4ec9f1c23ae3c704a9219026dac01f2b328ac70b96f1495055d453c4c184db", size = 59977, upload-time = "2025-05-14T15:56:24.014Z" },
 ]
 
 [[package]]
@@ -1459,15 +1420,6 @@ wheels = [
 ]
 
 [[package]]
-name = "oauthlib"
-version = "3.3.1"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/0b/5f/19930f824ffeb0ad4372da4812c50edbd1434f678c90c2733e1188edfc63/oauthlib-3.3.1.tar.gz", hash = "sha256:0f0f8aa759826a193cf66c12ea1af1637f87b9b4622d46e866952bb022e538c9", size = 185918, upload-time = "2025-06-19T22:48:08.269Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/be/9c/92789c596b8df838baa98fa71844d84283302f7604ed565dafe5a6b5041a/oauthlib-3.3.1-py3-none-any.whl", hash = "sha256:88119c938d2b8fb88561af5f6ee0eec8cc8d552b7bb1f712743136eb7523b7a1", size = 160065, upload-time = "2025-06-19T22:48:06.508Z" },
-]
-
-[[package]]
 name = "packageurl-python"
 version = "0.17.6"
 source = { registry = "https://pypi.org/simple" }
@@ -1586,27 +1538,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/73/21/d250cfca8ff30c2e5a7447bc13861541126ce9bd4426cd5d0c9f08b5547d/py_serializable-2.1.0.tar.gz", hash = "sha256:9d5db56154a867a9b897c0163b33a793c804c80cee984116d02d49e4578fc103", size = 52368, upload-time = "2025-07-21T09:56:48.07Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/9b/bf/7595e817906a29453ba4d99394e781b6fabe55d21f3c15d240f85dd06bb1/py_serializable-2.1.0-py3-none-any.whl", hash = "sha256:b56d5d686b5a03ba4f4db5e769dc32336e142fc3bd4d68a8c25579ebb0a67304", size = 23045, upload-time = "2025-07-21T09:56:46.848Z" },
-]
-
-[[package]]
-name = "pyasn1"
-version = "0.6.4"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/a4/9a/23310166d960def5897e91fe20e5b724601b02a22e84ba1f94232c0b7f67/pyasn1-0.6.4.tar.gz", hash = "sha256:9c447d8431c947fe4c8febc4ed9e760bc29011a5b01e5c74b67025bd9fb8ce81", size = 151262, upload-time = "2026-07-09T01:12:33.988Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/9a/3b/6163796d69c3977d1e4287bea4a6979161cbbdd170ebb430511e8e1999ce/pyasn1-0.6.4-py3-none-any.whl", hash = "sha256:deda9277cfd454080ec40b207fb6df82206a3a2688735233cdcd8d3d565f088b", size = 84410, upload-time = "2026-07-09T01:12:32.92Z" },
-]
-
-[[package]]
-name = "pyasn1-modules"
-version = "0.4.2"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "pyasn1" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/e9/e6/78ebbb10a8c8e4b61a59249394a4a594c1a7af95593dc933a349c8d00964/pyasn1_modules-0.4.2.tar.gz", hash = "sha256:677091de870a80aae844b1ca6134f54652fa2c8c5a52aa396440ac3106e941e6", size = 307892, upload-time = "2025-03-28T02:41:22.17Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/47/8d/d529b5d697919ba8c11ad626e835d4039be708a35b0d22de83a269a6682c/pyasn1_modules-0.4.2-py3-none-any.whl", hash = "sha256:29253a9207ce32b64c3ac6600edc75368f98473906e8fd1043bd6b5b1de2c14a", size = 181259, upload-time = "2025-03-28T02:41:19.028Z" },
 ]
 
 [[package]]
@@ -1970,19 +1901,6 @@ wheels = [
 ]
 
 [[package]]
-name = "requests-oauthlib"
-version = "2.0.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "oauthlib" },
-    { name = "requests" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/42/f2/05f29bc3913aea15eb670be136045bf5c5bbf4b99ecb839da9b422bb2c85/requests-oauthlib-2.0.0.tar.gz", hash = "sha256:b3dffaebd884d8cd778494369603a9e7b58d29111bf6b41bdc2dcd87203af4e9", size = 55650, upload-time = "2024-03-22T20:32:29.939Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/3b/5d/63d4ae3b9daea098d5d6f5da83984853c1bbacd5dc826764b249fe119d24/requests_oauthlib-2.0.0-py2.py3-none-any.whl", hash = "sha256:7dd8a5c40426b779b0868c404bdef9768deccf22749cde15852df527e6269b36", size = 24179, upload-time = "2024-03-22T20:32:28.055Z" },
-]
-
-[[package]]
 name = "requests-toolbelt"
 version = "1.0.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2096,25 +2014,38 @@ wheels = [
 
 [[package]]
 name = "statline"
-version = "4.0.0"
+version = "4.0.0rc6"
 source = { editable = "." }
 dependencies = [
-    { name = "click" },
-    { name = "httpx2" },
     { name = "pyyaml" },
     { name = "rich" },
-    { name = "typer" },
     { name = "typing-extensions" },
 ]
 
 [package.optional-dependencies]
-devpack = [
+all = [
+    { name = "click" },
+    { name = "cryptography" },
+    { name = "fastapi" },
+    { name = "httpx2" },
+    { name = "pydantic" },
+    { name = "textual" },
+    { name = "typer" },
+    { name = "uvicorn", extra = ["standard"] },
+]
+app = [
+    { name = "click" },
+    { name = "httpx2" },
+    { name = "textual" },
+    { name = "typer" },
+]
+dev = [
     { name = "build" },
+    { name = "click" },
     { name = "coverage", extra = ["toml"] },
     { name = "cryptography" },
     { name = "fastapi" },
-    { name = "google-auth" },
-    { name = "gspread" },
+    { name = "httpx2" },
     { name = "hypothesis" },
     { name = "mkdocs-material" },
     { name = "mkdocstrings", extra = ["python"] },
@@ -2127,23 +2058,12 @@ devpack = [
     { name = "ruff" },
     { name = "textual" },
     { name = "twine" },
+    { name = "typer" },
     { name = "types-pyyaml" },
     { name = "types-requests" },
     { name = "uvicorn", extra = ["standard"] },
 ]
-extras = [
-    { name = "cryptography" },
-    { name = "fastapi" },
-    { name = "google-auth" },
-    { name = "gspread" },
-    { name = "pydantic" },
-    { name = "textual" },
-    { name = "uvicorn", extra = ["standard"] },
-]
-os = [
-    { name = "textual" },
-]
-remote = [
+gateway = [
     { name = "cryptography" },
     { name = "fastapi" },
     { name = "pydantic" },
@@ -2152,47 +2072,49 @@ remote = [
 
 [package.metadata]
 requires-dist = [
-    { name = "build", marker = "extra == 'devpack'", specifier = ">=1.2,<2.0" },
-    { name = "click", specifier = ">=8.1,<9.0" },
-    { name = "coverage", extras = ["toml"], marker = "extra == 'devpack'", specifier = ">=7.5,<8.0" },
-    { name = "cryptography", marker = "extra == 'devpack'", specifier = ">=42.0,<47.0" },
-    { name = "cryptography", marker = "extra == 'extras'", specifier = ">=42.0,<47.0" },
-    { name = "cryptography", marker = "extra == 'remote'", specifier = ">=42.0,<47.0" },
-    { name = "fastapi", marker = "extra == 'devpack'", specifier = ">=0.110,<1.0" },
-    { name = "fastapi", marker = "extra == 'extras'", specifier = ">=0.110,<1.0" },
-    { name = "fastapi", marker = "extra == 'remote'", specifier = ">=0.110,<1.0" },
-    { name = "google-auth", marker = "extra == 'devpack'", specifier = ">=2.0,<3.0" },
-    { name = "google-auth", marker = "extra == 'extras'", specifier = ">=2.0,<3.0" },
-    { name = "gspread", marker = "extra == 'devpack'", specifier = ">=6.0,<7.0" },
-    { name = "gspread", marker = "extra == 'extras'", specifier = ">=6.0,<7.0" },
-    { name = "httpx2", specifier = ">=2.0,<3.0" },
-    { name = "hypothesis", marker = "extra == 'devpack'", specifier = ">=6.100,<7.0" },
-    { name = "mkdocs-material", marker = "extra == 'devpack'", specifier = ">=9.5,<10.0" },
-    { name = "mkdocstrings", extras = ["python"], marker = "extra == 'devpack'", specifier = ">=0.25,<1.0" },
-    { name = "mypy", marker = "extra == 'devpack'", specifier = ">=1.11,<2.0" },
-    { name = "pip-audit", marker = "extra == 'devpack'", specifier = ">=2.7,<3.0" },
-    { name = "pydantic", marker = "extra == 'devpack'", specifier = ">=2.6,<3.0" },
-    { name = "pydantic", marker = "extra == 'extras'", specifier = ">=2.6,<3.0" },
-    { name = "pydantic", marker = "extra == 'remote'", specifier = ">=2.6,<3.0" },
-    { name = "pyright", marker = "extra == 'devpack'", specifier = ">=1.1.370,<2.0" },
-    { name = "pytest", marker = "extra == 'devpack'", specifier = ">=8.1" },
-    { name = "pytest-cov", marker = "extra == 'devpack'", specifier = ">=4.1,<7.0" },
+    { name = "build", marker = "extra == 'dev'", specifier = ">=1.2,<2.0" },
+    { name = "click", marker = "extra == 'all'", specifier = ">=8.1,<9.0" },
+    { name = "click", marker = "extra == 'app'", specifier = ">=8.1,<9.0" },
+    { name = "click", marker = "extra == 'dev'", specifier = ">=8.1,<9.0" },
+    { name = "coverage", extras = ["toml"], marker = "extra == 'dev'", specifier = ">=7.5,<8.0" },
+    { name = "cryptography", marker = "extra == 'all'", specifier = ">=42.0,<47.0" },
+    { name = "cryptography", marker = "extra == 'dev'", specifier = ">=42.0,<47.0" },
+    { name = "cryptography", marker = "extra == 'gateway'", specifier = ">=42.0,<47.0" },
+    { name = "fastapi", marker = "extra == 'all'", specifier = ">=0.110,<1.0" },
+    { name = "fastapi", marker = "extra == 'dev'", specifier = ">=0.110,<1.0" },
+    { name = "fastapi", marker = "extra == 'gateway'", specifier = ">=0.110,<1.0" },
+    { name = "httpx2", marker = "extra == 'all'", specifier = ">=2.0,<3.0" },
+    { name = "httpx2", marker = "extra == 'app'", specifier = ">=2.0,<3.0" },
+    { name = "httpx2", marker = "extra == 'dev'", specifier = ">=2.0,<3.0" },
+    { name = "hypothesis", marker = "extra == 'dev'", specifier = ">=6.100,<7.0" },
+    { name = "mkdocs-material", marker = "extra == 'dev'", specifier = ">=9.5,<10.0" },
+    { name = "mkdocstrings", extras = ["python"], marker = "extra == 'dev'", specifier = ">=0.25,<1.0" },
+    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.11,<2.0" },
+    { name = "pip-audit", marker = "extra == 'dev'", specifier = ">=2.7,<3.0" },
+    { name = "pydantic", marker = "extra == 'all'", specifier = ">=2.6,<3.0" },
+    { name = "pydantic", marker = "extra == 'dev'", specifier = ">=2.6,<3.0" },
+    { name = "pydantic", marker = "extra == 'gateway'", specifier = ">=2.6,<3.0" },
+    { name = "pyright", marker = "extra == 'dev'", specifier = ">=1.1.370,<2.0" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.1" },
+    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=4.1,<7.0" },
     { name = "pyyaml", specifier = ">=6.0,<7.0" },
     { name = "rich", specifier = ">=13.0,<15.0" },
-    { name = "ruff", marker = "extra == 'devpack'", specifier = ">=0.5,<1.0" },
-    { name = "textual", marker = "extra == 'devpack'", specifier = ">=8.0,<9.0" },
-    { name = "textual", marker = "extra == 'extras'", specifier = ">=8.0,<9.0" },
-    { name = "textual", marker = "extra == 'os'", specifier = ">=8.0,<9.0" },
-    { name = "twine", marker = "extra == 'devpack'", specifier = ">=7.0,<8.0" },
-    { name = "typer", specifier = ">=0.12,<1.0" },
-    { name = "types-pyyaml", marker = "extra == 'devpack'", specifier = ">=6.0.12" },
-    { name = "types-requests", marker = "extra == 'devpack'", specifier = ">=2.32" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.5,<1.0" },
+    { name = "textual", marker = "extra == 'all'", specifier = ">=8.0,<9.0" },
+    { name = "textual", marker = "extra == 'app'", specifier = ">=8.0,<9.0" },
+    { name = "textual", marker = "extra == 'dev'", specifier = ">=8.0,<9.0" },
+    { name = "twine", marker = "extra == 'dev'", specifier = ">=7.0,<8.0" },
+    { name = "typer", marker = "extra == 'all'", specifier = ">=0.12,<1.0" },
+    { name = "typer", marker = "extra == 'app'", specifier = ">=0.12,<1.0" },
+    { name = "typer", marker = "extra == 'dev'", specifier = ">=0.12,<1.0" },
+    { name = "types-pyyaml", marker = "extra == 'dev'", specifier = ">=6.0.12" },
+    { name = "types-requests", marker = "extra == 'dev'", specifier = ">=2.32" },
     { name = "typing-extensions", marker = "python_full_version < '3.15'", specifier = ">=4.7" },
-    { name = "uvicorn", extras = ["standard"], marker = "extra == 'devpack'", specifier = ">=0.30,<1.0" },
-    { name = "uvicorn", extras = ["standard"], marker = "extra == 'extras'", specifier = ">=0.30,<1.0" },
-    { name = "uvicorn", extras = ["standard"], marker = "extra == 'remote'", specifier = ">=0.30,<1.0" },
+    { name = "uvicorn", extras = ["standard"], marker = "extra == 'all'", specifier = ">=0.30,<1.0" },
+    { name = "uvicorn", extras = ["standard"], marker = "extra == 'dev'", specifier = ">=0.30,<1.0" },
+    { name = "uvicorn", extras = ["standard"], marker = "extra == 'gateway'", specifier = ">=0.30,<1.0" },
 ]
-provides-extras = ["os", "remote", "extras", "devpack"]
+provides-extras = ["app", "gateway", "all", "dev"]
 
 [[package]]
 name = "textual"

@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: ["main", "next"]
+    branches: ["main", "next", "dev"]
     tags: ["v*"]
   pull_request:
     types: ["opened", "synchronize", "reopened"]
@@ -84,8 +84,8 @@ jobs:
       - name: Create venv
         run: uv venv --python 3.14
 
-      - name: Install devpack
-        run: uv pip install -e ".[devpack]"
+      - name: Install dev dependencies
+        run: uv pip install -e ".[dev]"
 
       - name: Mypy core
         run: uv run --no-sync python -m mypy --config-file mypy-core.ini .
@@ -129,8 +129,8 @@ jobs:
       - name: Create venv
         run: uv venv --python 3.14
 
-      - name: Install devpack
-        run: uv pip install -e ".[devpack]"
+      - name: Install dev dependencies
+        run: uv pip install -e ".[dev]"
 
       - name: Pyright strict
         run: uv run --no-sync pyright
@@ -169,7 +169,7 @@ jobs:
         run: uv venv --python ${{ matrix.python }}
 
       - name: Install dev/test dependencies
-        run: uv pip install -e ".[devpack]"
+        run: uv pip install -e ".[dev]"
 
       - name: Prepare test results dir
         run: mkdir -p test-results
@@ -359,9 +359,26 @@ jobs:
           print("Import OK", statline.__version__)
           PY
 
+      - name: Core-only CLI gives App install guidance
+        working-directory: ${{ runner.temp }}
+        run: |
+          set +e
+          output=$("$STATLINE" --mode local --help 2>&1)
+          code=$?
+          set -e
+          printf '%s\n' "$output"
+          test "$code" -eq 2
+          printf '%s\n' "$output" | grep -F "pip install 'statline[app]'"
+
+      - name: Install App extra from built wheel
+        run: |
+          wheel=$(find dist -maxdepth 1 -name '*.whl' -print -quit)
+          test -n "$wheel"
+          uv pip install "${wheel}[app]"
+
       - name: CLI help (module entry point)
         working-directory: ${{ runner.temp }}
-        run: '"$PY" -m statline.cli --mode local --help'
+        run: '"$PY" -m statline --mode local --help'
 
       - name: CLI help (console script)
         working-directory: ${{ runner.temp }}

@@ -16,11 +16,11 @@ param(
 
     [string]$Wheel,
 
-    # Gateway includes App, so it remains the full runtime installer default.
+    # The standalone installer defaults to the complete runtime capability set.
 
-    [ValidateSet("base", "app", "gateway", "dev")]
+    [ValidateSet("base", "app", "gateway", "all", "dev")]
 
-    [string]$Variant = "gateway",
+    [string]$Variant = "all",
 
     # A major/minor selector is fine; uv resolves it to an exact CPython release.
 
@@ -281,8 +281,6 @@ try {
         $worktreePath = Join-Path $tempRoot "source"
 
         Invoke-Native "git" @("-C", $repoRoot, "worktree", "add", "--detach", $worktreePath, $Ref)
-
-        Invoke-Native "git" @("-C", $worktreePath, "submodule", "update", "--init", "--recursive")
 
         $sourceRoot = $worktreePath
 
@@ -559,17 +557,16 @@ try {
 
     }
 
-    Invoke-Native $runtimePython @("-m", "statline", "--help")
+    if ($Variant -in @("app", "all", "dev")) {
 
-    if ($Variant -eq "app") {
-
+        Invoke-Native $runtimePython @("-m", "statline", "--help")
         Invoke-Native $runtimePython @("-c", "import click, httpx2, textual, typer; print('app: OK')")
 
     }
 
-    elseif ($Variant -in @("gateway", "dev")) {
+    if ($Variant -in @("gateway", "all", "dev")) {
 
-        Invoke-Native $runtimePython @("-c", "import click, cryptography, fastapi, httpx2, textual, typer, uvicorn; print('gateway: OK')")
+        Invoke-Native $runtimePython @("-c", "import cryptography, fastapi, pydantic, uvicorn; from statline.gateway.http.app import app; print('gateway: OK')")
 
     }
 

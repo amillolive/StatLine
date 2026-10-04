@@ -28,8 +28,8 @@ At a high level, StatLine provides:
 
 ## v4.0.0rc6 highlights
 
-* Core, App, and Gateway are now separately owned Git submodules while preserving `statline.core`, `statline.app`, and `statline.gateway` import paths.
-* Core now has an enforced no-App/no-Gateway import boundary; the canonical extras are `app`, `gateway`, and `dev`, with Gateway including App dependencies.
+* Core, App, and Gateway are ordinary directories in the canonical StatLine monorepo; their standalone repositories are generated with `git subtree split` while preserving `statline.core`, `statline.app`, and `statline.gateway` import paths.
+* Core now has an enforced no-App/no-Gateway import boundary; the canonical extras are `app`, `gateway`, `all`, and `dev`, with App and Gateway independently installable above Core.
 * Root CLI help is organized around core workflows, service/access, administration, and one advanced `tools` namespace; rc3 command spellings remain hidden compatibility aliases.
 * Connectivity output now distinguishes **SLAPI unavailable** from **SLAPI reachable but unauthenticated**, and `serve` does not preflight/report unrelated client connectivity.
 * StatLine OS executes the canonical CLI command tree in-process, so command names/help/validation match the regular CLI and copied `statline ...` commands can be pasted directly.
@@ -47,21 +47,21 @@ At a high level, StatLine provides:
 
 ## Install
 
-StatLine v4.0.0rc6 has four intended install variants. The parent StatLine repository is the release-composition surface; `statline/core`, `statline/app`, and `statline/gateway` are separately owned Git submodules mounted at their existing Python package paths.
+StatLine v4.0.0rc6 has five intended install variants. The StatLine repository is the canonical development and release-composition monorepo; standalone Core, App, and Gateway repositories are generated mirrors of their corresponding paths.
 
 | Variant | Command | Capability set |
 | --- | --- | --- |
 | **core** | `pip install statline` | Core Python API, scoring, adapters, datasets, and StatPack runtime. |
 | **app** | `pip install "statline[app]"` | Core + CLI/application dependencies + Textual StatLine OS. |
-| **gateway** | `pip install "statline[gateway]"` | Core + App + authentication, API, and SLAPI serving dependencies. |
+| **gateway** | `pip install "statline[gateway]"` | Core + authentication, API, and SLAPI serving dependencies. |
+| **all** | `pip install "statline[all]"` | Core + App + Gateway runtime capabilities. |
 | **dev** | `pip install -e ".[dev]"` | Core + App + Gateway plus tests, typing, docs, packaging, and release tooling. |
 
-For a source checkout, initialize the component repositories before installing:
+For a source checkout, clone the monorepo normally:
 
 ```bash
-git clone --recurse-submodules https://github.com/amillolive/StatLine.git
+git clone https://github.com/amillolive/StatLine.git
 cd StatLine
-git submodule update --init --recursive
 python -m venv .venv
 
 # Linux/macOS
@@ -80,7 +80,7 @@ Core is intentionally one-way: `statline/core` must never import App or Gateway.
 
 ## Quick start: local CLI
 
-The CLI is part of the App capability; install `statline[app]` (or `statline[gateway]`) before using these commands.
+The CLI is part of the App capability; install `statline[app]`, `statline[all]`, or `statline[dev]` before using these commands.
 
 Local mode avoids all network probing and uses the installed StatLine core directly.
 
@@ -194,8 +194,8 @@ Primary user commands:
 | `statline adapter weights <adapter>`        | Show available weight profiles.                 |
 | `statline adapter filters <adapter>`        | Show adapter-declared filters.                  |
 | `statline adapter sniff --file stats.csv`   | Detect matching adapters from headers.          |
-| `statline os`                               | Launch StatLine OS in a separate Windows window. |
-| `statline os --inline`                      | Run StatLine OS in the current terminal.         |
+| `statline os`                               | Launch StatLine OS in a separate Windows window.|
+| `statline os --inline`                      | Run StatLine OS in the current terminal.        |
 | `statline score`                            | Map and score raw CSV/YAML/JSON rows.           |
 | `statline tools map row` / `... map batch`  | Advanced mapping-only pipeline stage.           |
 | `statline tools calc row` / `... calc batch`| Advanced scoring of already-mapped metrics.     |
@@ -203,7 +203,7 @@ Primary user commands:
 | `statline statpack run <pack>`              | Run a trusted StatPack.                         |
 | `statline serve`                            | Start SLAPI locally. Requires the remote stack. |
 | `statline auth ...`                         | Device enrollment and API key workflows.        |
-| `statline system status`                    | Runtime, backend, auth, paths, and logs.         |
+| `statline system status`                    | Runtime, backend, auth, paths, and logs.        |
 
 ---
 
@@ -307,22 +307,23 @@ YAML example:
 
 ## Remote/API mode
 
-Install the remote variant:
+Install the Gateway capability:
 
 ```bash id="wgthnb"
 pip install "statline[gateway]"
 ```
 
-Start SLAPI locally:
-
-```bash id="b4fpys"
-statline --mode local serve --host 127.0.0.1 --port 8000
-```
-
-Or use the `slapi` console entry point:
+Start SLAPI directly:
 
 ```bash id="s5jyot"
 SLAPI_HOST=127.0.0.1 SLAPI_PORT=8000 slapi
+```
+
+If you want to control the server through the `statline` CLI instead, install both runtime capabilities:
+
+```bash
+pip install "statline[all]"
+statline --mode local serve --host 127.0.0.1 --port 8000
 ```
 
 Then point clients at it:

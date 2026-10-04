@@ -260,7 +260,7 @@ def test_rc6_install_extras_are_canonical() -> None:
         "[tool.statline.release]", 1
     )[0]
     names = set(re.findall(r"(?m)^([a-z][a-z0-9_-]*)\s*=\s*\[", optional))
-    assert names == {"app", "gateway", "dev"}
+    assert names == {"app", "gateway", "all", "dev"}
 
     def extra_body(name: str) -> str:
         match = re.search(rf"(?ms)^{name}\s*=\s*\[(.*?)^\]", optional)
@@ -269,14 +269,21 @@ def test_rc6_install_extras_are_canonical() -> None:
 
     app = extra_body("app")
     gateway = extra_body("gateway")
+    all_extra = extra_body("all")
     dev = extra_body("dev")
 
-    for dependency in ("typer", "click", "httpx2", "textual"):
+    app_dependencies = ("typer", "click", "httpx2", "textual")
+    gateway_dependencies = ("cryptography", "pydantic", "fastapi", "uvicorn")
+
+    for dependency in app_dependencies:
         assert dependency in app
-        assert dependency in gateway
+        assert dependency not in gateway
+        assert dependency in all_extra
         assert dependency in dev
-    for dependency in ("cryptography", "pydantic", "fastapi", "uvicorn"):
+    for dependency in gateway_dependencies:
+        assert dependency not in app
         assert dependency in gateway
+        assert dependency in all_extra
         assert dependency in dev
     assert "pytest" in dev
 

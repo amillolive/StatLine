@@ -3190,7 +3190,7 @@ def _require_textual() -> None:
     if importlib.util.find_spec("textual") is None:
         raise typer.BadParameter(
             "StatLine OS requires Textual. Install with: "
-            "pip install 'statline[app]' (or 'statline[gateway]')."
+            "pip install 'statline[app]' (or 'statline[all]')."
         )
 
 
@@ -4812,7 +4812,7 @@ def statpack_run_cmd(
         raise typer.Exit(exit_code)
 
 
-# Canonical rc5 location; ``statline run`` remains a hidden rc3 compatibility alias.
+# Canonical v4 location; ``statline run`` remains a hidden rc3 compatibility alias.
 statpack_app.command(
     "run",
     context_settings={"allow_extra_args": True, "ignore_unknown_options": True},

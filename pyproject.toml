@@ -22,6 +22,7 @@ keywords = [
   "cli",
   "slapi",
 ]
+
 classifiers = [
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3 :: Only",
@@ -37,9 +38,15 @@ classifiers = [
   "Environment :: Console",
 ]
 
-# Variant 1: core/base
+# -------------------------------------------------------------------
+# Base / Core
+#
 # pip install statline
-# Core Python API + local scoring runtime. App/CLI and Gateway dependencies are optional.
+#
+# Core Python API + local scoring runtime.
+# App and Gateway are optional sibling capability layers.
+# -------------------------------------------------------------------
+
 dependencies = [
   "pyyaml>=6.0,<7.0",
   "rich>=13.0,<15.0",
@@ -47,9 +54,16 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Variant 2: application
+
+# -------------------------------------------------------------------
+# App
+#
 # pip install "statline[app]"
-# App dependencies sit above Core; base remains Core-oriented.
+#
+# Core + application/CLI/TUI dependencies.
+# Does not require Gateway.
+# -------------------------------------------------------------------
+
 app = [
   "typer>=0.12,<1.0",
   "click>=8.1,<9.0",
@@ -57,53 +71,113 @@ app = [
   "textual>=8.0,<9.0",
 ]
 
-# Variant 3: gateway
+# -------------------------------------------------------------------
+# Gateway
+#
 # pip install "statline[gateway]"
-# Gateway is intentionally a superset of App.
+#
+# Core + HTTP/auth/service dependencies.
+# Does not require App.
+# -------------------------------------------------------------------
+
 gateway = [
-  "typer>=0.12,<1.0",
-  "click>=8.1,<9.0",
-  "httpx2>=2.0,<3.0",
-  "textual>=8.0,<9.0",
   "cryptography>=42.0,<47.0",
   "pydantic>=2.6,<3.0",
   "fastapi>=0.110,<1.0",
   "uvicorn[standard]>=0.30,<1.0",
 ]
 
-# Variant 4: development
-# pip install -e ".[dev]"
-# Core + App + Gateway plus testing, typing, docs, packaging, and release checks.
-dev = [
+# -------------------------------------------------------------------
+# All runtime capabilities
+#
+# pip install "statline[all]"
+#
+# Core + App + Gateway.
+# -------------------------------------------------------------------
+
+all = [
   "typer>=0.12,<1.0",
   "click>=8.1,<9.0",
   "httpx2>=2.0,<3.0",
   "textual>=8.0,<9.0",
+
   "cryptography>=42.0,<47.0",
   "pydantic>=2.6,<3.0",
   "fastapi>=0.110,<1.0",
   "uvicorn[standard]>=0.30,<1.0",
+]
+
+# -------------------------------------------------------------------
+# Development
+#
+# pip install -e ".[dev]"
+#
+# Core + App + Gateway + testing, typing, docs, packaging,
+# security, and release tooling.
+# -------------------------------------------------------------------
+
+dev = [
+  # App
+  "typer>=0.12,<1.0",
+  "click>=8.1,<9.0",
+  "httpx2>=2.0,<3.0",
+  "textual>=8.0,<9.0",
+
+  # Gateway
+  "cryptography>=42.0,<47.0",
+  "pydantic>=2.6,<3.0",
+  "fastapi>=0.110,<1.0",
+  "uvicorn[standard]>=0.30,<1.0",
+
+  # Tests / coverage
   "pytest>=8.1",
   "pytest-cov>=4.1,<7.0",
   "coverage[toml]>=7.5,<8.0",
   "hypothesis>=6.100,<7.0",
+
+  # Static analysis
   "ruff>=0.5,<1.0",
   "mypy>=1.11,<2.0",
   "pyright>=1.1.370,<2.0",
   "types-PyYAML>=6.0.12",
   "types-requests>=2.32",
+
+  # Documentation
   "mkdocs-material>=9.5,<10.0",
   "mkdocstrings[python]>=0.25,<1.0",
+
+  # Packaging / release
   "build>=1.2,<2.0",
   "twine>=7.0,<8.0",
   "pip-audit>=2.7,<3.0",
 ]
 
+# -------------------------------------------------------------------
+# StatLine component/release metadata
+# -------------------------------------------------------------------
+
 [tool.statline.release]
 generation = 4
 core = 1
-gateway = 1
 app = 1
+gateway = 1
+
+# -------------------------------------------------------------------
+# Console entry points
+#
+# IMPORTANT:
+# These wrappers must not hard-fail merely because an optional extra
+# is absent.
+#
+# `statline.cli:main` should lazy-import App and explain:
+#   pip install "statline[app]"
+#
+# `statline.gateway...` / SLAPI launcher should similarly explain:
+#   pip install "statline[gateway]"
+#
+# rc7 can move entry-point ownership into independently published
+# component distributions.
+# -------------------------------------------------------------------
 
 [project.scripts]
 statline = "statline.cli:main"
@@ -115,9 +189,9 @@ Repository = "https://github.com/amillolive/StatLine"
 Issues = "https://github.com/amillolive/StatLine/issues"
 Legal = "https://github.com/amillolive/StatLine/tree/main/legal"
 
-# ------------------------
+# ===================================================================
 # Tooling
-# ------------------------
+# ===================================================================
 
 [tool.ruff]
 line-length = 100
@@ -128,7 +202,11 @@ src = ["statline", "tests"]
 extend-select = ["I"]
 
 [tool.ruff.lint.flake8-bugbear]
-extend-immutable-calls = ["fastapi.Query", "typer.Argument", "typer.Option"]
+extend-immutable-calls = [
+  "fastapi.Query",
+  "typer.Argument",
+  "typer.Option",
+]
 
 [tool.ruff.lint.per-file-ignores]
 "statline/app/cli/main.py" = ["BLE001"]
@@ -145,13 +223,18 @@ plugins = ["pydantic.mypy"]
 mypy_path = ["typings"]
 
 [[tool.mypy.overrides]]
-module = ["fastapi.*", "uvicorn.*", "starlette.*"]
+module = [
+  "fastapi.*",
+  "uvicorn.*",
+  "starlette.*",
+]
 ignore_missing_imports = true
 
 [tool.pyright]
 typeCheckingMode = "strict"
 stubPath = "typings"
 reportMissingTypeStubs = "none"
+
 exclude = [
   ".venv",
   "**/__pycache__",
@@ -161,6 +244,15 @@ exclude = [
   "**/node_modules",
   "**/.*",
   "installer/payload/runtime/**",
+  "webkit/node_modules/**",
+  "webkit/.next/**",
+  "webkit/dist/**",
+  "webkit/build/**",
+  "portal/node_modules/**",
+  "portal/.next/**",
+  "portal/dist/**",
+  "portal/build/**",
+  "integrations/**/node_modules/**",
 ]
 
 [tool.pytest.ini_options]
@@ -170,6 +262,7 @@ testpaths = ["tests"]
 [tool.coverage.run]
 branch = true
 source = ["statline"]
+
 omit = [
   "*/__pycache__/*",
   "*/tests/*",
@@ -179,11 +272,15 @@ omit = [
 show_missing = true
 skip_covered = true
 
-# ------------------------
-# Hatch build config
-# ------------------------
+# ===================================================================
+# Hatch build configuration
+# ===================================================================
 
 [tool.hatch.build]
+
+# Only the Python product lives under `statline/`.
+#
+# `webkit/` is intentionally outside the Python distribution.
 include = [
   "statline/RELEASE",
   "statline/**/*.py",
@@ -195,17 +292,25 @@ include = [
   "statline/core/adapters/defs/*.yaml",
   "statline/core/datasets/**/*.csv",
 ]
+
 exclude = [
   ".db/**",
   ".git/**",
   ".github/**",
   ".mypy_cache/**",
   ".pytest_cache/**",
+  ".pytest-tmp/**",
   ".ruff_cache/**",
   "**/__pycache__/**",
   "**/*.py[cod]",
+
   "statline/log/**",
   "statline/secrets/**",
+
+  # Non-Python monorepo components
+  "webkit/**",
+  "portal/**",
+  "integrations/**",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -216,6 +321,7 @@ packages = ["statline"]
 "assets/statpack-icon-main.png" = "statline/assets/statpack-icon-main.png"
 
 [tool.hatch.build.targets.sdist]
+
 include = [
   "statline/RELEASE",
   "statline/**/*.py",
@@ -226,11 +332,15 @@ include = [
   "statline/**/*.json",
   "statline/core/adapters/defs/*.yaml",
   "statline/core/datasets/**/*.csv",
+
   "tests/**/*.py",
   "scripts/**/*.py",
-  "scripts/build-statline-installer.ps1",
+  "scripts/**/*.ps1",
+  "scripts/**/*.sh",
   "typings/**/*.pyi",
+
   "assets/statpack-icon-main.png",
+
   "README.md",
   "HOWTO.md",
   "ARCHITECTURE.md",
@@ -241,15 +351,23 @@ include = [
   "mypy.ini",
   "pyproject.toml",
 ]
+
 exclude = [
   ".db/**",
   ".git/**",
   ".github/**",
   ".mypy_cache/**",
   ".pytest_cache/**",
+  ".pytest-tmp/**",
   ".ruff_cache/**",
   "**/__pycache__/**",
   "**/*.py[cod]",
+
   "statline/log/**",
   "statline/secrets/**",
+
+  # Non-Python monorepo components have their own build/package lifecycle.
+  "webkit/**",
+  "portal/**",
+  "integrations/**",
 ]

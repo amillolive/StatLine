@@ -24,15 +24,18 @@ Deprecated adapter schemas remain packaged for explicit local compatibility path
 
 Legacy `statline.slapi`, flat scoring/dataset modules, `statline.tui`, `statline.services`, and `statline.utils` are removed rather than forwarded. No compatibility shims are part of the rebase.
 
-
 ## v4.0.0rc6 repository boundaries
 
-The canonical StatLine repository composes three Git submodules at stable Python package paths:
+The canonical StatLine repository is a true monorepo with three Python component paths:
 
-- `statline/core` → `StatLine-core`
-- `statline/app` → `StatLine-app`
-- `statline/gateway` → `StatLine-gateway`
+- `statline/core` → generated mirror `StatLine-core`
+- `statline/app` → generated mirror `StatLine-app`
+- `statline/gateway` → generated mirror `StatLine-gateway`
 
-The dependency graph is intentionally directional: Core must never import App or Gateway. App and Gateway may import Core. App/Gateway cross-integration is allowed only behind the capability whose optional dependencies support it.
+The monorepo is the source of truth. Component repositories are produced from the matching prefixes with `git subtree split`; development does not occur through nested repositories or submodules. The `main`, `next`, and `dev` branches map to the same branch names in each generated component mirror.
 
-The parent StatLine repository owns release composition, public compatibility surfaces, packaging metadata, documentation, and integration tests. A source checkout must initialize the submodules with `git submodule update --init --recursive`; release builds from a Git ref must do the same before packaging.
+The dependency graph is intentionally directional: Core must never import App or Gateway. App and Gateway may import Core, but neither capability requires the other. App/Gateway cross-integration must remain optional and activate only when both capability dependency sets are present.
+
+The StatLine repository owns release composition, public compatibility surfaces, packaging metadata, documentation, integration tests, and component synchronization. A normal `git clone` contains the complete source tree required to build StatLine.
+
+Local mirror synchronization is available through `scripts/sync-components.sh` or `scripts/sync-components.ps1`. Remote synchronization runs only after CI succeeds on `main`, `next`, or `dev`; the mirror workflow requires the `STATLINE_COMPONENT_SYNC_TOKEN` repository secret with write access to the three component repositories.
