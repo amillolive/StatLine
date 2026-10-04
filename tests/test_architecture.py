@@ -237,7 +237,6 @@ def test_source_tree_version_falls_back_to_rc6(monkeypatch: pytest.MonkeyPatch) 
     assert reloaded.__version__ == PACKAGE_VERSION
 
 
-
 def test_core_never_imports_app_or_gateway() -> None:
     forbidden = ("statline.app", "statline.gateway")
     for path in sorted((ROOT / "statline" / "core").rglob("*.py")):
@@ -286,6 +285,7 @@ def test_rc6_install_extras_are_canonical() -> None:
         assert dependency in all_extra
         assert dependency in dev
     assert "pytest" in dev
+
 
 def test_moved_modules_resolve_package_paths() -> None:
     from statline.app.cli.main import LOG_DIR

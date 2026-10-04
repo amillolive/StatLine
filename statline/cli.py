@@ -15,8 +15,7 @@ def main() -> None:
 
         if missing in {"click", "httpx2", "typer", "textual"}:
             print(
-                "StatLine App is not installed. Install it with: "
-                "pip install 'statline[app]'",
+                "StatLine App is not installed. Install it with: pip install 'statline[app]'",
                 file=sys.stderr,
             )
             raise SystemExit(2) from None

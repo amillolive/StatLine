@@ -15,6 +15,9 @@ from typing import Any, TextIO, cast
 
 import yaml
 
+from statline.core.adapters.compile import compile_adapter
+from statline.core.adapters.load import load_spec
+from statline.core.datasets import load_dataset
 from statline.core.presentation import (
     profile_names,
     profile_score,
@@ -23,9 +26,6 @@ from statline.core.presentation import (
     render_timing,
     save_profile_report,
 )
-from statline.core.adapters.compile import compile_adapter
-from statline.core.adapters.load import load_spec
-from statline.core.datasets import load_dataset
 from statline.core.scoring.map import score_rows_from_raw
 from statline.core.statpacks.package import dump_yaml, load_statpack_tree
 from statline.core.types.timing import StageTimes
