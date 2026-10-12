@@ -1,12 +1,12 @@
 {
   "engine_version": "4.0.0rc6",
-  "generated_at": "2026-10-12T17:06:43.312205+00:00",
-  "source_sha256": "455ca360d8220edc8151e64eed7b8cb4b1d1588b366ad4357b5f31ab6e2bcb50",
+  "generated_at": "2026-10-12T22:03:53.124649+00:00",
+  "source_sha256": "98e65d3d9f31b76336f81f96429c8d49bd663c38a5b981b3dd690d0d92c8160e",
   "snapshots": [
     {
       "engine_version": "4.0.0rc6",
-      "generated_at": "2026-10-12T17:06:43.312205+00:00",
-      "source_sha256": "455ca360d8220edc8151e64eed7b8cb4b1d1588b366ad4357b5f31ab6e2bcb50",
+      "generated_at": "2026-10-12T22:03:53.124649+00:00",
+      "source_sha256": "98e65d3d9f31b76336f81f96429c8d49bd663c38a5b981b3dd690d0d92c8160e",
       "adapter": "eba.players",
       "adapter_version": "4.0.0",
       "dataset": "EBA_Elevate302/eba_players_gp3_plus.csv",
@@ -1280,6 +1280,8 @@
           "PRI": {
             "kind": "affine",
             "weights_profile": "pri",
+            "model": null,
+            "value": null,
             "lo": 40.0,
             "hi": 125.0,
             "out_lo": null,
@@ -1290,6 +1292,8 @@
           "PRI-ALT": {
             "kind": "affine",
             "weights_profile": "pri_alt",
+            "model": null,
+            "value": null,
             "lo": 40.0,
             "hi": 125.0,
             "out_lo": null,
@@ -1300,6 +1304,8 @@
           "PRI-W": {
             "kind": "window",
             "weights_profile": "pri",
+            "model": null,
+            "value": null,
             "lo": null,
             "hi": null,
             "out_lo": 55.0,
@@ -1310,6 +1316,8 @@
           "PRI-W-ALT": {
             "kind": "window",
             "weights_profile": "pri_alt",
+            "model": null,
+            "value": null,
             "lo": null,
             "hi": null,
             "out_lo": 55.0,
@@ -1769,38 +1777,38 @@
         },
         "weights": {
           "pri": {
-            "scoring_gravity": 0.14,
-            "spg_sig": 0.02,
-            "handle": 0.04,
-            "vers": 0.09,
-            "wl": 0.025,
-            "tov_eff": 0.12,
-            "helios": 0.13,
-            "aefg": 0.28,
-            "offball": 0.06,
-            "bpg_sig": 0.02,
-            "two_way": 0.05,
-            "effloor": 0.05,
             "stocks": 0.05,
+            "scoring_gravity": 0.14,
             "gp": 0.025,
-            "telem": 0.0
+            "handle": 0.04,
+            "aefg": 0.28,
+            "tov_eff": 0.12,
+            "vers": 0.09,
+            "helios": 0.13,
+            "two_way": 0.05,
+            "spg_sig": 0.02,
+            "telem": 0.0,
+            "bpg_sig": 0.02,
+            "offball": 0.06,
+            "effloor": 0.05,
+            "wl": 0.025
           },
           "pri_alt": {
-            "scoring_gravity": 0.0,
-            "spg_sig": 0.02,
-            "handle": 0.07,
-            "vers": 0.08,
-            "wl": 0.025,
-            "tov_eff": 0.22,
-            "helios": 0.09,
-            "aefg": 0.24,
-            "offball": 0.05,
-            "bpg_sig": 0.03,
-            "two_way": 0.07,
-            "effloor": 0.08,
             "stocks": 0.05,
+            "scoring_gravity": 0.0,
             "gp": 0.025,
-            "telem": 0.0
+            "handle": 0.07,
+            "aefg": 0.24,
+            "tov_eff": 0.22,
+            "vers": 0.08,
+            "helios": 0.09,
+            "two_way": 0.07,
+            "spg_sig": 0.02,
+            "telem": 0.0,
+            "bpg_sig": 0.03,
+            "offball": 0.05,
+            "effloor": 0.08,
+            "wl": 0.025
           }
         },
         "penalties": {},
@@ -1808,6 +1816,8 @@
           "PRI": {
             "kind": "affine",
             "weights_profile": "pri",
+            "model": null,
+            "value": null,
             "lo": 40.0,
             "hi": 125.0,
             "out_lo": null,
@@ -1818,6 +1828,8 @@
           "PRI-ALT": {
             "kind": "affine",
             "weights_profile": "pri_alt",
+            "model": null,
+            "value": null,
             "lo": 40.0,
             "hi": 125.0,
             "out_lo": null,
@@ -1828,6 +1840,8 @@
           "PRI-W": {
             "kind": "window",
             "weights_profile": "pri",
+            "model": null,
+            "value": null,
             "lo": null,
             "hi": null,
             "out_lo": 55.0,
@@ -1838,6 +1852,8 @@
           "PRI-W-ALT": {
             "kind": "window",
             "weights_profile": "pri_alt",
+            "model": null,
+            "value": null,
             "lo": null,
             "hi": null,
             "out_lo": 55.0,
@@ -76406,8 +76422,8 @@
     },
     {
       "engine_version": "4.0.0rc6",
-      "generated_at": "2026-10-12T17:06:43.312205+00:00",
-      "source_sha256": "455ca360d8220edc8151e64eed7b8cb4b1d1588b366ad4357b5f31ab6e2bcb50",
+      "generated_at": "2026-10-12T22:03:53.124649+00:00",
+      "source_sha256": "98e65d3d9f31b76336f81f96429c8d49bd663c38a5b981b3dd690d0d92c8160e",
       "adapter": "eba.teams",
       "adapter_version": "4.0.0",
       "dataset": "EBA_Elevate302/eba_s1_teams.csv",
@@ -77262,6 +77278,8 @@
           "PRI": {
             "kind": "affine",
             "weights_profile": "pri",
+            "model": null,
+            "value": null,
             "lo": 55.0,
             "hi": 99.0,
             "out_lo": null,
@@ -77272,6 +77290,8 @@
           "standings": {
             "kind": "affine",
             "weights_profile": "standings",
+            "model": null,
+            "value": null,
             "lo": 0.0,
             "hi": 100.0,
             "out_lo": null,
@@ -77282,6 +77302,8 @@
           "playoff": {
             "kind": "affine",
             "weights_profile": "predictive",
+            "model": null,
+            "value": null,
             "lo": 0.0,
             "hi": 100.0,
             "out_lo": null,
@@ -77292,6 +77314,8 @@
           "wildcard": {
             "kind": "affine",
             "weights_profile": "predictive",
+            "model": null,
+            "value": null,
             "lo": -25.0,
             "hi": 25.0,
             "out_lo": null,
@@ -77302,6 +77326,8 @@
           "offense": {
             "kind": "window",
             "weights_profile": "offense",
+            "model": null,
+            "value": null,
             "lo": null,
             "hi": null,
             "out_lo": 1.0,
@@ -77312,6 +77338,8 @@
           "defense": {
             "kind": "window",
             "weights_profile": "defense",
+            "model": null,
+            "value": null,
             "lo": null,
             "hi": null,
             "out_lo": 1.0,
@@ -77552,43 +77580,43 @@
         },
         "weights": {
           "pri": {
+            "telem": 0.0,
             "form": 0.08,
             "offense": 0.14,
             "net": 0.46,
             "wl": 0.18,
-            "telem": 0.0,
             "defense": 0.14
           },
           "standings": {
+            "telem": 0.0,
             "form": 0.06,
             "offense": 0.04,
             "net": 0.38,
             "wl": 0.48,
-            "telem": 0.0,
             "defense": 0.04
           },
           "predictive": {
+            "telem": 0.0,
             "form": 0.08,
             "offense": 0.04,
             "net": 0.57,
             "wl": 0.27,
-            "telem": 0.0,
             "defense": 0.04
           },
           "offense": {
+            "telem": 0.0,
             "form": 0.0,
             "offense": 0.75,
             "net": 0.15,
             "wl": 0.1,
-            "telem": 0.0,
             "defense": 0.0
           },
           "defense": {
+            "telem": 0.0,
             "form": 0.0,
             "offense": 0.0,
             "net": 0.1,
             "wl": 0.15,
-            "telem": 0.0,
             "defense": 0.75
           }
         },
@@ -77597,6 +77625,8 @@
           "PRI": {
             "kind": "affine",
             "weights_profile": "pri",
+            "model": null,
+            "value": null,
             "lo": 55.0,
             "hi": 99.0,
             "out_lo": null,
@@ -77607,6 +77637,8 @@
           "standings": {
             "kind": "affine",
             "weights_profile": "standings",
+            "model": null,
+            "value": null,
             "lo": 0.0,
             "hi": 100.0,
             "out_lo": null,
@@ -77617,6 +77649,8 @@
           "playoff": {
             "kind": "affine",
             "weights_profile": "predictive",
+            "model": null,
+            "value": null,
             "lo": 0.0,
             "hi": 100.0,
             "out_lo": null,
@@ -77627,6 +77661,8 @@
           "wildcard": {
             "kind": "affine",
             "weights_profile": "predictive",
+            "model": null,
+            "value": null,
             "lo": -25.0,
             "hi": 25.0,
             "out_lo": null,
@@ -77637,6 +77673,8 @@
           "offense": {
             "kind": "window",
             "weights_profile": "offense",
+            "model": null,
+            "value": null,
             "lo": null,
             "hi": null,
             "out_lo": 1.0,
@@ -77647,6 +77685,8 @@
           "defense": {
             "kind": "window",
             "weights_profile": "defense",
+            "model": null,
+            "value": null,
             "lo": null,
             "hi": null,
             "out_lo": 1.0,

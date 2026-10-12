@@ -1,7 +1,7 @@
 {
   "engine_version": "4.0.0rc6",
-  "generated_at": "2026-10-12T17:06:43.312205+00:00",
-  "source_sha256": "455ca360d8220edc8151e64eed7b8cb4b1d1588b366ad4357b5f31ab6e2bcb50",
+  "generated_at": "2026-10-12T22:03:53.124649+00:00",
+  "source_sha256": "98e65d3d9f31b76336f81f96429c8d49bd663c38a5b981b3dd690d0d92c8160e",
   "adapter": "eba.players",
   "adapter_version": "4.0.0",
   "dataset": "EBA_Elevate302/eba_players_gp3_plus.csv",
@@ -77948,6 +77948,8 @@
           "PRI": {
             "kind": "affine",
             "weights_profile": "pri",
+            "model": null,
+            "value": null,
             "lo": 40.0,
             "hi": 125.0,
             "out_lo": null,
@@ -77958,6 +77960,8 @@
           "PRI-ALT": {
             "kind": "affine",
             "weights_profile": "pri_alt",
+            "model": null,
+            "value": null,
             "lo": 40.0,
             "hi": 125.0,
             "out_lo": null,
@@ -77968,6 +77972,8 @@
           "PRI-W": {
             "kind": "window",
             "weights_profile": "pri",
+            "model": null,
+            "value": null,
             "lo": null,
             "hi": null,
             "out_lo": 55.0,
@@ -77978,6 +77984,8 @@
           "PRI-W-ALT": {
             "kind": "window",
             "weights_profile": "pri_alt",
+            "model": null,
+            "value": null,
             "lo": null,
             "hi": null,
             "out_lo": 55.0,

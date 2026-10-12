@@ -1,7 +1,7 @@
 {
   "engine_version": "4.0.0rc6",
-  "generated_at": "2026-10-12T17:06:43.312205+00:00",
-  "source_sha256": "455ca360d8220edc8151e64eed7b8cb4b1d1588b366ad4357b5f31ab6e2bcb50",
+  "generated_at": "2026-10-12T22:03:53.124649+00:00",
+  "source_sha256": "98e65d3d9f31b76336f81f96429c8d49bd663c38a5b981b3dd690d0d92c8160e",
   "adapter": "eba.teams",
   "adapter_version": "4.0.0",
   "dataset": "EBA_Elevate302/eba_s1_teams.csv",
@@ -15252,6 +15252,8 @@
           "PRI": {
             "kind": "affine",
             "weights_profile": "pri",
+            "model": null,
+            "value": null,
             "lo": 55.0,
             "hi": 99.0,
             "out_lo": null,
@@ -15262,6 +15264,8 @@
           "standings": {
             "kind": "affine",
             "weights_profile": "standings",
+            "model": null,
+            "value": null,
             "lo": 0.0,
             "hi": 100.0,
             "out_lo": null,
@@ -15272,6 +15276,8 @@
           "playoff": {
             "kind": "affine",
             "weights_profile": "predictive",
+            "model": null,
+            "value": null,
             "lo": 0.0,
             "hi": 100.0,
             "out_lo": null,
@@ -15282,6 +15288,8 @@
           "wildcard": {
             "kind": "affine",
             "weights_profile": "predictive",
+            "model": null,
+            "value": null,
             "lo": -25.0,
             "hi": 25.0,
             "out_lo": null,
@@ -15292,6 +15300,8 @@
           "offense": {
             "kind": "window",
             "weights_profile": "offense",
+            "model": null,
+            "value": null,
             "lo": null,
             "hi": null,
             "out_lo": 1.0,
@@ -15302,6 +15312,8 @@
           "defense": {
             "kind": "window",
             "weights_profile": "defense",
+            "model": null,
+            "value": null,
             "lo": null,
             "hi": null,
             "out_lo": 1.0,

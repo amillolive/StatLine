@@ -325,6 +325,53 @@
         ]
       }
     },
+    "/v4/pairwise": {
+      "post": {
+        "tags": [
+          "scoring"
+        ],
+        "summary": "Evaluate a registered native pairwise model",
+        "description": "Submit new-match rows (a) and previous rating rows (b) to an adapter-authored formula model. No supplied Python is executed.",
+        "operationId": "pairwise_v4",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PairwiseIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PairwiseOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "StatLineApiKey": []
+          }
+        ]
+      }
+    },
     "/v4/auth/enroll": {
       "post": {
         "tags": [
@@ -2515,6 +2562,81 @@
         ],
         "title": "HealthOut"
       },
+      "PairwiseIn": {
+        "properties": {
+          "adapter": {
+            "type": "string",
+            "title": "Adapter"
+          },
+          "a": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "maxItems": 1000,
+            "title": "A",
+            "description": "New match rows"
+          },
+          "b": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "maxItems": 100000,
+            "title": "B",
+            "description": "Previous ratings"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "adapter",
+          "a",
+          "b"
+        ],
+        "title": "PairwiseIn",
+        "description": "Evaluate one registered native pairwise adapter using caller-provided rows."
+      },
+      "PairwiseOut": {
+        "properties": {
+          "adapter": {
+            "type": "string",
+            "title": "Adapter"
+          },
+          "adapter_version": {
+            "type": "string",
+            "title": "Adapter Version"
+          },
+          "new_count": {
+            "type": "integer",
+            "title": "New Count"
+          },
+          "previous_count": {
+            "type": "integer",
+            "title": "Previous Count"
+          },
+          "results": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Results"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "adapter",
+          "adapter_version",
+          "new_count",
+          "previous_count",
+          "results"
+        ],
+        "title": "PairwiseOut"
+      },
       "ScoreIn": {
         "properties": {
           "adapter": {
@@ -3114,8 +3236,8 @@
   ],
   "x-statline-snapshot": {
     "source_release": "4.0.0rc6",
-    "generated_at": "2026-10-12T17:06:43.312205+00:00",
-    "source_sha256": "455ca360d8220edc8151e64eed7b8cb4b1d1588b366ad4357b5f31ab6e2bcb50",
+    "generated_at": "2026-10-12T22:03:53.124649+00:00",
+    "source_sha256": "98e65d3d9f31b76336f81f96429c8d49bd663c38a5b981b3dd690d0d92c8160e",
     "response_format": "compact opt-in; legacy default"
   }
 }

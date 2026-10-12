@@ -1,6 +1,6 @@
 {
   "engine_version": "4.0.0rc6",
-  "generated_at": "2026-10-12T17:06:43.312205+00:00",
+  "generated_at": "2026-10-12T22:03:53.124649+00:00",
   "release_channels": {
     "stable": {
       "line": "v3",
@@ -14,7 +14,7 @@
     }
   },
   "requires_python": ">=3.10,<3.15",
-  "source_sha256": "455ca360d8220edc8151e64eed7b8cb4b1d1588b366ad4357b5f31ab6e2bcb50",
+  "source_sha256": "98e65d3d9f31b76336f81f96429c8d49bd663c38a5b981b3dd690d0d92c8160e",
   "release_highlights": [
     "The Gateway supports opt-in `response_format=\"compact\"`, moving equal context, weights and explanation configuration into `shared` without changing scored values. Legacy remains the default.",
     "Results preserve original `source_index` and an adapter identity `source_id` (PLAYER or TEAM for EBA), including through raw and mapped filtering.",
@@ -38,8 +38,8 @@
     "Deprecated adapter schemas are no longer discoverable through CLI/API lists or sniffing; an explicit local YAML path is required to use one."
   ],
   "openapi_version": "3.1.0",
-  "operation_count": 33,
-  "schema_count": 19,
+  "operation_count": 34,
+  "schema_count": 21,
   "paths": {
     "api_index": "/",
     "health_v4": "/v4/health",
@@ -49,6 +49,7 @@
     "list_datasets_v4": "/v4/datasets",
     "get_dataset_v4": "/v4/datasets/{dataset}",
     "score_v4": "/v4/score",
+    "pairwise_v4": "/v4/pairwise",
     "enroll_v4_auth_enroll_post": "/v4/auth/enroll",
     "device_info_v4_auth_device_get": "/v4/auth/device",
     "api_key_request_v4_auth_api_key_requests_post": "/v4/auth/api-key-requests",
@@ -285,7 +286,9 @@
     "efficiency",
     "weights",
     "penalties",
-    "score_profiles"
+    "score_profiles",
+    "pairwise",
+    "expressions"
   ],
   "statpack_runner": "from pathlib import Path\n\nfrom statline.sdk import run_statpack\n\nraise SystemExit(run_statpack(Path(__file__).resolve().parent))\n",
   "python_example": "from statline import load_dataset, score\n\nrows = load_dataset('EBA_Elevate302/eba_players_gp3_plus.csv')\nresults = score('eba.players', rows, mode='batch', weights='pri')\n\nranked = sorted(zip(rows, results),\n    key=lambda pair: (-pair[1]['pri'], -pair[1]['pri_raw']))\nfor row, result in ranked[:3]:\n    print(row['PLAYER'], result['pri'])",
