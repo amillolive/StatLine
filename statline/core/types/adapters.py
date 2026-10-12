@@ -30,7 +30,7 @@ FilterOp: TypeAlias = Literal["<", ">", "<=", ">=", "==", "=", "!="]
 FilterMode: TypeAlias = Literal["include-only", "exclude-only"]
 SourceKind: TypeAlias = Literal["field", "expr", "const"]
 TransformKind: TypeAlias = Literal["expr", "affine", "scale", "clip", "round", "custom"]
-ScoreKind: TypeAlias = Literal["affine", "window"]
+ScoreKind: TypeAlias = Literal["affine", "window", "pairwise"]
 RowContext: TypeAlias = Mapping[str, object]
 ExpressionEvaluator: TypeAlias = Callable[[RowContext, float], float]
 MetricEvaluator: TypeAlias = Callable[[RowContext], float]
@@ -135,13 +135,46 @@ class EffSpec:
 @dataclass(frozen=True, slots=True)
 class ScoreProfileSpec:
     kind: ScoreKind
-    weights_profile: str
+    weights_profile: str = ""
+    model: str | None = None
+    value: str | None = None
     lo: float | None = None
     hi: float | None = None
     out_lo: float | None = None
     out_hi: float | None = None
     pct_lo: float | None = None
     pct_hi: float | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class PairwiseSpec:
+    """StatLine math defined solely in YAML; input references are optional defaults."""
+
+    duo: Mapping[str, str]
+    on: str
+    group_by: str | None
+    variables: Mapping[str, str]
+    calculate: Mapping[str, str]
+    reduce: Mapping[str, Mapping[str, object]]
+    output: Mapping[str, str]
+    compare: str = "all_vs_all"
+
+
+@dataclass(frozen=True, slots=True)
+class NativePairwiseSpec:
+    """A YAML-only two-snapshot comparison used by runnable StatPacks."""
+
+    inputs: Mapping[str, Mapping[str, str]]
+    a_key: str
+    b_key: str
+    pair: Mapping[str, str]
+    result: Mapping[str, str]
+    expression: str
+    aggregate: str = "sum"
+    missing_b: str = "error"
+    exclude_self: bool = True
+    preserve_order: bool = True
+    normalize: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -168,6 +201,8 @@ class AdapterSpec:
     score_profiles: dict[str, ScoreProfileSpec] = dc_field(
         default_factory=cast(Callable[[], dict[str, ScoreProfileSpec]], dict)
     )
+    pairwise: dict[str, PairwiseSpec] = dc_field(default_factory=dict)
+    native_pairwise: NativePairwiseSpec | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -236,6 +271,8 @@ class CompiledAdapter:
     metric_plan: tuple[CompiledMetric, ...]
     efficiency_plan: tuple[CompiledEfficiency, ...]
     dataset_requirements: tuple[tuple[str, str], ...] = ()
+    pairwise: Mapping[str, PairwiseSpec] = dc_field(default_factory=dict)
+    native_pairwise: NativePairwiseSpec | None = None
 
     @property
     def key(self) -> str:
@@ -298,6 +335,8 @@ __all__ = [
     "MetaValue",
     "MetricEvaluator",
     "MetricSpec",
+    "PairwiseSpec",
+    "NativePairwiseSpec",
     "NoOpHooks",
     "Number",
     "RowContext",

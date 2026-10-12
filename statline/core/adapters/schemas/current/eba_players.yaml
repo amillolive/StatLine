@@ -377,6 +377,14 @@ efficiency:
   min_den: 1
   make: scoreable * rel_gp
   attempt: '1'
+- key: pps_fg
+  bucket: aefg
+  clamp:
+  - 0.0
+  - 1.45
+  min_den: 1
+  make: scoreable * (2.0 * (fgm + 0.5*tpm))
+  attempt: max(1.0, fga)
 - key: scoring_gravity
   bucket: scoring_gravity
   clamp:
@@ -403,14 +411,6 @@ efficiency:
   min_den: 1
   make: scoreable * ((min(bpg, 2.0) + 0.25*max(0, bpg-2.0)) / max(0.85, 1.0 + 0.06*drpg))
   attempt: '2.2'
-- key: pps_fg
-  bucket: aefg
-  clamp:
-  - 0.0
-  - 1.45
-  min_den: 1
-  make: scoreable * (2.0 * (fgm + 0.5*tpm))
-  attempt: max(1.0, fga)
 - key: eff_usage
   bucket: aefg
   clamp:
@@ -524,7 +524,7 @@ efficiency:
   - 0.0
   - 0.8
   min_den: 1
-  make: scoreable * min(2, (2 * ((ppg+0.9*apg)/42) * ((0.7*spg+0.4*bpg)/2.5)) / max(0.0001, ((ppg+0.9*apg)/42) + ((0.7*spg+0.4*bpg)/2.5))))
+  make: "scoreable * min(2, (2 * ((ppg+0.9*apg)/42) * ((0.7*spg+0.4*bpg)/2.5)) / max(0.0001, ((ppg+0.9*apg)/42) + ((0.7*spg+0.4*bpg)/2.5)))"
   attempt: '1'
 - key: wl_share
   bucket: wl
@@ -580,12 +580,12 @@ score_profiles:
   PRI:
     kind: affine
     lo: 40
-    hi: 143
+    hi: 125
     weights_profile: pri
   PRI-ALT:
     kind: affine
     lo: 40
-    hi: 143
+    hi: 125
     weights_profile: pri_alt
   PRI-W:
     kind: window

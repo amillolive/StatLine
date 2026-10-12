@@ -63,6 +63,10 @@ class ScoreIn(StrictModel):
         default="batch",
         description="Use shared batch context or score each row independently.",
     )
+    response_format: Literal["legacy", "compact"] = Field(
+        default="legacy",
+        description="Opt in to compact shared metadata. Legacy keeps row-level diagnostics; scored values are identical.",
+    )
     include_mapped: bool = Field(
         default=False,
         description="Include the mapped rows used by the scorer in the response.",
@@ -111,9 +115,49 @@ class ScoreIn(StrictModel):
         return self
 
 
+class PairwiseIn(StrictModel):
+    """Evaluate one registered native pairwise adapter using caller-provided rows."""
+
+    adapter: str
+    a: list[dict[str, Any]] = Field(max_length=1000, description="New match rows")
+    b: list[dict[str, Any]] = Field(max_length=100000, description="Previous ratings")
+
+
+class PairwiseOut(StrictModel):
+    adapter: str
+    adapter_version: str
+    new_count: int
+    previous_count: int
+    results: list[dict[str, Any]]
+
+
 class ScoreSource(StrictModel):
     kind: Literal["row", "rows", "dataset"]
     dataset: str | None = None
+
+
+class ScoredResult(BaseModel):
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="allow")
+    source_index: int = Field(
+        ge=0,
+        description="Original input position before filtering; stable when clients sort results.",
+    )
+    source_id: str | int | float | bool | None = Field(
+        default=None,
+        description="Adapter identity value when present. Duplicate names are allowed; use source_index for reconciliation.",
+    )
+    primary_profile: str
+    pri: int
+    scores: dict[str, int]
+    components: dict[str, float] | None = None
+    buckets: dict[str, float] | None = None
+    weights: dict[str, float] | None = None
+    context_used: dict[str, dict[str, float]] | None = None
+    explanation_context: dict[str, Any] | None = None
+    explanation: dict[str, Any] | None = Field(
+        default=None,
+        description="Opt-in raw metric attribution with per-profile aggregates and score transforms.",
+    )
 
 
 class ScoreOut(StrictModel):
@@ -123,7 +167,14 @@ class ScoreOut(StrictModel):
     input_count: int
     mapped_count: int
     scored_count: int
-    results: list[dict[str, Any]]
+    response_format: Literal["legacy", "compact"] = "legacy"
+    shared: dict[str, Any] | None = Field(
+        default=None,
+        description="Exactly equal context_used, weights and explanation_context, only in compact mode. Row values override shared fields.",
+    )
+    results: list[ScoredResult] = Field(
+        description="One row per surviving input, with original source_index and source_id when available."
+    )
     mapped: list[dict[str, Any]] | None = None
 
 
@@ -147,6 +198,7 @@ class AdapterOut(StrictModel):
     author: str
     aliases: list[str]
     dataset: str | None = None
+    source_id_field: str | None = None
     inputs: list[str]
     metrics: list[str]
     buckets: dict[str, dict[str, Any]]

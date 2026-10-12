@@ -4,14 +4,18 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
+from fastapi.responses import HTMLResponse
 from starlette.concurrency import run_in_threadpool
+from starlette.responses import Response
 
 from statline import __version__
 from statline.core.adapters import adapter_cache_info, sniff_adapters
-from statline.gateway.adapters.scoring import score_rows
+from statline.core.relate.native import score_native_pairwise
+from statline.gateway.adapters.envelope import compact_results
+from statline.gateway.adapters.scoring import get_adapter, score_rows
 from statline.gateway.http.dependencies import SCOPE_USERBASE, require_scope
-from statline.gateway.http.errors import NotFound
+from statline.gateway.http.errors import BadRequest, NotFound
 from statline.gateway.http.models import (
     AdapterCatalog,
     AdapterOut,
@@ -19,6 +23,8 @@ from statline.gateway.http.models import (
     DatasetCatalog,
     DatasetPage,
     HealthOut,
+    PairwiseIn,
+    PairwiseOut,
     ScoreIn,
     ScoreOut,
     ScoreSource,
@@ -46,7 +52,19 @@ api_router = APIRouter(
     summary="API index",
     operation_id="api_index",
 )
-def root() -> dict[str, Any]:
+def root(request: Request, response: Response) -> Response | dict[str, Any]:
+    response.headers["Vary"] = "Accept"
+    if "text/html" in request.headers.get("accept", ""):
+        return HTMLResponse(
+            "<!doctype html><html lang='en'><meta charset='utf-8'>"
+            "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+            "<title>StatLine API</title><body><h1>StatLine API</h1>"
+            f"<p>v{__version__} · release candidate</p>"
+            "<p>You are on the API service. Visit <a href='https://statline.dev'>the product portal</a>, "
+            "<a href='/redoc'>API reference</a>, or <a href='/docs'>interactive documentation</a>.</p>"
+            "<p>Machine clients receive the JSON index by default or with Accept: application/json.</p></body></html>",
+            headers={"Vary": "Accept"},
+        )
     return {
         "name": "StatLine API",
         "version": __version__,
@@ -57,6 +75,7 @@ def root() -> dict[str, Any]:
             "adapters": "/v4/adapters",
             "datasets": "/v4/datasets",
             "score": "/v4/score",
+            "pairwise": "/v4/pairwise",
         },
     }
 
@@ -186,32 +205,76 @@ def _score_request(body: ScoreIn) -> dict[str, Any]:
         caps_mode=body.caps_mode,
     )
 
-    return {
+    shared, wire_results = (
+        compact_results(results) if body.response_format == "compact" else (None, results)
+    )
+    payload: dict[str, Any] = {
         "adapter": adapter.key,
         "adapter_version": adapter.version,
         "source": source.model_dump(),
         "input_count": len(rows),
         "mapped_count": len(mapped),
         "scored_count": len(results),
-        "results": results,
+        "results": wire_results,
         "mapped": mapped if body.include_mapped else None,
     }
+    if body.response_format == "compact":
+        payload.update(response_format="compact", shared=shared)
+    return payload
 
 
 @api_router.post(
     "/score",
     response_model=ScoreOut,
+    response_model_exclude_unset=True,
     tags=["scoring"],
     summary="Score a row, batch, or dataset",
     description=(
         "The v4 scoring pipeline replaces /map, /calc/pri, /pri, /score/row, and "
         "/score/batch. Supply exactly one of `row`, `rows`, or `dataset`. Raw input is "
-        "mapped internally; set `input_kind` to `mapped` only when sending adapter metrics."
+        "mapped internally; set `input_kind` to `mapped` only when sending adapter metrics. "
+        "Set `response_format` to `compact` to hoist exactly equal diagnostic metadata into "
+        "`shared`; merge shared then row fields to reconstruct legacy values. "
+        "Every result includes its original `source_index`; `source_id` is the adapter identity "
+        "field when present. `output.show_explanation` enables optional raw-sum attribution."
     ),
     operation_id="score_v4",
 )
 async def score(body: ScoreIn) -> dict[str, Any]:
     return await run_in_threadpool(_score_request, body)
+
+
+def _pairwise_request(body: PairwiseIn) -> dict[str, Any]:
+    adapter = get_adapter(body.adapter)
+    if adapter.native_pairwise is None:
+        raise BadRequest(f"Adapter {body.adapter!r} does not define native pairwise v1")
+    profile_fields = {
+        name: profile.value
+        for name, profile in adapter.score_profiles.items()
+        if profile.kind == "pairwise" and profile.model == "native" and profile.value is not None
+    }
+    results = score_native_pairwise(
+        adapter.native_pairwise, body.a, body.b, profiles=profile_fields
+    )
+    return {
+        "adapter": adapter.key,
+        "adapter_version": adapter.version,
+        "new_count": len(body.a),
+        "previous_count": len(body.b),
+        "results": results,
+    }
+
+
+@api_router.post(
+    "/pairwise",
+    response_model=PairwiseOut,
+    tags=["scoring"],
+    summary="Evaluate a registered native pairwise model",
+    description="Submit new-match rows (a) and previous rating rows (b) to an adapter-authored formula model. No supplied Python is executed.",
+    operation_id="pairwise_v4",
+)
+async def pairwise(body: PairwiseIn) -> dict[str, Any]:
+    return await run_in_threadpool(_pairwise_request, body)
 
 
 __all__ = ["api_router", "public_router"]

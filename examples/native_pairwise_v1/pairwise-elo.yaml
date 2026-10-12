@@ -1,0 +1,39 @@
+# Native StatLine pairwise v1: executable by statline statpack manifest / run.
+# A = new/next match; B = previous match.
+metadata:
+  id: example.pairwise_elo
+  title: Six-Driver Pairwise Elo
+  version: 1.0.0
+  author: Example
+
+pairwise:
+  version: 1
+  inputs:
+    a: {kind: statpack, path: inputs/next-match.statpack, dataset: match.csv}
+    b: {kind: statpack, path: inputs/previous-match.statpack, dataset: match.csv}
+  join:
+    a_key: id
+    b_key: id
+    cardinality: one_to_one
+    missing_b: error
+  participants: a
+  opponents: a
+  exclude_self: true
+  preserve_order: true
+  expression: pair.delta
+  aggregate: sum
+  normalize: false
+  outputs: result
+
+expressions:
+  pair:
+    k: "16 + 32 * exp(-abs(0.15) * self.old.roundsPlayed)"
+    actual: "1 if count < 2 else (count - self.new.finishPosition) / (count - 1)"
+    expected: "1 / (1 + pow(10, (other.old.eloScore - self.old.eloScore) / 400))"
+    teammate: "0.5 if self.new.teamId and other.new.teamId and self.new.teamId == other.new.teamId else 1"
+    delta: "k * (actual - expected) * teammate"
+  result:
+    playerId: "self.new.id"
+    oldElo: "self.old.eloScore"
+    newElo: "js_round(self.old.eloScore + pairwise.total)"
+    eloChange: "js_fixed(pairwise.total, 2)"

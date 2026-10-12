@@ -75,8 +75,9 @@ def to_http_status(err: Exception) -> tuple[int, str]:
     if isinstance(err, SlapiError):
         # Find the first matching class in MRO present in the map
         for cls in type(err).mro():
-            if cls in _STATUS_MAP:
-                return _STATUS_MAP[cls], err.message
+            for error_type, status in _STATUS_MAP.items():
+                if cls is error_type:
+                    return status, err.message
         return 500, err.message
 
     # Caller-shape and lookup errors are bad requests at the HTTP boundary.

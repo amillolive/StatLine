@@ -756,3 +756,11 @@ pip-audit
    * gateway: `pip install "statline[gateway]"`
    * all: `pip install "statline[all]"`
    * dev: `pip install -e ".[dev]"`
+
+## Launch this rc6 API and portal together
+
+From the extracted repository root, install `python -m pip install -e ".[gateway]"`. The archive includes a built portal. Run `./launch.sh` on Linux/macOS or `.\launch.ps1` on Windows. Open <http://localhost:3000>; the API runs on <http://127.0.0.1:8000>. Ctrl+C stops both processes.
+
+For a launch verification that stops automatically, run `./launch.sh --check-only` or `.\launch.ps1 -CheckOnly`. Select alternate ports with `--api-port 8010 --portal-port 3010` or `-ApiPort 8010 -PortalPort 3010`. Select your Python interpreter with `STATLINE_PYTHON` or PowerShell `-Python`.
+
+For existing public hostname forwarding, add `--portal-origin https://statline.dev --api-url https://api.statline.dev` or `-PortalOrigin https://statline.dev -ApiUrl https://api.statline.dev`. The deployment folder contains separate portal/API hostname templates. Apply them to your own proxy or tunnel and validate its live configuration.

@@ -1,0 +1,2 @@
+import { ArrowRight } from "lucide-react";
+export default function NotFound() { return <main id="main-content" className="container feature-body"><div className="page-heading"><p className="eyebrow">404 / PAGE NOT FOUND</p><h1>That path isn't here.</h1><p>Head back to StatLine, explore the playground, or find the guide you need.</p><div className="page-actions"><a href="/" className="btn primary">Back to StatLine<ArrowRight size={15}/></a><a href="/docs" className="btn subtle">Documentation</a></div></div></main>; }

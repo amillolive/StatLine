@@ -1,0 +1,9 @@
+# Static portal only. Keep preview authentication until public release is approved.
+statline.dev {
+    basic_auth {
+        {$STATLINE_PREVIEW_USER} {$STATLINE_PREVIEW_PASSWORD_HASH}
+    }
+    root * /srv/statline/portal/dist/client
+    file_server
+}
+# api.statline.dev remains the existing FastAPI service.

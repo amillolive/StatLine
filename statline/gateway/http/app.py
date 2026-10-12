@@ -20,6 +20,7 @@ except ModuleNotFoundError as error:
 from statline import __version__
 from statline.core.adapters import list_adapters
 from statline.gateway.http.errors import SlapiError, to_http_exception
+from statline.gateway.http.portal import configure_portal_cors
 from statline.gateway.http.routes_api import api_router, public_router
 from statline.gateway.http.routes_auth import admin_router, auth_router, mod_router
 
@@ -101,6 +102,8 @@ app = FastAPI(
         sqlite3.Error: _sqlite_error_handler,
     },
 )
+
+configure_portal_cors(app)
 
 
 @app.middleware("http")

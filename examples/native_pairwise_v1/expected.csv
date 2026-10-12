@@ -1,0 +1,7 @@
+playerId,oldElo,newElo,eloChange
+DriverA,1600,1623,23.23
+DriverB,1600,1609,8.82
+DriverC,1500,1508,7.92
+DriverD,1500,1492,-7.92
+DriverE,1400,1383,-17.13
+DriverF,1400,1355,-45.13

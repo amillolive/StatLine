@@ -95,6 +95,8 @@ def adapter_document(adapter_name: str) -> dict[str, Any]:
         "author": metadata.author,
         "aliases": list(metadata.aliases),
         "dataset": metadata.dataset,
+        "source_id_field": metadata.meta.get("source_id_field")
+        or next(iter(spec.dimensions), None),
         "inputs": _adapter_inputs(canonical),
         "metrics": [metric.key for metric in spec.metrics]
         + [efficiency.key for efficiency in spec.efficiency],

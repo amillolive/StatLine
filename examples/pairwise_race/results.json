@@ -1,0 +1,8 @@
+[
+  {"id":"DriverA","race_id":"1","finishPosition":1,"teamId":"Red"},
+  {"id":"DriverB","race_id":"1","finishPosition":2,"teamId":"Red"},
+  {"id":"DriverC","race_id":"1","finishPosition":3,"teamId":"Blue"},
+  {"id":"DriverD","race_id":"1","finishPosition":4,"teamId":"Blue"},
+  {"id":"DriverE","race_id":"1","finishPosition":5,"teamId":"Green"},
+  {"id":"DriverF","race_id":"1","finishPosition":6,"teamId":"Green"}
+]

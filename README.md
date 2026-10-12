@@ -1,10 +1,11 @@
 # StatLine
 
-**StatLine** is an adapter-driven player scoring and analytics toolkit for turning raw stat rows into weighted, explainable ratings.
+**StatLine** is an adapter-driven scoring and analytics toolkit for turning raw stat rows into weighted, explainable ratings.
 
 It can run completely locally for simple scoring workflows, or against **SLAPI**, the optional StatLine API layer for authenticated remote scoring, adapter inspection, and multi-client deployments.
 
-> **Release target:** **v4.0.0rc6**
+> **Release target:** **v4.0.0rc6** — preview on [`next`](https://github.com/amillolive/StatLine/tree/next).
+> **Stable line:** v3 on [`main`](https://github.com/amillolive/StatLine/tree/main). The APIs and examples in this checkout describe v4, not v3.
 > **Python:** **3.10 through 3.14**
 > **License:** **AGPL-3.0-or-later**, with separate trademark restrictions for the StatLine name and branding.
 
@@ -28,6 +29,13 @@ At a high level, StatLine provides:
 
 ## v4.0.0rc6 highlights
 
+* The Gateway supports opt-in `response_format="compact"`, moving equal context, weights and explanation configuration into `shared` without changing scored values. Legacy remains the default.
+* Results preserve original `source_index` and an adapter identity `source_id` (PLAYER or TEAM for EBA), including through raw and mapped filtering.
+* Optional `output.show_explanation` traces actual normalized metrics, effective profile weights, raw contributions, midpoint-relative influences, transforms, limits and rounding. The portal uses these engine-produced explanations.
+* Public pages use saved data until you choose an API check. Browser integration registration has been removed, and the API root provides helpful HTML for browser navigation while retaining JSON for machine clients.
+* Root `launch.ps1` / `launch.sh` start the API and built portal together, configure exact local CORS origins, and verify health, OpenAPI and authenticated-request preflights.
+* Release archives and distributions are scanned for private runtime artifacts; generated contracts include source fingerprints and generation timestamps.
+
 * Core, App, and Gateway are ordinary directories in the canonical StatLine monorepo; their standalone repositories are generated with `git subtree split` while preserving `statline.core`, `statline.app`, and `statline.gateway` import paths.
 * Core now has an enforced no-App/no-Gateway import boundary; the canonical extras are `app`, `gateway`, `all`, and `dev`, with App and Gateway independently installable above Core.
 * Root CLI help is organized around core workflows, service/access, administration, and one advanced `tools` namespace; rc3 command spellings remain hidden compatibility aliases.
@@ -47,20 +55,22 @@ At a high level, StatLine provides:
 
 ## Install
 
+This archive is a patched rc6 checkout. Use `python -m pip install -e ".[all]"` from this checkout to run these changes. Pinning an existing PyPI rc6 package does not apply local source edits. Read [RC6_CHANGES.md](RC6_CHANGES.md) for the compact response migration and [RC6_VERIFICATION.md](RC6_VERIFICATION.md) for completed checks.
+
 StatLine v4.0.0rc6 has five intended install variants. The StatLine repository is the canonical development and release-composition monorepo; standalone Core, App, and Gateway repositories are generated mirrors of their corresponding paths.
 
 | Variant | Command | Capability set |
 | --- | --- | --- |
-| **core** | `pip install statline` | Core Python API, scoring, adapters, datasets, and StatPack runtime. |
-| **app** | `pip install "statline[app]"` | Core + CLI/application dependencies + Textual StatLine OS. |
-| **gateway** | `pip install "statline[gateway]"` | Core + authentication, API, and SLAPI serving dependencies. |
-| **all** | `pip install "statline[all]"` | Core + App + Gateway runtime capabilities. |
+| **core** | `pip install "statline==4.0.0rc6"` | Core Python API, scoring, adapters, datasets, and StatPack runtime. |
+| **app** | `pip install "statline[app]==4.0.0rc6"` | Core + CLI/application dependencies + Textual StatLine OS. |
+| **gateway** | `pip install "statline[gateway]==4.0.0rc6"` | Core + authentication, API, and SLAPI serving dependencies. |
+| **all** | `pip install "statline[all]==4.0.0rc6"` | Core + App + Gateway runtime capabilities. |
 | **dev** | `pip install -e ".[dev]"` | Core + App + Gateway plus tests, typing, docs, packaging, and release tooling. |
 
 For a source checkout, clone the monorepo normally:
 
 ```bash
-git clone https://github.com/amillolive/StatLine.git
+git clone --branch next https://github.com/amillolive/StatLine.git
 cd StatLine
 python -m venv .venv
 

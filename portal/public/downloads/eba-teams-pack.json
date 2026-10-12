@@ -1,0 +1,40 @@
+{
+  "metadata": {
+    "id": "eba.teams",
+    "title": "EBA Teams (GP + form weighted)",
+    "version": "4.0.0",
+    "author": "StatLine, EBA",
+    "aliases": [
+      "eba_power",
+      "eba_t",
+      "ebat",
+      "eba_team"
+    ],
+    "dataset": "EBA_Elevate302/eba_s1_teams.csv"
+  },
+  "files": [
+    "dataset/EBA_Elevate302/eba_s1_teams.csv",
+    "metadata.yaml",
+    "runner.py",
+    "schema/sections/buckets.yaml",
+    "schema/sections/dimensions.yaml",
+    "schema/sections/filters.yaml",
+    "schema/sections/metrics.yaml",
+    "schema/sections/score_profiles.yaml",
+    "schema/sections/sniff.yaml",
+    "schema/sections/weights.yaml"
+  ],
+  "sections": [
+    "buckets",
+    "dimensions",
+    "filters",
+    "metrics",
+    "score_profiles",
+    "sniff",
+    "weights"
+  ],
+  "datasets": [
+    "EBA_Elevate302/eba_s1_teams.csv"
+  ],
+  "runnable": true
+}

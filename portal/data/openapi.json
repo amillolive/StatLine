@@ -1,0 +1,3121 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "StatLine API",
+    "summary": "Adapter-driven dataset scoring",
+    "description": "\nStatLine v4 exposes adapters, packaged datasets, and one scoring pipeline.\n\n## Two-step dataset scoring\n\n1. Read CSV data as JSON with `GET /v4/datasets/{dataset}`.\n2. Send the returned `rows` to `POST /v4/score` with an adapter.\n\nFor server-side convenience, `POST /v4/score` can also receive the packaged\n`dataset` path directly. The scorer accepts exactly one of `row`, `rows`, or\n`dataset`; raw mapping and PRI calculation are internal stages rather than\nseparate endpoints.\n",
+    "version": "4.0.0rc6"
+  },
+  "paths": {
+    "/": {
+      "get": {
+        "tags": [
+          "service"
+        ],
+        "summary": "API index",
+        "operationId": "api_index",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiIndexOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v4/health": {
+      "get": {
+        "tags": [
+          "service"
+        ],
+        "summary": "Health check",
+        "operationId": "health_v4",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v4/adapters": {
+      "get": {
+        "tags": [
+          "adapters"
+        ],
+        "summary": "List adapters",
+        "description": "Returns every canonical adapter once plus process-cache diagnostics.",
+        "operationId": "list_adapters_v4",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdapterCatalog"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "StatLineApiKey": []
+          }
+        ]
+      }
+    },
+    "/v4/adapters/{adapter}": {
+      "get": {
+        "tags": [
+          "adapters"
+        ],
+        "summary": "Describe an adapter",
+        "description": "Replaces the former weights, metric-keys, inputs, dimensions, filters, traits, and spec endpoints with one document.",
+        "operationId": "get_adapter_v4",
+        "security": [
+          {
+            "StatLineApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "adapter",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Adapter"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdapterOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v4/adapters/sniff": {
+      "post": {
+        "tags": [
+          "adapters"
+        ],
+        "summary": "Match adapters from headers",
+        "operationId": "sniff_adapters_v4",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SniffIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SniffOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "StatLineApiKey": []
+          }
+        ]
+      }
+    },
+    "/v4/datasets": {
+      "get": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "List packaged datasets",
+        "description": "Lists CSV resources and the adapters that declare each dataset.",
+        "operationId": "list_datasets_v4",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatasetCatalog"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "StatLineApiKey": []
+          }
+        ]
+      }
+    },
+    "/v4/datasets/{dataset}": {
+      "get": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "Read a dataset as JSON",
+        "description": "Returns a safe, paginated JSON view of a packaged CSV. Use the returned rows as the `rows` value in POST /v4/score for the documented two-step flow.",
+        "operationId": "get_dataset_v4",
+        "security": [
+          {
+            "StatLineApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "dataset",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dataset"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50000,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "coerce_numbers",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": true,
+              "title": "Coerce Numbers"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatasetPage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v4/score": {
+      "post": {
+        "tags": [
+          "scoring"
+        ],
+        "summary": "Score a row, batch, or dataset",
+        "description": "The v4 scoring pipeline replaces /map, /calc/pri, /pri, /score/row, and /score/batch. Supply exactly one of `row`, `rows`, or `dataset`. Raw input is mapped internally; set `input_kind` to `mapped` only when sending adapter metrics. Set `response_format` to `compact` to hoist exactly equal diagnostic metadata into `shared`; merge shared then row fields to reconstruct legacy values. Every result includes its original `source_index`; `source_id` is the adapter identity field when present. `output.show_explanation` enables optional raw-sum attribution.",
+        "operationId": "score_v4",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScoreIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScoreOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "StatLineApiKey": []
+          }
+        ]
+      }
+    },
+    "/v4/auth/enroll": {
+      "post": {
+        "tags": [
+          "authentication"
+        ],
+        "summary": "Request device enrollment",
+        "operationId": "enroll_v4_auth_enroll_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnrollIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Enroll V4 Auth Enroll Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v4/auth/device": {
+      "get": {
+        "tags": [
+          "authentication"
+        ],
+        "summary": "Inspect verified device",
+        "operationId": "device_info_v4_auth_device_get",
+        "parameters": [
+          {
+            "name": "X-SL-Device",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Sl-Device"
+            }
+          },
+          {
+            "name": "X-SL-Timestamp",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Sl-Timestamp"
+            }
+          },
+          {
+            "name": "X-SL-Nonce",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Sl-Nonce"
+            }
+          },
+          {
+            "name": "X-SL-Signature",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Sl-Signature"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Device Info V4 Auth Device Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v4/auth/api-key-requests": {
+      "post": {
+        "tags": [
+          "authentication"
+        ],
+        "summary": "Request an API key",
+        "operationId": "api_key_request_v4_auth_api_key_requests_post",
+        "parameters": [
+          {
+            "name": "X-SL-Device",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Sl-Device"
+            }
+          },
+          {
+            "name": "X-SL-Timestamp",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Sl-Timestamp"
+            }
+          },
+          {
+            "name": "X-SL-Nonce",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Sl-Nonce"
+            }
+          },
+          {
+            "name": "X-SL-Signature",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Sl-Signature"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiKeyRequestIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Api Key Request V4 Auth Api Key Requests Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "authentication"
+        ],
+        "summary": "List this device's API-key requests",
+        "operationId": "api_key_requests_v4_auth_api_key_requests_get",
+        "parameters": [
+          {
+            "name": "X-SL-Device",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Sl-Device"
+            }
+          },
+          {
+            "name": "X-SL-Timestamp",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Sl-Timestamp"
+            }
+          },
+          {
+            "name": "X-SL-Nonce",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Sl-Nonce"
+            }
+          },
+          {
+            "name": "X-SL-Signature",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Sl-Signature"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Api Key Requests V4 Auth Api Key Requests Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v4/auth/api-key-requests/{request_id}/claim": {
+      "post": {
+        "tags": [
+          "authentication"
+        ],
+        "summary": "Claim an approved API key",
+        "operationId": "api_key_claim_v4_auth_api_key_requests__request_id__claim_post",
+        "parameters": [
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Request Id"
+            }
+          },
+          {
+            "name": "X-SL-Device",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Sl-Device"
+            }
+          },
+          {
+            "name": "X-SL-Timestamp",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Sl-Timestamp"
+            }
+          },
+          {
+            "name": "X-SL-Nonce",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Sl-Nonce"
+            }
+          },
+          {
+            "name": "X-SL-Signature",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Sl-Signature"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Api Key Claim V4 Auth Api Key Requests  Request Id  Claim Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v4/auth/api-keys": {
+      "get": {
+        "tags": [
+          "authentication"
+        ],
+        "summary": "List this device's API keys",
+        "operationId": "api_keys_v4_auth_api_keys_get",
+        "parameters": [
+          {
+            "name": "X-SL-Device",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Sl-Device"
+            }
+          },
+          {
+            "name": "X-SL-Timestamp",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Sl-Timestamp"
+            }
+          },
+          {
+            "name": "X-SL-Nonce",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Sl-Nonce"
+            }
+          },
+          {
+            "name": "X-SL-Signature",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Sl-Signature"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Api Keys V4 Auth Api Keys Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v4/auth/api-keys/{prefix}": {
+      "delete": {
+        "tags": [
+          "authentication"
+        ],
+        "summary": "Revoke one of this device's API keys",
+        "operationId": "api_key_revoke_v4_auth_api_keys__prefix__delete",
+        "parameters": [
+          {
+            "name": "prefix",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Prefix"
+            }
+          },
+          {
+            "name": "X-SL-Device",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Sl-Device"
+            }
+          },
+          {
+            "name": "X-SL-Timestamp",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Sl-Timestamp"
+            }
+          },
+          {
+            "name": "X-SL-Nonce",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Sl-Nonce"
+            }
+          },
+          {
+            "name": "X-SL-Signature",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Sl-Signature"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "boolean"
+                  },
+                  "title": "Response Api Key Revoke V4 Auth Api Keys  Prefix  Delete"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v4/auth/whoami": {
+      "get": {
+        "tags": [
+          "authentication"
+        ],
+        "summary": "Inspect the authenticated principal",
+        "operationId": "whoami_v4_auth_whoami_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Whoami V4 Auth Whoami Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "StatLineApiKey": []
+          }
+        ]
+      }
+    },
+    "/v4/moderation/devices/{device_id}/revoke": {
+      "post": {
+        "tags": [
+          "moderation"
+        ],
+        "summary": "Revoke a device",
+        "operationId": "revoke_device_v4_moderation_devices__device_id__revoke_post",
+        "security": [
+          {
+            "StatLineApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "device_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Device Id"
+            }
+          },
+          {
+            "name": "note",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Note"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "boolean"
+                  },
+                  "title": "Response Revoke Device V4 Moderation Devices  Device Id  Revoke Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v4/moderation/api-keys": {
+      "get": {
+        "tags": [
+          "moderation"
+        ],
+        "summary": "List API keys",
+        "operationId": "list_api_keys_v4_moderation_api_keys_get",
+        "security": [
+          {
+            "StatLineApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "org",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Org"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response List Api Keys V4 Moderation Api Keys Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v4/moderation/api-keys/{prefix}/access": {
+      "patch": {
+        "tags": [
+          "moderation"
+        ],
+        "summary": "Enable or disable API-key access",
+        "operationId": "set_api_key_access_v4_moderation_api_keys__prefix__access_patch",
+        "security": [
+          {
+            "StatLineApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "prefix",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Prefix"
+            }
+          },
+          {
+            "name": "value",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "boolean",
+              "title": "Value"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "boolean"
+                  },
+                  "title": "Response Set Api Key Access V4 Moderation Api Keys  Prefix  Access Patch"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v4/moderation/api-keys/{prefix}": {
+      "delete": {
+        "tags": [
+          "moderation"
+        ],
+        "summary": "Revoke an API key",
+        "operationId": "revoke_api_key_v4_moderation_api_keys__prefix__delete",
+        "security": [
+          {
+            "StatLineApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "prefix",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Prefix"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "boolean"
+                  },
+                  "title": "Response Revoke Api Key V4 Moderation Api Keys  Prefix  Delete"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v4/moderation/audit": {
+      "get": {
+        "tags": [
+          "moderation"
+        ],
+        "summary": "Read authentication audit events",
+        "operationId": "audit_v4_moderation_audit_get",
+        "security": [
+          {
+            "StatLineApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 200,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "event",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Event"
+            }
+          },
+          {
+            "name": "org",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Org"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Audit V4 Moderation Audit Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v4/admin/developer-key": {
+      "post": {
+        "tags": [
+          "administration"
+        ],
+        "summary": "Initialize the developer signing key",
+        "operationId": "initialize_developer_key_v4_admin_developer_key_post",
+        "security": [
+          {
+            "StatLineApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "overwrite",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Overwrite"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Initialize Developer Key V4 Admin Developer Key Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "administration"
+        ],
+        "summary": "Inspect the developer signing key",
+        "operationId": "developer_key_v4_admin_developer_key_get",
+        "security": [
+          {
+            "StatLineApiKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Developer Key V4 Admin Developer Key Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v4/admin/registration-tokens": {
+      "post": {
+        "tags": [
+          "administration"
+        ],
+        "summary": "Mint a registration token",
+        "operationId": "mint_registration_token_v4_admin_registration_tokens_post",
+        "security": [
+          {
+            "StatLineApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "org",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Org"
+            }
+          },
+          {
+            "name": "ttl_days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": 14,
+              "title": "Ttl Days"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Scopes"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Mint Registration Token V4 Admin Registration Tokens Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v4/admin/registration-tokens/inspect": {
+      "post": {
+        "tags": [
+          "administration"
+        ],
+        "summary": "Inspect a registration token",
+        "operationId": "inspect_registration_token_v4_admin_registration_tokens_inspect_post",
+        "security": [
+          {
+            "StatLineApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "token",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Inspect Registration Token V4 Admin Registration Tokens Inspect Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v4/admin/enrollments": {
+      "get": {
+        "tags": [
+          "administration"
+        ],
+        "summary": "List enrollment requests",
+        "operationId": "enrollments_v4_admin_enrollments_get",
+        "security": [
+          {
+            "StatLineApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "PENDING",
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Enrollments V4 Admin Enrollments Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v4/admin/enrollments/{request_id}": {
+      "get": {
+        "tags": [
+          "administration"
+        ],
+        "summary": "Read an enrollment request",
+        "operationId": "enrollment_v4_admin_enrollments__request_id__get",
+        "security": [
+          {
+            "StatLineApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Request Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Enrollment V4 Admin Enrollments  Request Id  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v4/admin/enrollments/{request_id}/approve": {
+      "post": {
+        "tags": [
+          "administration"
+        ],
+        "summary": "Approve enrollment",
+        "operationId": "approve_enrollment_v4_admin_enrollments__request_id__approve_post",
+        "security": [
+          {
+            "StatLineApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Request Id"
+            }
+          },
+          {
+            "name": "decided_by",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "dev",
+              "title": "Decided By"
+            }
+          },
+          {
+            "name": "note",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Note"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "boolean"
+                  },
+                  "title": "Response Approve Enrollment V4 Admin Enrollments  Request Id  Approve Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v4/admin/enrollments/{request_id}/deny": {
+      "post": {
+        "tags": [
+          "administration"
+        ],
+        "summary": "Deny enrollment",
+        "operationId": "deny_enrollment_v4_admin_enrollments__request_id__deny_post",
+        "security": [
+          {
+            "StatLineApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Request Id"
+            }
+          },
+          {
+            "name": "decided_by",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "dev",
+              "title": "Decided By"
+            }
+          },
+          {
+            "name": "note",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Note"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "boolean"
+                  },
+                  "title": "Response Deny Enrollment V4 Admin Enrollments  Request Id  Deny Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v4/admin/api-key-requests": {
+      "get": {
+        "tags": [
+          "administration"
+        ],
+        "summary": "List API-key requests",
+        "operationId": "admin_api_key_requests_v4_admin_api_key_requests_get",
+        "security": [
+          {
+            "StatLineApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "PENDING",
+              "title": "Status"
+            }
+          },
+          {
+            "name": "org",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Org"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Admin Api Key Requests V4 Admin Api Key Requests Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v4/admin/api-key-requests/{request_id}/approve": {
+      "post": {
+        "tags": [
+          "administration"
+        ],
+        "summary": "Approve an API-key request",
+        "operationId": "approve_api_key_request_v4_admin_api_key_requests__request_id__approve_post",
+        "security": [
+          {
+            "StatLineApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Request Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiKeyRequestDecisionIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "boolean"
+                  },
+                  "title": "Response Approve Api Key Request V4 Admin Api Key Requests  Request Id  Approve Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v4/admin/api-key-requests/{request_id}/deny": {
+      "post": {
+        "tags": [
+          "administration"
+        ],
+        "summary": "Deny an API-key request",
+        "operationId": "deny_api_key_request_v4_admin_api_key_requests__request_id__deny_post",
+        "security": [
+          {
+            "StatLineApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Request Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiKeyRequestDecisionIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "boolean"
+                  },
+                  "title": "Response Deny Api Key Request V4 Admin Api Key Requests  Request Id  Deny Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v4/admin/adapters/refresh": {
+      "post": {
+        "tags": [
+          "administration"
+        ],
+        "summary": "Reload the adapter registry",
+        "operationId": "reload_adapters_v4_admin_adapters_refresh_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Reload Adapters V4 Admin Adapters Refresh Post"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "StatLineApiKey": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AdapterCatalog": {
+        "properties": {
+          "adapters": {
+            "items": {
+              "$ref": "#/components/schemas/AdapterSummary"
+            },
+            "type": "array",
+            "title": "Adapters"
+          },
+          "cache": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Cache"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "adapters",
+          "cache"
+        ],
+        "title": "AdapterCatalog"
+      },
+      "AdapterOut": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "author": {
+            "type": "string",
+            "title": "Author"
+          },
+          "aliases": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Aliases"
+          },
+          "dataset": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dataset"
+          },
+          "source_id_field": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Id Field"
+          },
+          "inputs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Inputs"
+          },
+          "metrics": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Metrics"
+          },
+          "buckets": {
+            "additionalProperties": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "object",
+            "title": "Buckets"
+          },
+          "filters": {
+            "additionalProperties": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "object",
+            "title": "Filters"
+          },
+          "dimensions": {
+            "additionalProperties": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "object",
+            "title": "Dimensions"
+          },
+          "weights": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "type": "number"
+              },
+              "type": "object"
+            },
+            "type": "object",
+            "title": "Weights"
+          },
+          "penalties": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "type": "number"
+              },
+              "type": "object"
+            },
+            "type": "object",
+            "title": "Penalties"
+          },
+          "score_profiles": {
+            "additionalProperties": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "object",
+            "title": "Score Profiles"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "key",
+          "title",
+          "version",
+          "author",
+          "aliases",
+          "inputs",
+          "metrics",
+          "buckets",
+          "filters",
+          "dimensions",
+          "weights",
+          "penalties",
+          "score_profiles"
+        ],
+        "title": "AdapterOut"
+      },
+      "AdapterSummary": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "aliases": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Aliases"
+          },
+          "dataset": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dataset"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "key",
+          "title",
+          "version",
+          "aliases"
+        ],
+        "title": "AdapterSummary"
+      },
+      "ApiIndexOut": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "docs": {
+            "type": "string",
+            "title": "Docs"
+          },
+          "openapi": {
+            "type": "string",
+            "title": "Openapi"
+          },
+          "health": {
+            "type": "string",
+            "title": "Health"
+          },
+          "resources": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Resources"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "version",
+          "docs",
+          "openapi",
+          "health",
+          "resources"
+        ],
+        "title": "ApiIndexOut"
+      },
+      "ApiKeyRequestDecisionIn": {
+        "properties": {
+          "decided_by": {
+            "type": "string",
+            "title": "Decided By",
+            "default": "dev"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "scopes": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scopes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ApiKeyRequestDecisionIn"
+      },
+      "ApiKeyRequestIn": {
+        "properties": {
+          "owner": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner"
+          },
+          "scopes": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scopes"
+          },
+          "ttl_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ttl Days",
+            "default": 30
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ApiKeyRequestIn"
+      },
+      "DatasetCatalog": {
+        "properties": {
+          "datasets": {
+            "items": {
+              "$ref": "#/components/schemas/DatasetSummary"
+            },
+            "type": "array",
+            "title": "Datasets"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "datasets"
+        ],
+        "title": "DatasetCatalog"
+      },
+      "DatasetPage": {
+        "properties": {
+          "dataset": {
+            "type": "string",
+            "title": "Dataset"
+          },
+          "columns": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Columns"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "has_more": {
+            "type": "boolean",
+            "title": "Has More"
+          },
+          "rows": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Rows"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "dataset",
+          "columns",
+          "offset",
+          "limit",
+          "count",
+          "has_more",
+          "rows"
+        ],
+        "title": "DatasetPage"
+      },
+      "DatasetSummary": {
+        "properties": {
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "adapters": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Adapters"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "path",
+          "adapters"
+        ],
+        "title": "DatasetSummary"
+      },
+      "EnrollIn": {
+        "properties": {
+          "reg_token": {
+            "type": "string",
+            "title": "Reg Token"
+          },
+          "user": {
+            "type": "string",
+            "title": "User"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "device_pub_b64": {
+            "type": "string",
+            "title": "Device Pub B64"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meta"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "reg_token",
+          "user",
+          "device_pub_b64"
+        ],
+        "title": "EnrollIn"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HealthOut": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "adapters": {
+            "type": "integer",
+            "title": "Adapters"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "ok",
+          "version",
+          "adapters"
+        ],
+        "title": "HealthOut"
+      },
+      "ScoreIn": {
+        "properties": {
+          "adapter": {
+            "type": "string",
+            "title": "Adapter",
+            "description": "Adapter ID, file stem, or declared alias."
+          },
+          "row": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Row",
+            "description": "One input object."
+          },
+          "rows": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rows",
+            "description": "A batch of input objects."
+          },
+          "dataset": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dataset",
+            "description": "Packaged CSV path from GET /v4/datasets."
+          },
+          "input_kind": {
+            "type": "string",
+            "enum": [
+              "raw",
+              "mapped"
+            ],
+            "title": "Input Kind",
+            "description": "Raw rows are mapped before scoring; mapped rows skip adapter mapping.",
+            "default": "raw"
+          },
+          "weights": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weights",
+            "description": "Weight profile name or bucket-to-weight override."
+          },
+          "penalties_override": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Penalties Override"
+          },
+          "output": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output"
+          },
+          "profiles": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Profiles",
+            "description": "Score profiles to calculate. Omit or use 'all' for every profile."
+          },
+          "filters": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filters"
+          },
+          "context": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": {
+                    "type": "number"
+                  },
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Context"
+          },
+          "caps_override": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Caps Override"
+          },
+          "caps_mode": {
+            "type": "string",
+            "enum": [
+              "batch",
+              "row"
+            ],
+            "title": "Caps Mode",
+            "description": "Use shared batch context or score each row independently.",
+            "default": "batch"
+          },
+          "response_format": {
+            "type": "string",
+            "enum": [
+              "legacy",
+              "compact"
+            ],
+            "title": "Response Format",
+            "description": "Opt in to compact shared metadata. Legacy keeps row-level diagnostics; scored values are identical.",
+            "default": "legacy"
+          },
+          "include_mapped": {
+            "type": "boolean",
+            "title": "Include Mapped",
+            "description": "Include the mapped rows used by the scorer in the response.",
+            "default": false
+          },
+          "dataset_limit": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 50000.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dataset Limit",
+            "description": "Optional safety limit when scoring a packaged dataset."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "adapter"
+        ],
+        "title": "ScoreIn",
+        "description": "One v4 request shape for a row, a batch, or a packaged dataset.",
+        "examples": [
+          {
+            "adapter": "eba.players",
+            "rows": [
+              {
+                "APG": 7.8,
+                "GP": 16,
+                "PLAYER": "Example Player",
+                "PPG": 22.5,
+                "RPG": 5.2,
+                "TEAM": "Example Team"
+              }
+            ],
+            "weights": "pri"
+          },
+          {
+            "adapter": "eba.players",
+            "dataset": "EBA_Elevate302/eba_hybrid_s1_players.csv",
+            "dataset_limit": 100
+          }
+        ]
+      },
+      "ScoreOut": {
+        "properties": {
+          "adapter": {
+            "type": "string",
+            "title": "Adapter"
+          },
+          "adapter_version": {
+            "type": "string",
+            "title": "Adapter Version"
+          },
+          "source": {
+            "$ref": "#/components/schemas/ScoreSource"
+          },
+          "input_count": {
+            "type": "integer",
+            "title": "Input Count"
+          },
+          "mapped_count": {
+            "type": "integer",
+            "title": "Mapped Count"
+          },
+          "scored_count": {
+            "type": "integer",
+            "title": "Scored Count"
+          },
+          "response_format": {
+            "type": "string",
+            "enum": [
+              "legacy",
+              "compact"
+            ],
+            "title": "Response Format",
+            "default": "legacy"
+          },
+          "shared": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shared",
+            "description": "Exactly equal context_used, weights and explanation_context, only in compact mode. Row values override shared fields."
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/ScoredResult"
+            },
+            "type": "array",
+            "title": "Results",
+            "description": "One row per surviving input, with original source_index and source_id when available."
+          },
+          "mapped": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mapped"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "adapter",
+          "adapter_version",
+          "source",
+          "input_count",
+          "mapped_count",
+          "scored_count",
+          "results"
+        ],
+        "title": "ScoreOut"
+      },
+      "ScoreSource": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "row",
+              "rows",
+              "dataset"
+            ],
+            "title": "Kind"
+          },
+          "dataset": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dataset"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind"
+        ],
+        "title": "ScoreSource"
+      },
+      "ScoredResult": {
+        "properties": {
+          "source_index": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Source Index",
+            "description": "Original input position before filtering; stable when clients sort results."
+          },
+          "source_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Id",
+            "description": "Adapter identity value when present. Duplicate names are allowed; use source_index for reconciliation."
+          },
+          "primary_profile": {
+            "type": "string",
+            "title": "Primary Profile"
+          },
+          "pri": {
+            "type": "integer",
+            "title": "Pri"
+          },
+          "scores": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Scores"
+          },
+          "components": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Components"
+          },
+          "buckets": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Buckets"
+          },
+          "weights": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weights"
+          },
+          "context_used": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": {
+                    "type": "number"
+                  },
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Context Used"
+          },
+          "explanation_context": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Explanation Context"
+          },
+          "explanation": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Explanation",
+            "description": "Opt-in raw metric attribution with per-profile aggregates and score transforms."
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "source_index",
+          "primary_profile",
+          "pri",
+          "scores"
+        ],
+        "title": "ScoredResult"
+      },
+      "SniffIn": {
+        "properties": {
+          "headers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Headers",
+            "description": "CSV or object field names used to identify compatible adapters."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "headers"
+        ],
+        "title": "SniffIn"
+      },
+      "SniffOut": {
+        "properties": {
+          "adapters": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Adapters"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "adapters"
+        ],
+        "title": "SniffOut"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "StatLineApiKey": {
+        "type": "http",
+        "description": "Portable `api_...` bearer credential.",
+        "scheme": "bearer"
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "service",
+      "description": "Public discovery and health endpoints."
+    },
+    {
+      "name": "adapters",
+      "description": "Cached adapter discovery and metadata."
+    },
+    {
+      "name": "datasets",
+      "description": "Packaged CSV datasets exposed as JSON."
+    },
+    {
+      "name": "scoring",
+      "description": "Unified raw or mapped scoring pipeline."
+    },
+    {
+      "name": "authentication",
+      "description": "Device enrollment and API-key ownership."
+    },
+    {
+      "name": "moderation",
+      "description": "Credential and device moderation."
+    },
+    {
+      "name": "administration",
+      "description": "Signing, approvals, and cache control."
+    }
+  ],
+  "x-statline-snapshot": {
+    "source_release": "4.0.0rc6",
+    "generated_at": "2026-10-12T17:06:43.312205+00:00",
+    "source_sha256": "455ca360d8220edc8151e64eed7b8cb4b1d1588b366ad4357b5f31ab6e2bcb50",
+    "response_format": "compact opt-in; legacy default"
+  }
+}

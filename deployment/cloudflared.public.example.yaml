@@ -1,0 +1,8 @@
+# Add your existing tunnel ID and credentials-file locally.
+# The hostname rules must precede the catch-all.
+ingress:
+  - hostname: statline.dev
+    service: http://127.0.0.1:3000
+  - hostname: api.statline.dev
+    service: http://127.0.0.1:8000
+  - service: http_status:404

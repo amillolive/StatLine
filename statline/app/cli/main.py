@@ -940,6 +940,9 @@ def _score_response_data(response: Any, *, one: bool, mapped: bool = False) -> A
         return {} if one else []
 
     values: list[Any] = raw_values
+    shared = typed_response.get("shared")
+    if not mapped and isinstance(shared, Mapping):
+        values = [{**shared, **value} if isinstance(value, Mapping) else value for value in values]
 
     if one:
         return values[0] if values else {}
@@ -2211,7 +2214,12 @@ def _root(
     global _slapi_url, _reachable, _online, _mode, _banner_shown
 
     mode_norm = (mode or "auto").strip().lower()
-    _mode = cast(Mode, mode_norm if mode_norm in ("auto", "local", "remote") else "auto")  # pyright: ignore[reportUnnecessaryCast]
+    if mode_norm == "local":
+        _mode = "local"
+    elif mode_norm == "remote":
+        _mode = "remote"
+    else:
+        _mode = "auto"
 
     _slapi_url = (url or DEFAULT_SLAPI_URL).rstrip("/")
 

@@ -1,0 +1,330 @@
+{
+  "engine_version": "4.0.0rc6",
+  "generated_at": "2026-10-12T17:06:43.312205+00:00",
+  "release_channels": {
+    "stable": {
+      "line": "v3",
+      "branch": "main",
+      "href": "https://github.com/amillolive/StatLine/tree/main"
+    },
+    "preview": {
+      "version": "4.0.0rc6",
+      "branch": "next",
+      "href": "https://github.com/amillolive/StatLine/tree/next"
+    }
+  },
+  "requires_python": ">=3.10,<3.15",
+  "source_sha256": "455ca360d8220edc8151e64eed7b8cb4b1d1588b366ad4357b5f31ab6e2bcb50",
+  "release_highlights": [
+    "The Gateway supports opt-in `response_format=\"compact\"`, moving equal context, weights and explanation configuration into `shared` without changing scored values. Legacy remains the default.",
+    "Results preserve original `source_index` and an adapter identity `source_id` (PLAYER or TEAM for EBA), including through raw and mapped filtering.",
+    "Optional `output.show_explanation` traces actual normalized metrics, effective profile weights, raw contributions, midpoint-relative influences, transforms, limits and rounding. The portal uses these engine-produced explanations.",
+    "Public pages use saved data until you choose an API check. Browser integration registration has been removed, and the API root provides helpful HTML for browser navigation while retaining JSON for machine clients.",
+    "Root `launch.ps1` / `launch.sh` start the API and built portal together, configure exact local CORS origins, and verify health, OpenAPI and authenticated-request preflights.",
+    "Release archives and distributions are scanned for private runtime artifacts; generated contracts include source fingerprints and generation timestamps.",
+    "Core, App, and Gateway are ordinary directories in the canonical StatLine monorepo; their standalone repositories are generated with `git subtree split` while preserving `statline.core`, `statline.app`, and `statline.gateway` import paths.",
+    "Core now has an enforced no-App/no-Gateway import boundary; the canonical extras are `app`, `gateway`, `all`, and `dev`, with App and Gateway independently installable above Core.",
+    "Root CLI help is organized around core workflows, service/access, administration, and one advanced `tools` namespace; rc3 command spellings remain hidden compatibility aliases.",
+    "Connectivity output now distinguishes **SLAPI unavailable** from **SLAPI reachable but unauthenticated**, and `serve` does not preflight/report unrelated client connectivity.",
+    "StatLine OS executes the canonical CLI command tree in-process, so command names/help/validation match the regular CLI and copied `statline ...` commands can be pasted directly.",
+    "The Windows installer builder now keeps Inno Setup candidates as an explicit array under PowerShell StrictMode, fixing the one-candidate `.Count` failure.",
+    "Compiled adapters now execute against a trusted numeric context, avoiding repeated numeric coercion in expression hot paths.",
+    "Dataset aggregate expressions declare their required operations at compile time, so batches only prepare the headers and aggregates an adapter actually uses.",
+    "Scoring can opt into selected profiles with `profiles=[...]`; existing callers still receive every adapter-defined profile by default.",
+    "Output-aware scoring skips disabled bucket, component, weight, and context payload construction instead of allocating data only to discard it later.",
+    "CLI score output uses the lean scoring path when `--details` is not requested while preserving the existing displayed/exported fields.",
+    "`statline os` now mirrors the canonical CLI command tree in-process, accepts pasted `statline ...` commands directly, and keeps persistent OS session state.",
+    "SLAPI scoring is kept off the async event loop and the server runner can use multiple worker processes through `SLAPI_WORKERS`.",
+    "Deprecated adapter schemas are no longer discoverable through CLI/API lists or sniffing; an explicit local YAML path is required to use one."
+  ],
+  "openapi_version": "3.1.0",
+  "operation_count": 33,
+  "schema_count": 19,
+  "paths": {
+    "api_index": "/",
+    "health_v4": "/v4/health",
+    "list_adapters_v4": "/v4/adapters",
+    "get_adapter_v4": "/v4/adapters/{adapter}",
+    "sniff_adapters_v4": "/v4/adapters/sniff",
+    "list_datasets_v4": "/v4/datasets",
+    "get_dataset_v4": "/v4/datasets/{dataset}",
+    "score_v4": "/v4/score",
+    "enroll_v4_auth_enroll_post": "/v4/auth/enroll",
+    "device_info_v4_auth_device_get": "/v4/auth/device",
+    "api_key_request_v4_auth_api_key_requests_post": "/v4/auth/api-key-requests",
+    "api_key_requests_v4_auth_api_key_requests_get": "/v4/auth/api-key-requests",
+    "api_key_claim_v4_auth_api_key_requests__request_id__claim_post": "/v4/auth/api-key-requests/{request_id}/claim",
+    "api_keys_v4_auth_api_keys_get": "/v4/auth/api-keys",
+    "api_key_revoke_v4_auth_api_keys__prefix__delete": "/v4/auth/api-keys/{prefix}",
+    "whoami_v4_auth_whoami_get": "/v4/auth/whoami",
+    "revoke_device_v4_moderation_devices__device_id__revoke_post": "/v4/moderation/devices/{device_id}/revoke",
+    "list_api_keys_v4_moderation_api_keys_get": "/v4/moderation/api-keys",
+    "set_api_key_access_v4_moderation_api_keys__prefix__access_patch": "/v4/moderation/api-keys/{prefix}/access",
+    "revoke_api_key_v4_moderation_api_keys__prefix__delete": "/v4/moderation/api-keys/{prefix}",
+    "audit_v4_moderation_audit_get": "/v4/moderation/audit",
+    "initialize_developer_key_v4_admin_developer_key_post": "/v4/admin/developer-key",
+    "developer_key_v4_admin_developer_key_get": "/v4/admin/developer-key",
+    "mint_registration_token_v4_admin_registration_tokens_post": "/v4/admin/registration-tokens",
+    "inspect_registration_token_v4_admin_registration_tokens_inspect_post": "/v4/admin/registration-tokens/inspect",
+    "enrollments_v4_admin_enrollments_get": "/v4/admin/enrollments",
+    "enrollment_v4_admin_enrollments__request_id__get": "/v4/admin/enrollments/{request_id}",
+    "approve_enrollment_v4_admin_enrollments__request_id__approve_post": "/v4/admin/enrollments/{request_id}/approve",
+    "deny_enrollment_v4_admin_enrollments__request_id__deny_post": "/v4/admin/enrollments/{request_id}/deny",
+    "admin_api_key_requests_v4_admin_api_key_requests_get": "/v4/admin/api-key-requests",
+    "approve_api_key_request_v4_admin_api_key_requests__request_id__approve_post": "/v4/admin/api-key-requests/{request_id}/approve",
+    "deny_api_key_request_v4_admin_api_key_requests__request_id__deny_post": "/v4/admin/api-key-requests/{request_id}/deny",
+    "reload_adapters_v4_admin_adapters_refresh_post": "/v4/admin/adapters/refresh"
+  },
+  "adapter_catalog": {
+    "adapters": [
+      {
+        "key": "e302.players",
+        "title": "EBA/Elevate302 Players",
+        "version": "4.0.0",
+        "aliases": [
+          "e302"
+        ],
+        "dataset": "EBA_Elevate302/eba_hybrid_s1_players.csv"
+      },
+      {
+        "key": "eba.players",
+        "title": "EBA/Elevate302 Players",
+        "version": "4.0.0",
+        "aliases": [
+          "eba_player",
+          "eba",
+          "ebap",
+          "eba_p"
+        ],
+        "dataset": "EBA_Elevate302/eba_hybrid_s1_players.csv"
+      },
+      {
+        "key": "eba.teams",
+        "title": "EBA Teams (GP + form weighted)",
+        "version": "4.0.0",
+        "aliases": [
+          "eba_power",
+          "eba_t",
+          "ebat",
+          "eba_team"
+        ],
+        "dataset": null
+      },
+      {
+        "key": "urrl.players",
+        "title": "United Rogue Rocket League - Players",
+        "version": "1.0.0",
+        "aliases": [
+          "urrlp"
+        ],
+        "dataset": "URRL/S20/RB/FINAL.csv"
+      }
+    ],
+    "cache": {
+      "generation": 1,
+      "adapters": 4,
+      "names": 14,
+      "specs": 4,
+      "compiled": 4
+    }
+  },
+  "dataset_catalog": {
+    "datasets": [
+      {
+        "path": "DBA/dba_s0.csv",
+        "adapters": []
+      },
+      {
+        "path": "DEMO/demo.csv",
+        "adapters": []
+      },
+      {
+        "path": "EBA_Elevate302/e302.s1.players.csv",
+        "adapters": []
+      },
+      {
+        "path": "EBA_Elevate302/eba_hybrid_s1_players.csv",
+        "adapters": [
+          "e302.players",
+          "eba.players"
+        ]
+      },
+      {
+        "path": "EBA_Elevate302/eba_hybrid_s1_teams.csv",
+        "adapters": []
+      },
+      {
+        "path": "EBA_Elevate302/eba_players_gp3_plus.csv",
+        "adapters": []
+      },
+      {
+        "path": "EBA_Elevate302/eba_s1_players.csv",
+        "adapters": []
+      },
+      {
+        "path": "EBA_Elevate302/eba_s1_teams.csv",
+        "adapters": []
+      },
+      {
+        "path": "EBA_Elevate302/statline-players(1).csv",
+        "adapters": []
+      },
+      {
+        "path": "URRL/S20/RB/FINAL.csv",
+        "adapters": [
+          "urrl.players"
+        ]
+      }
+    ]
+  },
+  "public_sdk": [
+    {
+      "name": "list_adapters",
+      "signature": "() -> 'list[str]'",
+      "description": "Return available adapter keys."
+    },
+    {
+      "name": "list_datasets",
+      "signature": "(*, root: 'PathLike | None' = None) -> 'list[str]'",
+      "description": ""
+    },
+    {
+      "name": "load_adapter",
+      "signature": "(name: 'str') -> 'CompiledAdapter'",
+      "description": "Load a compiled adapter by key or alias."
+    },
+    {
+      "name": "load_dataset",
+      "signature": "(name: 'PathLike', *, root: 'PathLike | None' = None, offset: 'int' = 0, limit: 'int | None' = None, coerce_numbers: 'bool' = True, strip_cells: 'bool' = True, allow_external: 'bool' = True) -> 'Rows'",
+      "description": ""
+    },
+    {
+      "name": "map_batch",
+      "signature": "(adapter: 'AdapterLike', rows: 'Iterable[Mapping[str, Any]]') -> 'Rows'",
+      "description": "Map many raw rows into adapter canonical metrics."
+    },
+    {
+      "name": "map_row",
+      "signature": "(adapter: 'AdapterLike', row: 'Mapping[str, Any]') -> 'Row'",
+      "description": "Map one raw row into adapter canonical metrics."
+    },
+    {
+      "name": "score",
+      "signature": "(adapter: 'AdapterLike', data: 'Mapping[str, Any] | Iterable[Mapping[str, Any]]', *, mode: 'str' = 'auto', weights: 'WeightsArg' = None, weights_override: 'dict[str, float] | None' = None, penalties_override: 'dict[str, float] | None' = None, output: 'OutputArg' = None, profiles: 'Sequence[str] | None' = None, filters: 'dict[str, Any] | None' = None, context: 'dict[str, dict[str, float]] | None' = None, caps_override: 'dict[str, float] | None' = None) -> 'Row | Rows'",
+      "description": "Score raw StatLine data using a compact SDK-style API.\n\nExamples:\n    adapter = load_adapter(\"eba_players\")\n    data = load_dataset(\"EBA_Elevate302/eba_s1_players\")\n    results = score(adapter, data, mode=\"batch\")\n\n    one = score(\"demo\", {\"ppg\": 20, \"apg\": 6}, mode=\"row\")\n\n``mode=\"auto\"`` treats mappings as a single row and all other iterables as a\nbatch. Use ``mode=\"row\"`` or ``mode=\"batch\"`` when calling from application\ncode where predictable return types matter."
+    },
+    {
+      "name": "score_batch",
+      "signature": "(adapter: 'AdapterLike', rows: 'Iterable[Mapping[str, Any]]', *, weights: 'WeightsArg' = None, weights_override: 'dict[str, float] | None' = None, penalties_override: 'dict[str, float] | None' = None, output: 'OutputArg' = None, profiles: 'Sequence[str] | None' = None, filters: 'dict[str, Any] | None' = None, context: 'dict[str, dict[str, float]] | None' = None, caps_override: 'dict[str, float] | None' = None) -> 'Rows'",
+      "description": "Score many raw rows with an adapter."
+    },
+    {
+      "name": "score_row",
+      "signature": "(adapter: 'AdapterLike', row: 'Mapping[str, Any]', *, weights: 'WeightsArg' = None, weights_override: 'dict[str, float] | None' = None, penalties_override: 'dict[str, float] | None' = None, output: 'OutputArg' = None, profiles: 'Sequence[str] | None' = None, filters: 'dict[str, Any] | None' = None, context: 'dict[str, dict[str, float]] | None' = None, caps_override: 'dict[str, float] | None' = None) -> 'Row'",
+      "description": "Score one raw row with an adapter."
+    }
+  ],
+  "statpack_sdk": [
+    {
+      "name": "dump_yaml",
+      "signature": "(data: 'Mapping[str, Any]') -> 'str'",
+      "description": ""
+    },
+    {
+      "name": "execute_statpack",
+      "signature": "(pack: 'str | Path', arguments: 'Sequence[str]' = (), *, inherit_secrets: 'bool' = False) -> 'int'",
+      "description": "Extract a trusted StatPack and execute its root runner.py in a subprocess."
+    },
+    {
+      "name": "inspect_statpack",
+      "signature": "(pack: 'str | Path') -> 'dict[str, Any]'",
+      "description": "Return package metadata and contents without executing runner.py."
+    },
+    {
+      "name": "load_statpack_tree",
+      "signature": "(root: 'Path') -> 'dict[str, Any]'",
+      "description": ""
+    },
+    {
+      "name": "manifest_statpack",
+      "signature": "(source: 'str | Path', output: 'str | Path | None' = None, *, overwrite: 'bool' = False) -> 'Path'",
+      "description": "Manifest a directory or adapter YAML into a .statpack package."
+    },
+    {
+      "name": "manifest_yaml_statpack",
+      "signature": "(adapter_yaml: 'str | Path', output: 'str | Path | None' = None, *, overwrite: 'bool' = False) -> 'Path'",
+      "description": "Split one adapter YAML into a portable StatPack."
+    },
+    {
+      "name": "pack_statpack",
+      "signature": "(source_directory: 'str | Path', output: 'str | Path | None' = None, *, overwrite: 'bool' = False) -> 'Path'",
+      "description": "Package an unpacked StatPack source directory."
+    },
+    {
+      "name": "render_statpack",
+      "signature": "(pack: 'str | Path', output: 'str | Path | None' = None, *, overwrite: 'bool' = False) -> 'Path'",
+      "description": "Render a StatPack into one validated runtime adapter YAML."
+    },
+    {
+      "name": "unpack_statpack",
+      "signature": "(pack: 'str | Path', output_directory: 'str | Path | None' = None, *, overwrite: 'bool' = False) -> 'Path'",
+      "description": "Safely extract a StatPack for editing."
+    },
+    {
+      "name": "write_statpack_report",
+      "signature": "(pack: 'str | Path', output: 'str | Path') -> 'Path'",
+      "description": "Write inspection metadata as JSON for tooling."
+    }
+  ],
+  "statpack_sections": [
+    "dimensions",
+    "sniff",
+    "filters",
+    "buckets",
+    "metrics",
+    "efficiency",
+    "weights",
+    "penalties",
+    "score_profiles"
+  ],
+  "statpack_runner": "from pathlib import Path\n\nfrom statline.sdk import run_statpack\n\nraise SystemExit(run_statpack(Path(__file__).resolve().parent))\n",
+  "python_example": "from statline import load_dataset, score\n\nrows = load_dataset('EBA_Elevate302/eba_players_gp3_plus.csv')\nresults = score('eba.players', rows, mode='batch', weights='pri')\n\nranked = sorted(zip(rows, results),\n    key=lambda pair: (-pair[1]['pri'], -pair[1]['pri_raw']))\nfor row, result in ranked[:3]:\n    print(row['PLAYER'], result['pri'])",
+  "http_example": "curl \"$STATLINE_API_URL/v4/score\" \\\n  -H \"Authorization: Bearer $STATLINE_API_KEY\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\n  \"adapter\": \"eba.players\",\n  \"dataset\": \"EBA_Elevate302/eba_players_gp3_plus.csv\",\n  \"weights\": \"pri\",\n  \"input_kind\": \"raw\",\n  \"caps_mode\": \"batch\",\n  \"include_mapped\": true,\n  \"response_format\": \"compact\",\n  \"output\": {\n    \"show_weights\": true,\n    \"hide_pri_raw\": false,\n    \"show_components\": true,\n    \"show_buckets\": true,\n    \"show_context_used\": true,\n    \"show_explanation\": true\n  }\n}'",
+  "documentation": {
+    "openapi": "/openapi.json",
+    "swagger": "/docs",
+    "redoc": "/redoc"
+  },
+  "scoring_output_fields": [
+    "PRI",
+    "PRI-ALT",
+    "PRI-W",
+    "PRI-W-ALT"
+  ],
+  "optional_dependencies": [
+    "all",
+    "app",
+    "dev",
+    "gateway"
+  ],
+  "project_urls": {
+    "Homepage": "https://statline.dev",
+    "Repository": "https://github.com/amillolive/StatLine/tree/next",
+    "Issues": "https://github.com/amillolive/StatLine/issues",
+    "Legal": "https://github.com/amillolive/StatLine/tree/main/legal"
+  },
+  "source_documents": [
+    {
+      "path": "README.md",
+      "sha256": "c473795c0ac2cbd4abb41cf0b818fddddaeddf07dd16208ef82613af48ebdb3a"
+    },
+    {
+      "path": "statline/gateway/V4_API.md",
+      "sha256": "0adb6c73b183ce49a6aa10aedb750fbf7af19da7267b219c2cf56c45fd9d30b5"
+    },
+    {
+      "path": "ARCHITECTURE.md",
+      "sha256": "966df0b94bf575905647a5ee96f6b9cdb36153affeae40fc89cb63b8d37e21e1"
+    }
+  ]
+}

@@ -11,12 +11,11 @@ from typing import (
     overload,
 )
 
-# Reuse the adapter compiler’s safe numeric semantics
-from statline.core.adapters.compile import (
-    _finite as _finite_num,  # pyright: ignore[reportPrivateUsage]
-)
+# Reuse the exact legacy numeric semantics without depending on re-exports.
+from statline.core.formula._legacy import _finite as _finite_num
 from statline.core.types.adapters import FilterSpec, ScoreProfileSpec  # typed schema
 
+from .explain import explain_row, explanation_context
 from .normalize import clamp01
 from .weights import normalize_weights
 
@@ -768,6 +767,7 @@ def _calculate_pri_batch_mapped(
     T = _timing
     legacy_output = output is None
     output_cfg = output or {}
+    show_explanation = bool(output_cfg.get("show_explanation", False))
     show_weights = legacy_output or bool(output_cfg.get("show_weights", False))
     hide_pri_raw = False if legacy_output else bool(output_cfg.get("hide_pri_raw", True))
     show_components = legacy_output or bool(output_cfg.get("show_components", True))
@@ -813,6 +813,15 @@ def _calculate_pri_batch_mapped(
         rows_used = mapped_rows
 
     with T.stage("caps") if T else nullcontext():
+        normalization_source = (
+            "caps_override"
+            if caps_override
+            else (
+                "explicit_context"
+                if context is not None
+                else ("adapter_clamps" if len(rows_used) == 1 else "batch_extrema")
+            )
+        )
         if caps_override:
             ctx: dict[str, dict[str, float]] = {}
             for k, cap in caps_override.items():
@@ -864,7 +873,7 @@ def _calculate_pri_batch_mapped(
     with T.stage("ctx_used") if T else nullcontext():
         context_used = (
             {k: {"leader": _ctx_get(ctx, k)[0], "floor": _ctx_get(ctx, k)[1]} for k in metric_keys}
-            if show_context_used
+            if show_context_used or show_explanation
             else {}
         )
 
@@ -883,9 +892,22 @@ def _calculate_pri_batch_mapped(
                     all_profiles[name] = prof
                     profile_order.append(name)
 
-        # Adapter-defined profiles ONLY
+        # Ordinary scoring deliberately never falls through to affine for pairwise.
+        # Pairwise profiles require old/new datasets and a separate batch evaluator.
+        pairwise_names = {name for name, prof in all_profiles.items() if prof.kind == "pairwise"}
+        explicitly_requested = (
+            [str(n) for n in requested_profiles] if requested_profiles is not None else []
+        )
+        if any(
+            n.casefold() not in ("all",) and n.casefold() in {p.casefold() for p in pairwise_names}
+            for n in explicitly_requested
+        ):
+            raise ValueError("Pairwise profile requires old/new datasets; use score_pairwise().")
+        for name in pairwise_names:
+            all_profiles.pop(name)
+        profile_order = [name for name in profile_order if name not in pairwise_names]
         if not all_profiles:
-            raise ValueError("Adapter defines no score_profiles; cannot score.")
+            raise ValueError("This adapter has only pairwise profiles; use score_pairwise().")
 
         # Choose primary profile:
         # 1) Explicit PRI if present
@@ -974,8 +996,24 @@ def _calculate_pri_batch_mapped(
         tmp_rows: list[dict[str, Any]] = []
         raw01_by_profile: dict[str, list[float]] = {name: [] for name in unit_w_by_profile}
         unscoreable_rows: list[bool] = []
+        weighted_sums_by_profile: dict[str, list[float]] = (
+            {name: [] for name in unit_w_by_profile} if show_explanation else {}
+        )
 
         RAW01_SCALE = 1  # tune once
+        explained_components: list[dict[str, float]] = []
+        run_explanation = (
+            explanation_context(
+                adapter,
+                context_used,
+                unit_w_by_profile,
+                selected_profiles,
+                normalization_source,
+                RAW01_SCALE,
+            )
+            if show_explanation
+            else None
+        )
 
         for r in rows_used:
             comps: dict[str, float] = {}
@@ -990,6 +1028,9 @@ def _calculate_pri_batch_mapped(
             # Components are independent of which weights profile is used
             for key, leader, floor, invert in normalization_plan:
                 comps[key] = _norm01_from_ctx(r.get(key, 0.0), leader, floor, invert)
+
+            if show_explanation:
+                explained_components.append(comps)
 
             # Bucket scores: preserve legacy behavior (based on PRIMARY-scored metrics only)
             bucket_scores: dict[str, float] = {}
@@ -1025,6 +1066,8 @@ def _calculate_pri_batch_mapped(
                 for mk, w in uw.items():
                     total += comps.get(mk, 0.0) * float(w)
 
+                if show_explanation:
+                    weighted_sums_by_profile[pname].append(total)
                 x01 = clamp01(total)
                 x01 = clamp01(x01 * RAW01_SCALE)
 
@@ -1068,11 +1111,14 @@ def _calculate_pri_batch_mapped(
             item = payload
 
             scores: dict[str, int] = {}
+            unrounded_scores: dict[str, float] = {}
             for name, prof in selected_profiles.items():
                 raw01 = raw01_by_profile.get(name, [0.0])[idx]
                 pct01 = pct01_by_profile.get(name, [0.5])[idx]
                 sval = _score_from_profile(prof, raw01=raw01, pct01=pct01)
                 scores[name] = round(sval)
+                if show_explanation:
+                    unrounded_scores[name] = sval
 
             # Back-compat: keep primary PRI in "pri"
             primary_score = scores.get(primary_name)
@@ -1088,6 +1134,21 @@ def _calculate_pri_batch_mapped(
                 slug = _slug_profile_key(name)
                 if slug != "pri":
                     item[slug] = sval
+
+            if show_explanation:
+                item["explanation_context"] = run_explanation
+                item["explanation"] = explain_row(
+                    rows_used[idx],
+                    explained_components[idx],
+                    unit_w_by_profile,
+                    selected_profiles,
+                    {name: values[idx] for name, values in raw01_by_profile.items()},
+                    {name: values[idx] for name, values in pct01_by_profile.items()},
+                    {name: values[idx] for name, values in weighted_sums_by_profile.items()},
+                    unrounded_scores,
+                    scores,
+                    unscoreable_rows[idx],
+                )
 
             out_list.append(item)
 

@@ -324,3 +324,9 @@ settings.local.*
 
 /export-visual-history.ps1
 /scripts/export-visual-history.sh
+
+# Public example settings are safe to track.
+!**/.env.example
+!**/.env.sample
+launch.ps1
+launch.sh

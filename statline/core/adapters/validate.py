@@ -113,6 +113,18 @@ def validate_adapter(spec: AdapterSpec) -> None:
 
     for name, profile in spec.score_profiles.items():
         path = f"score_profiles.{name}"
+        if profile.kind == "pairwise":
+            if spec.native_pairwise is not None and profile.model == "native":
+                if not profile.value or profile.value not in spec.native_pairwise.result:
+                    issues.append(
+                        ValidationIssue(f"{path}.value", "Unknown native pairwise result field.")
+                    )
+                continue
+            if not profile.model or profile.model not in spec.pairwise:
+                issues.append(ValidationIssue(f"{path}.model", "Unknown pairwise model."))
+            elif not profile.value or profile.value not in spec.pairwise[profile.model].output:
+                issues.append(ValidationIssue(f"{path}.value", "Unknown pairwise output field."))
+            continue
         if profile.weights_profile not in spec.weights:
             issues.append(
                 ValidationIssue(

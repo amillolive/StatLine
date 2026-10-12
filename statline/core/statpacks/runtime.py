@@ -158,6 +158,8 @@ def _write_machine_output(
 def _parser(prog: str) -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog=prog, description="Run a StatLine StatPack")
     parser.add_argument("--dataset", help="Logical dataset path inside the StatPack")
+    parser.add_argument("--a", type=Path, help="Override the next/new pairwise input")
+    parser.add_argument("--b", type=Path, help="Override the previous pairwise input")
     parser.add_argument("--limit", type=int, default=0, help="Maximum rows shown per ranking")
     parser.add_argument(
         "--profile",
@@ -191,6 +193,60 @@ def _parser(prog: str) -> argparse.ArgumentParser:
     return parser
 
 
+def _run_native_comparison(
+    package_root: Path,
+    adapter: Any,
+    args: argparse.Namespace,
+    out: TextIO,
+    err: TextIO,
+    times: StageTimes | None,
+) -> int:
+    from statline.core.relate.native import read_inputs, score_native_pairwise
+    from statline.core.types.adapters import NativePairwiseSpec
+
+    spec = adapter.native_pairwise
+    if not isinstance(spec, NativePairwiseSpec):
+        raise TypeError("Invalid native pairwise configuration")
+    with times.stage("load_pairwise_inputs") if times else nullcontext():
+        a, b = read_inputs(spec, package_root, a=args.a, b=args.b)
+    with times.stage("score_pairwise") if times else nullcontext():
+        configured = {
+            name: profile.value
+            for name, profile in adapter.score_profiles.items()
+            if profile.kind == "pairwise"
+            and profile.model == "native"
+            and profile.value is not None
+        }
+        rows = score_native_pairwise(spec, a, b, profiles=configured)
+    if args.limit > 0:
+        rows = rows[: args.limit]
+    if args.format == "table":
+        columns = [(key, key) for key in rows[0]] if rows else [(key, key) for key in spec.result]
+        content = render_table_text(rows, columns, title="Pairwise results", limit=0)
+        if args.output:
+            destination = args.output.expanduser().resolve()
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_text(content, encoding="utf-8")
+        else:
+            out.write(content)
+    else:
+        if args.output:
+            destination = args.output.expanduser().resolve()
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            with destination.open("w", encoding="utf-8", newline="") as handle:
+                _write_machine_output(
+                    rows, format_name=args.format, output=handle, include_headers=args.headers
+                )
+        else:
+            _write_machine_output(
+                rows, format_name=args.format, output=out, include_headers=args.headers
+            )
+    if times is not None:
+        err.write("\n")
+        err.write(render_timing(times))
+    return 0
+
+
 def run_statpack(
     root: str | Path,
     argv: Sequence[str] | None = None,
@@ -214,14 +270,18 @@ def run_statpack(
             if not isinstance(metadata, Mapping):
                 raise TypeError("StatPack metadata must be a mapping")
 
-            dataset_value = args.dataset or cast(Mapping[object, object], metadata).get("dataset")
-            if not dataset_value:
-                raise ValueError("No dataset selected; set metadata.dataset or pass --dataset")
-
-            dataset_path = _portable_dataset(
-                package_root,
-                dataset_value,
+            # Native v1 comparisons do not use the traditional single-dataset mapper.
+            # This explicitly opted-in branch leaves legacy StatPack output untouched.
+            is_native_pairwise = isinstance(data.get("pairwise"), Mapping) and (
+                cast(Mapping[str, object], data["pairwise"]).get("version") == 1
             )
+            dataset_value = args.dataset or cast(Mapping[object, object], metadata).get("dataset")
+            if is_native_pairwise:
+                dataset_value = None
+            if not is_native_pairwise:
+                if not dataset_value:
+                    raise ValueError("No dataset selected; set metadata.dataset or pass --dataset")
+                dataset_path = _portable_dataset(package_root, dataset_value)
 
         with (
             times.stage("compile_adapter") if times else nullcontext(),
@@ -233,6 +293,14 @@ def run_statpack(
                 encoding="utf-8",
             )
             adapter = compile_adapter(load_spec(adapter_path))
+
+        if adapter.native_pairwise is not None:
+            if args.dataset:
+                raise ValueError("Native pairwise StatPacks use --a/--b, not --dataset")
+            return _run_native_comparison(package_root, adapter, args, out, err, times)
+
+        if args.a or args.b:
+            raise ValueError("--a and --b require a native pairwise StatPack")
 
         with times.stage("load_dataset") if times else nullcontext():
             raw_rows = load_dataset(dataset_path)

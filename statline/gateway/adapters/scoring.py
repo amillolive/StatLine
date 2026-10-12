@@ -133,21 +133,34 @@ def score_rows(
 
     try:
         if input_kind == "raw":
-            raw_rows = checked
+            indexed_rows = list(enumerate(checked))
+            raw_rows = indexed_rows
             if filters:
                 raw_rows = [
-                    row for row in raw_rows if passes_raw_filters(row, filters, adapter=adapter)
+                    (index, row)
+                    for index, row in raw_rows
+                    if passes_raw_filters(row, filters, adapter=adapter)
                 ]
             stage = timing.stage("map_raw") if timing else nullcontext()
             with stage:
-                mapped = [dict(row) for row in safe_map_batch(adapter, raw_rows)]
+                mapped = [
+                    dict(row) for row in safe_map_batch(adapter, [row for _, row in raw_rows])
+                ]
+            indices = [index for index, _ in raw_rows]
         elif input_kind == "mapped":
             mapped = [dict(row) for row in checked]
+            indices = list(range(len(checked)))
         else:
             raise BadRequest("input_kind must be 'raw' or 'mapped'")
 
         if filters:
-            mapped = [row for row in mapped if passes_mapped_filters(row, filters, adapter=adapter)]
+            eligible = [
+                (index, row)
+                for index, row in zip(indices, mapped, strict=True)
+                if passes_mapped_filters(row, filters, adapter=adapter)
+            ]
+            indices = [index for index, _ in eligible]
+            mapped = [row for _, row in eligible]
 
         results = _score_mapped_rows(
             mapped,
@@ -166,6 +179,25 @@ def score_rows(
     except (KeyError, ValueError, TypeError) as error:
         raise BadRequest("Could not score input", detail=str(error)) from error
 
+    identity_field = adapter.metadata.meta.get("source_id_field") or next(
+        iter(adapter.dimensions), None
+    )
+    for index, result in zip(indices, results, strict=True):
+        result["source_index"] = index
+        if identity_field:
+            raw = checked[index]
+            value = raw.get(str(identity_field))
+            if value is None:
+                value = next(
+                    (
+                        value
+                        for key, value in raw.items()
+                        if key.casefold() == str(identity_field).casefold()
+                    ),
+                    None,
+                )
+            if isinstance(value, (str, int, float, bool)):
+                result["source_id"] = value
     return adapter, mapped, results
 
 

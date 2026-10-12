@@ -1,0 +1,42 @@
+{
+  "metadata": {
+    "id": "eba.players",
+    "title": "EBA/Elevate302 Players",
+    "version": "4.0.0",
+    "author": "StatLine, EBA",
+    "aliases": [
+      "eba_player",
+      "eba",
+      "ebap",
+      "eba_p"
+    ],
+    "dataset": "EBA_Elevate302/eba_players_gp3_plus.csv"
+  },
+  "files": [
+    "dataset/EBA_Elevate302/eba_players_gp3_plus.csv",
+    "metadata.yaml",
+    "runner.py",
+    "schema/sections/buckets.yaml",
+    "schema/sections/dimensions.yaml",
+    "schema/sections/efficiency.yaml",
+    "schema/sections/filters.yaml",
+    "schema/sections/metrics.yaml",
+    "schema/sections/score_profiles.yaml",
+    "schema/sections/sniff.yaml",
+    "schema/sections/weights.yaml"
+  ],
+  "sections": [
+    "buckets",
+    "dimensions",
+    "efficiency",
+    "filters",
+    "metrics",
+    "score_profiles",
+    "sniff",
+    "weights"
+  ],
+  "datasets": [
+    "EBA_Elevate302/eba_players_gp3_plus.csv"
+  ],
+  "runnable": true
+}

@@ -29,6 +29,8 @@ SECTION_ORDER = (
     "weights",
     "penalties",
     "score_profiles",
+    "pairwise",
+    "expressions",
 )
 SECTION_TITLES = {
     "dimensions": "Dimensions",
@@ -40,6 +42,8 @@ SECTION_TITLES = {
     "weights": "Weights",
     "penalties": "Penalties",
     "score_profiles": "Score Profiles",
+    "pairwise": "Pairwise",
+    "expressions": "Expressions",
 }
 STANDARD_RUNNER = """from pathlib import Path\n\nfrom statline.sdk import run_statpack\n\nraise SystemExit(run_statpack(Path(__file__).resolve().parent))\n"""
 _REQUIRED_ROOT = ("metadata.yaml", "runner.py")
@@ -121,7 +125,14 @@ def _iter_source_files(root: Path) -> Iterable[tuple[Path, str]]:
         if path.is_symlink():
             raise ValueError(f"StatPack source cannot include symlinks: {path}")
         relative = _normalize_member(path.relative_to(root).as_posix())
-        if relative.startswith(("dataset/", "schema/sections/")) or relative in _REQUIRED_ROOT:
+        if (
+            relative.startswith(("dataset/", "schema/sections/"))
+            or relative in _REQUIRED_ROOT
+            or (
+                relative.startswith("inputs/")
+                and path.suffix.casefold() in {".statpack", ".csv", ".json"}
+            )
+        ):
             yield path, relative
 
 
@@ -158,6 +169,15 @@ def pack_statpack(
     if not root.is_dir():
         raise NotADirectoryError(f"StatPack source directory not found: {root}")
     _ensure_source_tree(root)
+    # Never create a native comparison pack with missing declared sources.
+    tree = load_statpack_tree(root)
+    if isinstance(tree.get("pairwise"), Mapping) and "version" in tree["pairwise"]:
+        from statline.core.relate.native import portable_input
+        from statline.core.relate.schema import parse_native_pairwise
+
+        spec = parse_native_pairwise(tree["pairwise"], tree.get("expressions"))
+        for descriptor in spec.inputs.values():
+            portable_input(root, descriptor["path"])
     target = Path(output) if output is not None else root.parent / f"{root.name}.statpack"
     return _write_zip(target, _iter_source_files(root), overwrite=overwrite)
 
@@ -204,6 +224,10 @@ def manifest_yaml_statpack(
     if not isinstance(metadata, Mapping):
         raise TypeError("adapter metadata must be a mapping")
 
+    # Legacy adapter packaging is unchanged; validate native-only resources.
+    validated = None
+    if isinstance(data.get("pairwise"), Mapping) and "version" in data["pairwise"]:
+        validated = load_spec(source)
     target = Path(output) if output is not None else source.with_suffix(".statpack")
     with tempfile.TemporaryDirectory(prefix="statline-manifest-") as temporary:
         root = Path(temporary) / source.stem
@@ -220,15 +244,24 @@ def manifest_yaml_statpack(
         if extras:
             raise KeyError(f"Unsupported adapter top-level section(s): {', '.join(sorted(extras))}")
 
+        if validated is not None and validated.native_pairwise is not None:
+            from statline.core.relate.native import portable_input
+
+            for descriptor in validated.native_pairwise.inputs.values():
+                logical = descriptor["path"]
+                original = portable_input(source.parent, logical)
+                destination = root / Path(*PurePosixPath(logical.replace("\\", "/")).parts)
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(original, destination)
         dataset_value = cast(Mapping[object, object], metadata).get("dataset")
         if dataset_value:
-            logical = _logical_dataset_path(dataset_value)
-            dataset = _find_dataset_for_yaml(source, logical)
+            dataset_logical = _logical_dataset_path(dataset_value)
+            dataset = _find_dataset_for_yaml(source, dataset_logical)
             if dataset is None:
                 raise FileNotFoundError(
-                    f"Dataset referenced by metadata.dataset was not found: {logical.as_posix()}"
+                    f"Dataset referenced by metadata.dataset was not found: {dataset_logical.as_posix()}"
                 )
-            destination = root / "dataset" / Path(*logical.parts)
+            destination = root / "dataset" / Path(*dataset_logical.parts)
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(dataset, destination)
         return pack_statpack(root, target, overwrite=overwrite)

@@ -1,0 +1,8 @@
+# Product pages are public; API access is enforced by the Gateway.
+statline.dev {
+    root * /srv/statline/portal/dist/client
+    file_server
+}
+api.statline.dev {
+    reverse_proxy 127.0.0.1:8000
+}

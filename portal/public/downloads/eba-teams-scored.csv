@@ -1,0 +1,25 @@
+source_index,source_id,TEAM,CONFERENCE,GP,WIN,LOSS,PF,PA,DIFF,STREAK,STREAK_SIGN,FFW,FFL,PRI,standings,playoff,wildcard,offense,defense,RAW01
+0,Arizona Panthers,Arizona Panthers,Western,2,0,2,99,132,-33,2,-1,0,0,74,39,43,-4,2,6,0.4414855325407755
+1,Sacramento Rage,Sacramento Rage,Western,3,2,2,279,307,-28,1,-1,1,0,79,54,53,1,7,3,0.5383528824684836
+2,Las Vegas Thrill,Las Vegas Thrill,Western,2,1,2,141,139,2,2,-1,0,1,81,55,58,4,5,7,0.5871472878783621
+3,Houston Hornets,Houston Hornets,Western,3,2,1,278,239,39,2,1,0,0,89,76,78,14,9,8,0.7765542372801963
+4,Toronto Terror,Toronto Terror,Eastern,3,3,0,257,188,69,3,1,0,0,95,96,95,23,6,10,0.908471899796708
+5,Atlanta Breeze,Atlanta Breeze,Eastern,2,2,0,218,177,41,2,1,0,0,91,83,83,16,10,6,0.8184444624003449
+6,Baltimore Nighthawks,Baltimore Nighthawks,Eastern,0,0,2,0,0,0,2,-1,0,2,55,0,0,-25,1,1,0.0
+7,Charlotte Empire,Charlotte Empire,Eastern,1,1,1,76,77,-1,1,1,1,0,82,60,62,6,6,5,0.6247838593631434
+8,Chicago Aces,Chicago Aces,Eastern,1,2,0,77,76,1,2,1,1,0,84,69,67,9,8,5,0.6657538686377561
+9,Miami Beach Kings,Miami Beach Kings,Eastern,3,1,2,246,281,-35,1,1,0,0,77,47,49,-1,5,4,0.5045347484144159
+10,New York Knights,New York Knights,Eastern,0,1,2,0,0,0,2,-1,1,2,55,0,0,-25,1,1,0.0
+11,Orlando Supernovas,Orlando Supernovas,Eastern,2,1,1,129,109,20,1,-1,0,0,84,63,66,8,4,8,0.6534822953261572
+12,Philadelphia Glory,Philadelphia Glory,Eastern,2,1,3,108,146,-38,1,-1,1,1,75,44,45,-3,2,6,0.4474920823847934
+13,Detroit Bullets,Detroit Bullets,Eastern,3,1,2,226,315,-89,2,-1,0,0,69,35,31,-9,3,2,0.32321336996337
+14,Minnesota Huskies,Minnesota Huskies,Eastern,2,1,1,151,150,1,1,-1,0,0,82,60,61,6,5,7,0.6123369579269835
+15,Indiana Bandits,Indiana Bandits,Eastern,3,1,2,283,292,-9,1,-1,0,0,80,51,55,2,8,3,0.5705719606906308
+16,Mexico City Aztecs,Mexico City Aztecs,Western,2,2,0,204,157,47,2,1,0,0,91,84,84,17,9,8,0.8283969182990922
+17,Nashville Anthem,Nashville Anthem,Western,3,2,1,261,180,81,2,1,0,0,94,84,90,20,7,9,0.8811453416149069
+18,Phoenix Power,Phoenix Power,Western,2,3,0,194,135,59,3,1,1,0,94,90,90,20,9,9,0.8830690708055798
+19,Portland Vipers,Portland Vipers,Western,3,1,3,213,278,-65,1,-1,1,0,71,35,35,-8,3,3,0.36168636694365597
+20,San Diego Storm,San Diego Storm,Western,2,2,0,169,126,43,2,1,0,0,90,83,83,16,8,9,0.8026472134004103
+21,Seattle Reign,Seattle Reign,Western,2,0,3,141,206,-65,3,-1,0,1,71,33,34,-8,3,2,0.36792122668465377
+22,Washington Volt,Washington Volt,Western,3,1,2,240,253,-13,1,-1,0,0,79,50,53,2,4,5,0.54137298042963
+23,Oregon Skyhawks,Oregon Skyhawks,Western,3,2,1,262,289,-27,1,1,0,0,81,63,59,5,6,4,0.5841801209446988

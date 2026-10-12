@@ -29,6 +29,8 @@ from statline.core.types.adapters import (
     MetaScalar,
     MetaValue,
     MetricSpec,
+    NativePairwiseSpec,
+    PairwiseSpec,
     ScoreKind,
     ScoreProfileSpec,
     SniffSpec,
@@ -119,6 +121,8 @@ _ALLOWED_TOP_KEYS: set[str] = {
     "penalties",
     "efficiency",
     "score_profiles",
+    "pairwise",
+    "expressions",
 }
 
 _ALLOWED_METADATA_KEYS: set[str] = {
@@ -177,6 +181,8 @@ _NUMERIC_TRANSFORM_KEYS = {"a", "b", "scale", "offset", "cap", "slope", "lo", "h
 _ALLOWED_SCORE_PROFILE_KEYS: set[str] = {
     "kind",
     "weights_profile",
+    "model",
+    "value",
     "lo",
     "hi",
     "out_lo",
@@ -227,7 +233,7 @@ _TRANSFORM_KIND: dict[str, TransformKind] = {
     "round": "round",
     "custom": "custom",
 }
-_SCORE_KIND: dict[str, ScoreKind] = {"affine": "affine", "window": "window"}
+_SCORE_KIND: dict[str, ScoreKind] = {"affine": "affine", "window": "window", "pairwise": "pairwise"}
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -324,7 +330,7 @@ def _coerce_meta_value(v: object, *, ctx: str) -> MetaValue | None:
       - dict[str, scalar]
     """
     if _is_meta_scalar(v):
-        return v  # type: ignore[return-value]
+        return cast(MetaScalar, v)  # scalar confirmed by _is_meta_scalar
 
     if isinstance(v, list):
         seq = cast(list[object], v)
@@ -810,7 +816,7 @@ def _coerce_transform_param(key: str, value: object, *, ctx: str) -> MetaValue |
         return _config_float(value, ctx=ctx)
     if key == "ndigits":
         number = _config_float(value, ctx=ctx)
-        if not number.is_integer():
+        if not float(number).is_integer():
             message = f"{ctx} must be an integer, got {value!r}"
             if _STRICT:
                 raise TypeError(message)
@@ -999,7 +1005,9 @@ def _coerce_score_profiles(v: object, name: str) -> dict[str, ScoreProfileSpec]:
             continue
 
         wp = str(pvm.get("weights_profile", "")).strip()
-        if not wp:
+        model = str(pvm.get("model", "")).strip() or None
+        value = str(pvm.get("value", "")).strip() or None
+        if kind != "pairwise" and not wp:
             msg = f"Adapter '{name}': score profile '{pk}.weights_profile' missing/empty"
             if _STRICT:
                 raise KeyError(msg)
@@ -1009,6 +1017,8 @@ def _coerce_score_profiles(v: object, name: str) -> dict[str, ScoreProfileSpec]:
         out[pk] = ScoreProfileSpec(
             kind=kind,
             weights_profile=wp,
+            model=model,
+            value=value,
             lo=_opt_float(pvm, "lo"),
             hi=_opt_float(pvm, "hi"),
             out_lo=_opt_float(pvm, "out_lo"),
@@ -1018,6 +1028,77 @@ def _coerce_score_profiles(v: object, name: str) -> dict[str, ScoreProfileSpec]:
         )
 
     return out
+
+
+def _coerce_pairwise(value: object, name: str) -> dict[str, PairwiseSpec]:
+    """Require a small, explicit, no-Python pairwise DSL."""
+    if value is None:
+        return {}
+    models = _as_str_dict(value, ctx=f"Adapter '{name}': pairwise")
+    result: dict[str, PairwiseSpec] = {}
+    for model_name, raw in models.items():
+        ctx = f"Adapter '{name}': pairwise.{model_name}"
+        spec = _as_str_dict(raw, ctx=ctx)
+        unknown = set(spec) - {
+            "duo",
+            "join_on",
+            "on",
+            "group_by",
+            "compare",
+            "variables",
+            "calculate",
+            "reduce",
+            "output",
+        }
+        if unknown:
+            raise ValueError(f"{ctx}: unknown keys {sorted(unknown)}")
+        duo = {
+            k: str(v).strip() for k, v in _as_str_dict(spec.get("duo"), ctx=f"{ctx}.duo").items()
+        }
+        if set(duo) - {"old", "new"}:
+            raise ValueError(f"{ctx}.duo: only old/new are supported")
+        on = str(spec.get("join_on") or spec.get("on") or "").strip()
+        if not on:
+            raise ValueError(f"{ctx}.join_on must be an identity field")
+        group_by = str(spec["group_by"]).strip() if spec.get("group_by") else None
+        compare = str(spec.get("compare", "all_vs_all")).strip()
+        if compare != "all_vs_all":
+            raise ValueError(f"{ctx}.compare: only all_vs_all is currently supported")
+
+        def expressions(key: str) -> dict[str, str]:
+            values = _as_str_dict(spec.get(key), ctx=f"{ctx}.{key}")
+            cleaned = {k: str(v).strip() for k, v in values.items()}
+            if any(not k.isidentifier() or k.startswith("_") or not v for k, v in cleaned.items()):
+                raise ValueError(f"{ctx}.{key}: invalid key or empty formula")
+            return cleaned
+
+        variables = expressions("variables")
+        calculate = expressions("calculate")
+        output = expressions("output")
+        if not calculate or not output:
+            raise ValueError(f"{ctx}: calculate and output must not be empty")
+        reductions_raw = _as_str_dict(spec.get("reduce"), ctx=f"{ctx}.reduce")
+        reductions: dict[str, dict[str, object]] = {}
+        for key, val in reductions_raw.items():
+            entry = _as_str_dict(val, ctx=f"{ctx}.reduce.{key}")
+            if (
+                not key.isidentifier()
+                or key.startswith("_")
+                or set(entry) - {"operation", "field", "normalize"}
+            ):
+                raise ValueError(f"{ctx}.reduce.{key}: invalid specification")
+            operation = str(entry.get("operation", "sum"))
+            field = str(entry.get("field", "")).strip()
+            if operation not in {"sum", "mean", "min", "max", "count"} or field not in calculate:
+                raise ValueError(f"{ctx}.reduce.{key}: invalid operation or field")
+            normalized = _config_bool(entry.get("normalize"), ctx=f"{ctx}.reduce.{key}.normalize")
+            reductions[key] = {"operation": operation, "field": field, "normalize": normalized}
+        if not reductions:
+            raise ValueError(f"{ctx}.reduce must not be empty")
+        result[model_name] = PairwiseSpec(
+            duo, on, group_by, variables, calculate, reductions, output, compare
+        )
+    return result
 
 
 def _uniform_weights(bucket_names: Sequence[str]) -> dict[str, dict[str, float]]:
@@ -1031,7 +1112,10 @@ def load_spec(source: str | Path) -> AdapterSpec:
     """Load one packaged adapter by name or one explicitly discovered YAML path."""
     source_name = source.stem if isinstance(source, Path) else str(source).strip()
     data = _read_yaml_for(source)
-    _require_keys(data, source_name, "metadata", "buckets", "metrics")
+    _require_keys(data, source_name, "metadata")
+    # Pairwise-only adapters have no weighted metrics or buckets to define.
+    if not data.get("pairwise"):
+        _require_keys(data, source_name, "buckets", "metrics")
 
     metadata = _coerce_metadata(data["metadata"], source_name)
     name = metadata.id
@@ -1040,7 +1124,26 @@ def load_spec(source: str | Path) -> AdapterSpec:
     sniff = _coerce_sniff(data.get("sniff"), name)
     filters = _coerce_filters(data.get("filters"), name)
     score_profiles = _coerce_score_profiles(data.get("score_profiles"), name)
-    buckets = _coerce_buckets(data["buckets"], name)
+    raw_pairwise: object = data.get("pairwise")
+    legacy_pairwise_value: object = raw_pairwise
+    native_pairwise: NativePairwiseSpec | None = None
+    if isinstance(raw_pairwise, Mapping) and "version" in raw_pairwise:
+        from statline.core.relate.schema import parse_native_pairwise
+
+        # Normalize mapping keys to str for the parser to avoid typing issues
+        # Normalize mapping keys to str for the parser to avoid typing issues
+        # Normalizing to a plain dict reduces typing ambiguity for static checkers
+        # raw_pairwise is already a Mapping; pass it directly to the normalizer
+        native_pairwise = parse_native_pairwise(
+            _as_str_dict(cast(object, raw_pairwise), ctx=f"Adapter '{name}': 'pairwise'"),
+            data.get("expressions"),
+        )
+        pairwise = {}
+    else:
+        if "expressions" in data:
+            raise ValueError("expressions requires native pairwise.version: 1")
+        pairwise = _coerce_pairwise(legacy_pairwise_value, name)
+    buckets = _coerce_buckets(data["buckets"], name) if data.get("buckets") else {}
     bucket_names = set(buckets)
 
     weights_raw = data.get("weights")
@@ -1094,7 +1197,7 @@ def load_spec(source: str | Path) -> AdapterSpec:
             penalty_inner[bucket] = _finite_float(value, default=0.0)
         penalties[profile] = penalty_inner
 
-    metric_items = _as_obj_list(data["metrics"], ctx=f"Adapter '{name}': 'metrics'")
+    metric_items = _as_obj_list(data.get("metrics", []), ctx=f"Adapter '{name}': 'metrics'")
     metrics: list[MetricSpec] = []
     output_keys: set[str] = set()
     for index, item in enumerate(metric_items):
@@ -1250,6 +1353,8 @@ def load_spec(source: str | Path) -> AdapterSpec:
         penalties=penalties,
         efficiency=efficiency,
         score_profiles=score_profiles,
+        pairwise=pairwise,
+        native_pairwise=native_pairwise,
     )
     validate_adapter(spec)
     return spec

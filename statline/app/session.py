@@ -41,10 +41,12 @@ class StatLineSession:
 
     def __init__(self, *, base_url: str | None = None, mode: str | None = None) -> None:
         configured_mode = (mode or os.getenv("STATLINE_MODE") or "auto").strip().casefold()
-        self.mode: SessionMode = cast(
-            SessionMode,
-            configured_mode if configured_mode in {"auto", "local", "remote"} else "auto",
-        )
+        if configured_mode == "local":
+            self.mode: SessionMode = "local"
+        elif configured_mode == "remote":
+            self.mode = "remote"
+        else:
+            self.mode = "auto"
         self.base_url = (base_url or os.getenv("SLAPI_URL") or "https://api.statline.dev").rstrip(
             "/"
         )

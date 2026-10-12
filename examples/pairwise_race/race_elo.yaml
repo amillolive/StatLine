@@ -1,0 +1,30 @@
+metadata:
+  id: demo.race_elo
+  title: Declarative Race Elo
+  version: 4.0.0
+  author: StatLine Example
+
+# No conventional metrics or buckets are required for a pairwise-only adapter.
+pairwise:
+  race_elo:
+    duo:
+      old: ratings.json
+      new: results.json
+    join_on: id
+    group_by: race_id
+    compare: all_vs_all
+    variables:
+      k: "16 + 32 * exp(-0.15 * abs(self.old.roundsPlayed))"
+      actual: "1 if count < 2 else (count - self.new.finishPosition) / (count - 1)"
+      expected: "1 / (1 + pow(10, (other.old.eloScore - self.old.eloScore) / 400))"
+      teammate: "0.5 if self.new.teamId and other.new.teamId and self.new.teamId == other.new.teamId else 1.0"
+    calculate:
+      pair_delta: "k * (actual - expected) * teammate"
+    reduce:
+      delta: {operation: sum, field: pair_delta, normalize: false}
+    output:
+      oldElo: "self.old.eloScore"
+      eloChange: "js_fixed(delta, 2)"
+      newElo: "js_round(self.old.eloScore + delta)"
+score_profiles:
+  ELO: {kind: pairwise, model: race_elo, value: newElo}

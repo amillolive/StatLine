@@ -1,0 +1,8 @@
+[
+  {"id":"DriverA","eloScore":1600,"roundsPlayed":50},
+  {"id":"DriverB","eloScore":1600,"roundsPlayed":50},
+  {"id":"DriverC","eloScore":1500,"roundsPlayed":20},
+  {"id":"DriverD","eloScore":1500,"roundsPlayed":20},
+  {"id":"DriverE","eloScore":1400,"roundsPlayed":5},
+  {"id":"DriverF","eloScore":1400,"roundsPlayed":5}
+]
