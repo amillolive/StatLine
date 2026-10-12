@@ -56,14 +56,14 @@ The public formula API is exposed through `statline.core.formula`:
 from statline.core.formula import FormulaError, StatLineFormulaEngine
 
 engine = StatLineFormulaEngine()  # strict mode by default
-expected = engine.compile(
-    "1 / (1 + pow(10, (other.old.eloScore - self.old.eloScore) / 400))"
-)
+expected = engine.compile("1 / (1 + pow(10, (other.old.eloScore - self.old.eloScore) / 400))")
 
-value = expected({
-    "self": {"old": {"eloScore": 1600}},
-    "other": {"old": {"eloScore": 1400}},
-})
+value = expected(
+    {
+        "self": {"old": {"eloScore": 1600}},
+        "other": {"old": {"eloScore": 1400}},
+    }
+)
 ```
 
 ### Supported expression features
@@ -79,13 +79,15 @@ value = expected({
 A formula can refer to previously declared variables in the same plan:
 
 ```python
-variables = engine.compile_variables({
-    "k": "16 + 32 * exp(-0.15 * abs(self.old.roundsPlayed))",
-    "expected": "1 / (1 + pow(10, (other.old.eloScore - self.old.eloScore) / 400))",
-    "actual": "1 if count < 2 else (count - self.new.finishPosition) / (count - 1)",
-    "teammate": "0.5 if self.new.teamId and other.new.teamId and self.new.teamId == other.new.teamId else 1",
-    "delta": "k * (actual - expected) * teammate",
-})
+variables = engine.compile_variables(
+    {
+        "k": "16 + 32 * exp(-0.15 * abs(self.old.roundsPlayed))",
+        "expected": "1 / (1 + pow(10, (other.old.eloScore - self.old.eloScore) / 400))",
+        "actual": "1 if count < 2 else (count - self.new.finishPosition) / (count - 1)",
+        "teammate": "0.5 if self.new.teamId and other.new.teamId and self.new.teamId == other.new.teamId else 1",
+        "delta": "k * (actual - expected) * teammate",
+    }
+)
 ```
 
 ### Execution and compatibility

@@ -201,7 +201,9 @@ class AdapterSpec:
     score_profiles: dict[str, ScoreProfileSpec] = dc_field(
         default_factory=cast(Callable[[], dict[str, ScoreProfileSpec]], dict)
     )
-    pairwise: dict[str, PairwiseSpec] = dc_field(default_factory=dict)
+    pairwise: dict[str, PairwiseSpec] = dc_field(
+        default_factory=cast(Callable[[], dict[str, PairwiseSpec]], dict)
+    )
     native_pairwise: NativePairwiseSpec | None = None
 
 
@@ -271,7 +273,9 @@ class CompiledAdapter:
     metric_plan: tuple[CompiledMetric, ...]
     efficiency_plan: tuple[CompiledEfficiency, ...]
     dataset_requirements: tuple[tuple[str, str], ...] = ()
-    pairwise: Mapping[str, PairwiseSpec] = dc_field(default_factory=dict)
+    pairwise: Mapping[str, PairwiseSpec] = dc_field(
+        default_factory=cast(Callable[[], Mapping[str, PairwiseSpec]], dict)
+    )
     native_pairwise: NativePairwiseSpec | None = None
 
     @property

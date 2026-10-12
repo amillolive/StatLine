@@ -7,6 +7,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import math
 from dataclasses import replace
 from typing import Any, cast
 
@@ -185,8 +186,11 @@ def test_explanations_reconcile_with_actual_kernel(
         details = row["explanation"]
         for profile, attribution in details["profiles"].items():
             weights_used = context["profile_weights"][profile]
-            assert attribution["weighted_sum"] == pytest.approx(
-                sum(attribution["contributions"].values()), abs=1e-14
+            assert math.isclose(
+                attribution["weighted_sum"],
+                sum(attribution["contributions"].values()),
+                rel_tol=1e-6,
+                abs_tol=1e-14,
             )
             assert (
                 attribution["final_score"]

@@ -41,10 +41,13 @@ def _csv_rows(text: str) -> list[dict[str, object]]:
 
 
 def _json_rows(text: str) -> list[dict[str, object]]:
-    payload = json.loads(text)
-    if not isinstance(payload, list) or any(not isinstance(x, Mapping) for x in payload):
+    payload: object = json.loads(text)
+    if not isinstance(payload, list):
         raise ValueError("Pairwise JSON must contain an array of row objects")
-    return [dict(cast(Mapping[str, object], item)) for item in payload]
+    items = cast(list[object], payload)
+    if any(not isinstance(item, Mapping) for item in items):
+        raise ValueError("Pairwise JSON must contain an array of row objects")
+    return [dict(cast(Mapping[str, object], item)) for item in items]
 
 
 def load_pairwise_rows(
@@ -60,12 +63,13 @@ def load_pairwise_rows(
     with zipfile.ZipFile(path) as archive:
         if "metadata.yaml" not in archive.namelist():
             raise ValueError("StatPack is missing metadata.yaml")
-        metadata_doc = yaml.safe_load(archive.read("metadata.yaml"))
-        if not isinstance(metadata_doc, Mapping) or not isinstance(
-            metadata_doc.get("metadata"), Mapping
-        ):
+        metadata_doc: object = yaml.safe_load(archive.read("metadata.yaml"))
+        if not isinstance(metadata_doc, Mapping):
             raise ValueError("StatPack metadata must be a mapping")
-        metadata = cast(Mapping[str, object], metadata_doc["metadata"])
+        metadata_value = cast(Mapping[str, object], metadata_doc).get("metadata")
+        if not isinstance(metadata_value, Mapping):
+            raise ValueError("StatPack metadata must be a mapping")
+        metadata = cast(Mapping[str, object], metadata_value)
         logical = str(dataset or metadata.get("dataset") or "").replace("\\", "/")
         member_path = PurePosixPath(logical)
         if (

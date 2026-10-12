@@ -24,10 +24,10 @@ def portal_client(monkeypatch: pytest.MonkeyPatch):
     instance.include_router(public_router)
     instance.include_router(api_router)
 
-    @instance.get("/test-storage-error")
     def storage_error() -> None:
         raise sqlite3.OperationalError("synthetic")
 
+    instance.add_api_route("/test-storage-error", storage_error, methods=["GET"])
     configure_portal_cors(instance)
     with TestClient(instance) as client:
         yield client

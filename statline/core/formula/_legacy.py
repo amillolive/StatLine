@@ -201,4 +201,6 @@ __all__ = [
     "DatasetRequirement",
     "_finite",
     "_num",
+    "_safe_div",
+    "_dataset_aggregate",
 ]

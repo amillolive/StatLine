@@ -31,13 +31,13 @@ def test_strict_math_functions_variables_and_conditionals() -> None:
     assert isinstance(k, (int, float)) and not isinstance(k, bool)
     assert isinstance(actual, (int, float)) and not isinstance(actual, bool)
     assert isinstance(expected, (int, float)) and not isinstance(expected, bool)
-    assert k == pytest.approx(16 + 32 * math.exp(-7.5))
-    assert actual == pytest.approx(0.8)
-    assert expected == pytest.approx(1 / (1 + 10 ** (-0.5)))
+    assert math.isclose(k, 16 + 32 * math.exp(-7.5), rel_tol=1e-6, abs_tol=1e-12)
+    assert math.isclose(actual, 0.8, rel_tol=1e-6, abs_tol=1e-12)
+    assert math.isclose(expected, 1 / (1 + 10 ** (-0.5)), rel_tol=1e-6, abs_tol=1e-12)
     assert variables["teammate"] == 0.5
-    assert engine.evaluate("k * (actual - expected) * teammate", variables) == pytest.approx(
-        k * (actual - expected) * 0.5
-    )
+    delta = engine.evaluate("k * (actual - expected) * teammate", variables)
+    assert isinstance(delta, (int, float)) and not isinstance(delta, bool)
+    assert math.isclose(delta, k * (actual - expected) * 0.5, rel_tol=1e-6, abs_tol=1e-12)
     assert engine.evaluate("clamp(-5, 0, 100)", {}) == 0
     assert engine.evaluate("mean(10, 20, 30)", {}) == 20
     assert engine.evaluate("sqrt(16) + floor(1.9)", {}) == 5

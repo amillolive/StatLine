@@ -18,6 +18,7 @@ from statline.core.statpacks import (
     render_statpack,
     unpack_statpack,
 )
+from statline.core.types.adapters import CompiledAdapter
 from statline.sdk import run_statpack
 
 ROOT = Path(__file__).resolve().parents[1] / "examples" / "native_pairwise_v1"
@@ -106,16 +107,22 @@ def test_path_escape_and_invalid_native_structure_rejected(tmp_path: Path):
         load_spec(file)
 
 
-def test_http_gateway_native_model_is_adapter_controlled(monkeypatch):
+def test_http_gateway_native_model_is_adapter_controlled(monkeypatch: pytest.MonkeyPatch) -> None:
     from statline.gateway.http import routes_api
     from statline.gateway.http.models import PairwiseIn
-    from statline.gateway.http.routes_api import _pairwise_request
+    from statline.gateway.http.routes_api import (
+        _pairwise_request,  # pyright: ignore[reportPrivateUsage]
+    )
 
     adapter = compile_adapter(load_spec(ROOT / "pairwise-elo.yaml"))
     native_spec = adapter.native_pairwise
     assert native_spec is not None
     a, b = read_inputs(native_spec, ROOT)
-    monkeypatch.setattr(routes_api, "get_adapter", lambda name: adapter)
+
+    def mock_get_adapter(_name: str) -> CompiledAdapter:
+        return adapter
+
+    monkeypatch.setattr(routes_api, "get_adapter", mock_get_adapter)
     result = _pairwise_request(PairwiseIn(adapter=adapter.key, a=a, b=b))
     assert result["new_count"] == 6
     assert result["results"][0]["newElo"] == 1623

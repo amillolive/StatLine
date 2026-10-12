@@ -11,7 +11,7 @@ from __future__ import annotations
 import math
 from collections import defaultdict
 from collections.abc import Iterable, Mapping, Sequence
-from typing import Any
+from typing import Any, cast
 
 from statline.core.formula import FormulaError, StatLineFormulaEngine
 from statline.core.relate.errors import PairwiseError as PairwiseError
@@ -45,7 +45,8 @@ def _identity(row: Mapping[str, object], field: str, label: str) -> object:
 def _coerce_input(rows: Iterable[Mapping[str, Any]], name: str) -> list[dict[str, object]]:
     result: list[dict[str, object]] = []
     for i, row in enumerate(rows):
-        if not isinstance(row, Mapping):
+        # Keep defensive runtime validation for callers bypassing type checking.
+        if not isinstance(cast(object, row), Mapping):
             raise PairwiseError(f"{name}[{i}] must be a mapping")
         result.append(dict(row))
     return result

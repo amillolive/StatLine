@@ -3,11 +3,17 @@
 from __future__ import annotations
 
 import argparse
+import sys
 import tarfile
 import zipfile
 from pathlib import Path
 
-from check_release import scan_archive, sensitive_path
+# Running `python scripts/build_release.py` puts scripts/ rather than the
+# repository root on sys.path. Support that entry point and module execution.
+if __name__ == "__main__" and not __package__:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from scripts.check_release import scan_archive, sensitive_path  # noqa: E402
 
 DIRECTORIES = {
     "statline",

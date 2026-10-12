@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from typing import cast
 
 from statline.core.formula import FormulaError, StatLineFormulaEngine
 from statline.core.types.adapters import NativePairwiseSpec
@@ -11,7 +12,7 @@ from statline.core.types.adapters import NativePairwiseSpec
 def _mapping(value: object, location: str) -> dict[str, object]:
     if not isinstance(value, Mapping):
         raise ValueError(f"{location} must be a YAML mapping")
-    return {str(k): v for k, v in value.items()}
+    return {str(k): v for k, v in cast(Mapping[object, object], value).items()}
 
 
 def _only(data: Mapping[str, object], allowed: set[str], location: str) -> None:

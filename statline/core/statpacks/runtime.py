@@ -275,6 +275,7 @@ def run_statpack(
             is_native_pairwise = isinstance(data.get("pairwise"), Mapping) and (
                 cast(Mapping[str, object], data["pairwise"]).get("version") == 1
             )
+            dataset_path: Path | None = None
             dataset_value = args.dataset or cast(Mapping[object, object], metadata).get("dataset")
             if is_native_pairwise:
                 dataset_value = None
@@ -302,6 +303,8 @@ def run_statpack(
         if args.a or args.b:
             raise ValueError("--a and --b require a native pairwise StatPack")
 
+        if dataset_path is None:
+            raise ValueError("Legacy StatPack dataset path was not resolved")
         with times.stage("load_dataset") if times else nullcontext():
             raw_rows = load_dataset(dataset_path)
 

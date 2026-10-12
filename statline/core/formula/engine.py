@@ -12,7 +12,7 @@ import math
 from collections.abc import Callable, Mapping
 from decimal import ROUND_HALF_UP, Decimal, localcontext
 from functools import lru_cache
-from typing import Literal
+from typing import Literal, cast
 
 from statline.core.formula._legacy import _dataset_aggregate, _num, compile_legacy
 from statline.core.types.adapters import ExpressionEvaluator
@@ -108,7 +108,7 @@ class StatLineFormulaEngine:
         Strict mode throws FormulaError for any unknown variable/function or
         forbidden syntax; it never silently substitutes zero.
         """
-        if not isinstance(expression, str) or not expression.strip():
+        if not isinstance(cast(object, expression), str) or not expression.strip():
             raise FormulaError("Expression must be a non-empty string")
         if len(expression) > self.max_chars:
             raise FormulaError(f"Expression exceeds {self.max_chars} characters")
@@ -270,7 +270,11 @@ class StatLineFormulaEngine:
             result = self._do_evaluate(node, context)
             # Intermediate dictionary scopes may be traversed, but never returned
             # as a final formula value (compile() enforces scalar output).
-            return result if isinstance(result, Mapping) else self._checked(result)
+            return (
+                cast(Mapping[str, object], result)
+                if isinstance(result, Mapping)
+                else self._checked(result)
+            )
         except FormulaError:
             raise
         except (ValueError, OverflowError, ZeroDivisionError, TypeError, ArithmeticError) as exc:
@@ -287,7 +291,7 @@ class StatLineFormulaEngine:
             parent = self._evaluate(node.value, context)
             if not isinstance(parent, Mapping) or node.attr not in parent:
                 raise FormulaError(f"Missing field '{node.attr}'")
-            return parent[node.attr]
+            return cast(Mapping[str, object], parent)[node.attr]
         if isinstance(node, ast.UnaryOp):
             value = self._evaluate(node.operand, context)
             if isinstance(node.op, ast.Not):
@@ -316,16 +320,18 @@ class StatLineFormulaEngine:
                 return self._pow(a, b)
         if isinstance(node, ast.BoolOp):
             if isinstance(node.op, ast.And):
+                and_result: object = True
                 for part in node.values:
-                    value = self._evaluate(part, context)
-                    if not value:
-                        return value
-                return value
+                    and_result = self._evaluate(part, context)
+                    if not and_result:
+                        return and_result
+                return and_result
+            or_result: object = False
             for part in node.values:
-                value = self._evaluate(part, context)
-                if value:
-                    return value
-            return value
+                or_result = self._evaluate(part, context)
+                if or_result:
+                    return or_result
+            return or_result
         if isinstance(node, ast.Compare):
             prev = self._evaluate(node.left, context)
             for comparison_op, item in zip(node.ops, node.comparators):

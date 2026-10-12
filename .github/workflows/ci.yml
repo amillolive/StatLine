@@ -88,12 +88,12 @@ jobs:
         run: uv pip install -e ".[dev]"
 
       - name: Mypy core
-        run: uv run --no-sync python -m mypy --config-file mypy-core.ini .
+        run: uv run --no-sync python -m mypy --config-file mypy-core.ini statline scripts tests
 
       - name: Mypy nice
         id: mypy_nice
         continue-on-error: true
-        run: uv run --no-sync python -m mypy --config-file mypy-nice.ini .
+        run: uv run --no-sync python -m mypy --config-file mypy-nice.ini statline scripts tests
 
       - name: Warn if mypy nice failed
         if: steps.mypy_nice.outcome == 'failure'
