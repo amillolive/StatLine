@@ -43,10 +43,10 @@ def _csv_rows(text: str) -> list[dict[str, object]]:
 def _json_rows(text: str) -> list[dict[str, object]]:
     payload: object = json.loads(text)
     if not isinstance(payload, list):
-        raise ValueError("Pairwise JSON must contain an array of row objects")
+        raise ValueError("Pairwise JSON must contain an array of row objects")  # noqa: TRY004
     items = cast(list[object], payload)
     if any(not isinstance(item, Mapping) for item in items):
-        raise ValueError("Pairwise JSON must contain an array of row objects")  # noqa: TRY004
+        raise ValueError("Pairwise JSON must contain an array of row objects")
     return [dict(cast(Mapping[str, object], item)) for item in items]
 
 
