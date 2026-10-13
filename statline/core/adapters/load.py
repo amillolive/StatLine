@@ -1030,6 +1030,14 @@ def _coerce_score_profiles(v: object, name: str) -> dict[str, ScoreProfileSpec]:
     return out
 
 
+def _pairwise_expressions(spec: Mapping[str, object], ctx: str, key: str) -> dict[str, str]:
+    values = _as_str_dict(spec.get(key), ctx=f"{ctx}.{key}")
+    cleaned = {k: str(v).strip() for k, v in values.items()}
+    if any(not k.isidentifier() or k.startswith("_") or not v for k, v in cleaned.items()):
+        raise ValueError(f"{ctx}.{key}: invalid key or empty formula")
+    return cleaned
+
+
 def _coerce_pairwise(value: object, name: str) -> dict[str, PairwiseSpec]:
     """Require a small, explicit, no-Python pairwise DSL."""
     if value is None:
@@ -1065,16 +1073,9 @@ def _coerce_pairwise(value: object, name: str) -> dict[str, PairwiseSpec]:
         if compare != "all_vs_all":
             raise ValueError(f"{ctx}.compare: only all_vs_all is currently supported")
 
-        def expressions(key: str) -> dict[str, str]:
-            values = _as_str_dict(spec.get(key), ctx=f"{ctx}.{key}")
-            cleaned = {k: str(v).strip() for k, v in values.items()}
-            if any(not k.isidentifier() or k.startswith("_") or not v for k, v in cleaned.items()):
-                raise ValueError(f"{ctx}.{key}: invalid key or empty formula")
-            return cleaned
-
-        variables = expressions("variables")
-        calculate = expressions("calculate")
-        output = expressions("output")
+        variables = _pairwise_expressions(spec, ctx, "variables")
+        calculate = _pairwise_expressions(spec, ctx, "calculate")
+        output = _pairwise_expressions(spec, ctx, "output")
         if not calculate or not output:
             raise ValueError(f"{ctx}: calculate and output must not be empty")
         reductions_raw = _as_str_dict(spec.get("reduce"), ctx=f"{ctx}.reduce")

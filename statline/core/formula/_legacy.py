@@ -194,13 +194,13 @@ def _eval_expr(  # pyright: ignore[reportUnusedFunction]
 
 
 __all__ = [
-    "compile_legacy",
     "_DATASET_AGGREGATES_KEY",
     "_DATASET_FUNCTIONS",
     "_DATASET_OPERATIONS",
     "DatasetRequirement",
+    "_dataset_aggregate",
     "_finite",
     "_num",
     "_safe_div",
-    "_dataset_aggregate",
+    "compile_legacy",
 ]

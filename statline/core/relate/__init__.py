@@ -6,8 +6,8 @@ from statline.core.relate.sources import load_pairwise_rows
 
 __all__ = [
     "PairwiseError",
-    "score_pairwise",
     "load_pairwise_rows",
     "read_inputs",
     "score_native_pairwise",
+    "score_pairwise",
 ]

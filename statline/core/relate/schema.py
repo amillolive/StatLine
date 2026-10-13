@@ -11,7 +11,7 @@ from statline.core.types.adapters import NativePairwiseSpec
 
 def _mapping(value: object, location: str) -> dict[str, object]:
     if not isinstance(value, Mapping):
-        raise ValueError(f"{location} must be a YAML mapping")
+        raise ValueError(f"{location} must be a YAML mapping")  # noqa: TRY004
     return {str(k): v for k, v in cast(Mapping[object, object], value).items()}
 
 

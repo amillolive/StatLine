@@ -14,7 +14,7 @@ from collections.abc import Iterable, Mapping, Sequence
 from typing import Any, cast
 
 from statline.core.formula import FormulaError, StatLineFormulaEngine
-from statline.core.relate.errors import PairwiseError as PairwiseError
+from statline.core.relate.errors import PairwiseError
 from statline.core.types.adapters import (
     AdapterSpec,
     CompiledAdapter,

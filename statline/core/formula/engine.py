@@ -12,7 +12,7 @@ import math
 from collections.abc import Callable, Mapping
 from decimal import ROUND_HALF_UP, Decimal, localcontext
 from functools import lru_cache
-from typing import Literal, cast
+from typing import ClassVar, Literal, cast
 
 from statline.core.formula._legacy import _dataset_aggregate, _num, compile_legacy
 from statline.core.types.adapters import ExpressionEvaluator
@@ -59,7 +59,7 @@ class StatLineFormulaEngine:
             "clamp",
         }
     )
-    _DATASET_FUNCTIONS = {
+    _DATASET_FUNCTIONS: ClassVar[dict[str, str]] = {
         "dataset_max": "max",
         "dataset_min": "min",
         "dataset_mean": "mean",
@@ -206,14 +206,13 @@ class StatLineFormulaEngine:
                 raise FormulaError("Keyword arguments are not supported")
             if len(node.args) > 24:
                 raise FormulaError("Too many function arguments")
-            if node.func.id in self._DATASET_FUNCTIONS:
-                if (
-                    len(node.args) != 1
-                    or not isinstance(node.args[0], ast.Constant)
-                    or not isinstance(node.args[0].value, str)
-                    or not node.args[0].value.strip()
-                ):
-                    raise FormulaError(f"{node.func.id} requires one literal header name")
+            if node.func.id in self._DATASET_FUNCTIONS and (
+                len(node.args) != 1
+                or not isinstance(node.args[0], ast.Constant)
+                or not isinstance(node.args[0].value, str)
+                or not node.args[0].value.strip()
+            ):
+                raise FormulaError(f"{node.func.id} requires one literal header name")
             for item in node.args:
                 self._validate(item, depth + 1)
         else:
@@ -433,4 +432,4 @@ class StatLineFormulaEngine:
         return self._checked(one_arg[name](nums[0]))
 
 
-__all__ = ["StatLineFormulaEngine", "FormulaError", "FormulaValue", "FormulaCallable"]
+__all__ = ["FormulaCallable", "FormulaError", "FormulaValue", "StatLineFormulaEngine"]

@@ -46,7 +46,7 @@ def _json_rows(text: str) -> list[dict[str, object]]:
         raise ValueError("Pairwise JSON must contain an array of row objects")
     items = cast(list[object], payload)
     if any(not isinstance(item, Mapping) for item in items):
-        raise ValueError("Pairwise JSON must contain an array of row objects")
+        raise ValueError("Pairwise JSON must contain an array of row objects")  # noqa: TRY004
     return [dict(cast(Mapping[str, object], item)) for item in items]
 
 
@@ -65,10 +65,10 @@ def load_pairwise_rows(
             raise ValueError("StatPack is missing metadata.yaml")
         metadata_doc: object = yaml.safe_load(archive.read("metadata.yaml"))
         if not isinstance(metadata_doc, Mapping):
-            raise ValueError("StatPack metadata must be a mapping")
+            raise ValueError("StatPack metadata must be a mapping")  # noqa: TRY004
         metadata_value = cast(Mapping[str, object], metadata_doc).get("metadata")
         if not isinstance(metadata_value, Mapping):
-            raise ValueError("StatPack metadata must be a mapping")
+            raise ValueError("StatPack metadata must be a mapping")  # noqa: TRY004
         metadata = cast(Mapping[str, object], metadata_value)
         logical = str(dataset or metadata.get("dataset") or "").replace("\\", "/")
         member_path = PurePosixPath(logical)

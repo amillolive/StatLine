@@ -6,10 +6,10 @@ import importlib.util
 import json
 import os
 import threading
+from collections.abc import Generator
 from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Generator
 
 import pytest
 
@@ -83,6 +83,8 @@ def fake_gateway(cors: bool = True) -> Generator[str, None, None]:
 def test_configured_browser_api_must_allow_actual_origin() -> None:
     with fake_gateway(cors=True) as address:
         local.verify_browser_api(address, "http://localhost:3000")
-    with fake_gateway(cors=False) as address:
-        with pytest.raises(ValueError, match="does not allow the browser origin"):
-            local.verify_browser_api(address, "http://localhost:3000")
+    with (
+        fake_gateway(cors=False) as address,
+        pytest.raises(ValueError, match="does not allow the browser origin"),
+    ):
+        local.verify_browser_api(address, "http://localhost:3000")
