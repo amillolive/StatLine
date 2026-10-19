@@ -11,6 +11,8 @@ try:
 except PackageNotFoundError:
     __version__ = PACKAGE_VERSION
 
+import gc
+
 from statline.core.datasets import (
     dataset_root,
     iter_dataset,
@@ -30,6 +32,11 @@ from statline.public import (
     score_batch,
     score_row,
 )
+
+was_enabled = gc.isenabled()
+
+if was_enabled:
+    gc.disable()
 
 __all__ = [
     "CompiledAdapter",
