@@ -1,12 +1,12 @@
 {
   "engine_version": "4.0.0rc6",
-  "generated_at": "2026-10-19T20:06:43.759092+00:00",
-  "source_sha256": "45050d55882dbf5fe75dac32f380f4d79a1c7d2e2493259813ce724f4668ace1",
+  "generated_at": "2026-10-19T20:15:19.961420+00:00",
+  "source_sha256": "c3bc9d06b2e8f2d70d80b97eb4aaf86063d1b6d635171a5685a56106290dfada",
   "snapshots": [
     {
       "engine_version": "4.0.0rc6",
-      "generated_at": "2026-10-19T20:06:43.759092+00:00",
-      "source_sha256": "45050d55882dbf5fe75dac32f380f4d79a1c7d2e2493259813ce724f4668ace1",
+      "generated_at": "2026-10-19T20:15:19.961420+00:00",
+      "source_sha256": "c3bc9d06b2e8f2d70d80b97eb4aaf86063d1b6d635171a5685a56106290dfada",
       "adapter": "eba.players",
       "adapter_version": "4.0.0",
       "dataset": "EBA_Elevate302/eba_players_gp3_plus.csv",
@@ -1777,38 +1777,38 @@
         },
         "weights": {
           "pri": {
-            "handle": 0.04,
-            "vers": 0.09,
-            "aefg": 0.28,
-            "spg_sig": 0.02,
-            "scoring_gravity": 0.14,
-            "helios": 0.13,
-            "bpg_sig": 0.02,
-            "telem": 0.0,
-            "offball": 0.06,
             "stocks": 0.05,
+            "vers": 0.09,
+            "wl": 0.025,
             "gp": 0.025,
             "two_way": 0.05,
-            "wl": 0.025,
+            "handle": 0.04,
+            "spg_sig": 0.02,
             "tov_eff": 0.12,
-            "effloor": 0.05
+            "bpg_sig": 0.02,
+            "offball": 0.06,
+            "effloor": 0.05,
+            "telem": 0.0,
+            "helios": 0.13,
+            "scoring_gravity": 0.14,
+            "aefg": 0.28
           },
           "pri_alt": {
-            "handle": 0.07,
-            "vers": 0.08,
-            "aefg": 0.24,
-            "spg_sig": 0.02,
-            "scoring_gravity": 0.0,
-            "helios": 0.09,
-            "bpg_sig": 0.03,
-            "telem": 0.0,
-            "offball": 0.05,
             "stocks": 0.05,
+            "vers": 0.08,
+            "wl": 0.025,
             "gp": 0.025,
             "two_way": 0.07,
-            "wl": 0.025,
+            "handle": 0.07,
+            "spg_sig": 0.02,
             "tov_eff": 0.22,
-            "effloor": 0.08
+            "bpg_sig": 0.03,
+            "offball": 0.05,
+            "effloor": 0.08,
+            "telem": 0.0,
+            "helios": 0.09,
+            "scoring_gravity": 0.0,
+            "aefg": 0.24
           }
         },
         "penalties": {},
@@ -76434,8 +76434,8 @@
     },
     {
       "engine_version": "4.0.0rc6",
-      "generated_at": "2026-10-19T20:06:43.759092+00:00",
-      "source_sha256": "45050d55882dbf5fe75dac32f380f4d79a1c7d2e2493259813ce724f4668ace1",
+      "generated_at": "2026-10-19T20:15:19.961420+00:00",
+      "source_sha256": "c3bc9d06b2e8f2d70d80b97eb4aaf86063d1b6d635171a5685a56106290dfada",
       "adapter": "eba.teams",
       "adapter_version": "4.0.0",
       "dataset": "EBA_Elevate302/eba_s1_teams.csv",
@@ -77592,44 +77592,44 @@
         },
         "weights": {
           "pri": {
-            "offense": 0.14,
-            "net": 0.46,
-            "defense": 0.14,
             "form": 0.08,
-            "telem": 0.0,
-            "wl": 0.18
+            "net": 0.46,
+            "wl": 0.18,
+            "offense": 0.14,
+            "defense": 0.14,
+            "telem": 0.0
           },
           "standings": {
-            "offense": 0.04,
-            "net": 0.38,
-            "defense": 0.04,
             "form": 0.06,
-            "telem": 0.0,
-            "wl": 0.48
+            "net": 0.38,
+            "wl": 0.48,
+            "offense": 0.04,
+            "defense": 0.04,
+            "telem": 0.0
           },
           "predictive": {
-            "offense": 0.04,
-            "net": 0.57,
-            "defense": 0.04,
             "form": 0.08,
-            "telem": 0.0,
-            "wl": 0.27
+            "net": 0.57,
+            "wl": 0.27,
+            "offense": 0.04,
+            "defense": 0.04,
+            "telem": 0.0
           },
           "offense": {
-            "offense": 0.75,
-            "net": 0.15,
-            "defense": 0.0,
             "form": 0.0,
-            "telem": 0.0,
-            "wl": 0.1
+            "net": 0.15,
+            "wl": 0.1,
+            "offense": 0.75,
+            "defense": 0.0,
+            "telem": 0.0
           },
           "defense": {
-            "offense": 0.0,
-            "net": 0.1,
-            "defense": 0.75,
             "form": 0.0,
-            "telem": 0.0,
-            "wl": 0.15
+            "net": 0.1,
+            "wl": 0.15,
+            "offense": 0.0,
+            "defense": 0.75,
+            "telem": 0.0
           }
         },
         "penalties": {},

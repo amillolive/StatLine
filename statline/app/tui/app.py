@@ -104,9 +104,8 @@ class StatLineOS(App[None]):
         output = self.query_one("#output", RichLog)
         if result.clear:
             output.clear()
-        elif result.text:
-            if not self._render_json_table(result.text):
-                output.write(result.text)
+        elif result.text and not self._render_json_table(result.text):
+            output.write(result.text)
         self._refresh_status()
         if result.quit:
             self.exit()

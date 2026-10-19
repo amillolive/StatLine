@@ -1,6 +1,6 @@
 {
   "engine_version": "4.0.0rc6",
-  "generated_at": "2026-10-19T20:06:43.759092+00:00",
+  "generated_at": "2026-10-19T20:15:19.961420+00:00",
   "release_channels": {
     "stable": {
       "line": "v3",
@@ -14,7 +14,7 @@
     }
   },
   "requires_python": ">=3.10,<3.15",
-  "source_sha256": "45050d55882dbf5fe75dac32f380f4d79a1c7d2e2493259813ce724f4668ace1",
+  "source_sha256": "c3bc9d06b2e8f2d70d80b97eb4aaf86063d1b6d635171a5685a56106290dfada",
   "release_highlights": [
     "The Gateway supports opt-in `response_format=\"compact\"`, moving equal context, weights and explanation configuration into `shared` without changing scored values. Legacy remains the default.",
     "Results preserve original `source_index` and an adapter identity `source_id` (PLAYER or TEAM for EBA), including through raw and mapped filtering.",
@@ -134,7 +134,7 @@
       "generation": 1,
       "hits": 29,
       "misses": 1,
-      "last_rebuild_ms": 27.702,
+      "last_rebuild_ms": 30.61,
       "adapters": 5,
       "names": 16,
       "specs": 5,
