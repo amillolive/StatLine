@@ -311,9 +311,7 @@ print(list_datasets())
 from statline import load_dataset, score
 
 rows = load_dataset("DEMO/demo", limit=10)
-results = score(
-    "packs/retired/demo.yaml", rows, mode="batch", weights="pri"
-)
+results = score("packs/retired/demo.yaml", rows, mode="batch", weights="pri")
 
 for result in results:
     print(result["pri"], result["pri_raw"])
