@@ -25,8 +25,14 @@ from typer.testing import CliRunner
 
 
 def test_yaml_codec_is_safe_and_supports_python_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
-    assert yaml_codec.SAFE_LOADER in {yaml.SafeLoader, getattr(yaml, "CSafeLoader", yaml.SafeLoader)}
-    assert yaml_codec.SAFE_DUMPER in {yaml.SafeDumper, getattr(yaml, "CSafeDumper", yaml.SafeDumper)}
+    assert yaml_codec.SAFE_LOADER in {
+        yaml.SafeLoader,
+        getattr(yaml, "CSafeLoader", yaml.SafeLoader),
+    }
+    assert yaml_codec.SAFE_DUMPER in {
+        yaml.SafeDumper,
+        getattr(yaml, "CSafeDumper", yaml.SafeDumper),
+    }
     assert yaml_codec.safe_load("key: [one, two]") == {"key": ["one", "two"]}
     with pytest.raises(yaml.YAMLError):
         yaml_codec.safe_load("!!python/object/apply:os.system ['echo unsafe']")
@@ -74,7 +80,7 @@ def test_cache_diagnostics_and_structured_stage_events() -> None:
 def test_cache_cli_does_not_misformat_numeric_hits_as_timestamps() -> None:
     result = CliRunner().invoke(cli_app, ["--mode", "local", "adapter", "cache-info"])
     assert result.exit_code == 0, result.output
-    data = json.loads(result.stdout[result.stdout.index("{"):])
+    data = json.loads(result.stdout[result.stdout.index("{") :])
     assert isinstance(data["adapters"]["hits"], int)
     assert isinstance(data["adapters"]["misses"], int)
     assert isinstance(data["adapters"]["last_rebuild_ms"], float)

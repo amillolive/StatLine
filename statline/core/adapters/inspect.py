@@ -34,13 +34,20 @@ def inspect_dataset(dataset: str | Path) -> dict[str, Any]:
         sniff = spec.sniff
         required_all = {str(header).strip().casefold() for header in sniff.require_all_headers}
         required_any = {str(header).strip().casefold() for header in sniff.require_any_headers}
-        compatible = bool(required_all or required_any) and required_all.issubset(normalized) and (
-            not required_any or bool(required_any & normalized)
+        compatible = (
+            bool(required_all or required_any)
+            and required_all.issubset(normalized)
+            and (not required_any or bool(required_any & normalized))
         )
         if declared or compatible:
-            matches.append({"adapter": adapter.key, "declared": declared,
-                            "header_compatible": compatible,
-                            "missing_headers": sorted(required_all - normalized)})
+            matches.append(
+                {
+                    "adapter": adapter.key,
+                    "declared": declared,
+                    "header_compatible": compatible,
+                    "missing_headers": sorted(required_all - normalized),
+                }
+            )
     declared_count = sum(bool(entry["declared"]) for entry in matches)
     return {
         "dataset": path.relative_to(dataset_root().resolve()).as_posix(),
@@ -62,7 +69,9 @@ def inspect_adapter(adapter: str) -> dict[str, Any]:
     error: str | None = None
     if compiled.metadata.dataset:
         try:
-            resolved = dataset_for_adapter(compiled).relative_to(dataset_root().resolve()).as_posix()
+            resolved = (
+                dataset_for_adapter(compiled).relative_to(dataset_root().resolve()).as_posix()
+            )
         except (FileNotFoundError, ValueError) as exc:
             error = str(exc)
     return {

@@ -104,11 +104,11 @@ app = FastAPI(
 )
 
 
-
 @app.get("/rtfm", include_in_schema=False)
 def styled_reference() -> HTMLResponse:
     """Branded landing around the native interactive reference and ReDoc routes."""
-    return HTMLResponse("""<!doctype html>
+    return HTMLResponse(
+        """<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>StatLine · API documentation</title>
 <style>
@@ -129,7 +129,10 @@ iframe{display:block;width:100%;min-height:80vh;background:white;border:1px soli
 <p>Use the built-in Swagger Authorize control with an approved bearer API key. The interactive
 reference below remains the native FastAPI/Swagger UI; its security and scopes are enforced by the Gateway.</p>
 <iframe title="Interactive StatLine API documentation" src="/docs" loading="eager"></iframe>
-</main></body></html>""", headers={"Cache-Control": "no-store"})
+</main></body></html>""",
+        headers={"Cache-Control": "no-store"},
+    )
+
 
 configure_portal_cors(app)
 

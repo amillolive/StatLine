@@ -162,8 +162,7 @@ def dataset_catalog() -> dict[str, Any]:
 
     return {
         "datasets": [
-            {"path": name, "adapters": sorted(linked.get(name, set()))}
-            for name in list_datasets()
+            {"path": name, "adapters": sorted(linked.get(name, set()))} for name in list_datasets()
         ]
     }
 

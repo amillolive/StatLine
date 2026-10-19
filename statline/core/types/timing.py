@@ -25,7 +25,9 @@ class StageTimes:
 
     def _emit(self, stage: str, phase: str, elapsed_ms: float) -> None:
         event: PipelineEvent = {
-            "stage": stage, "phase": phase, "elapsed_ms": elapsed_ms,
+            "stage": stage,
+            "phase": phase,
+            "elapsed_ms": elapsed_ms,
             "sequence": len(self.events),
         }
         self.events.append(event)

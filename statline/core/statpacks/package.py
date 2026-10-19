@@ -388,8 +388,6 @@ def unpack_statpack(
         raise
 
 
-
-
 def _path_segment(value: str, label: str) -> str:
     """Accept one portable, lowercase layout segment (never a path)."""
     import re
@@ -450,14 +448,20 @@ def deploy_statpack(
             validation.unlink(missing_ok=True)
         # Flatten only once at install; the original sections stay intact.
         output = prepared / f"{implementation}.yaml"
-        output.write_text(_render_text(tree, source=archive, output=deployed / output.name), encoding="utf-8")
+        output.write_text(
+            _render_text(tree, source=archive, output=deployed / output.name), encoding="utf-8"
+        )
         mirror = stage / "data"
         if (prepared / "dataset").is_dir():
             shutil.copytree(prepared / "dataset", mirror)
         shutil.copy2(archive, stage / "published.statpack")
 
         # Validate first, then replace. Restore the previous install on errors.
-        destinations = [(prepared, deployed), (mirror, data), (stage / "published.statpack", published)]
+        destinations = [
+            (prepared, deployed),
+            (mirror, data),
+            (stage / "published.statpack", published),
+        ]
         backups: list[tuple[Path, Path]] = []
         installed: list[Path] = []
         try:
@@ -485,6 +489,7 @@ def deploy_statpack(
 
         refresh_adapters()
     return deployed
+
 
 def load_statpack_tree(root: Path) -> dict[str, Any]:
     _ensure_source_tree(root)

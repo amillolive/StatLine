@@ -138,10 +138,7 @@ class StatLineOS(App[None]):
         table = cast(DataTable[str], self.query_one("#score-table", DataTable))
         table.clear(columns=True)
         table.add_columns(*names)
-        table.add_rows(
-            [self._table_cell(item.get(name)) for name in names]
-            for item in items[:500]
-        )
+        table.add_rows([self._table_cell(item.get(name)) for name in names] for item in items[:500])
         table.display = True
         self.query_one("#output", RichLog).write(
             f"Rendered {min(len(items), 500)} of {len(items)} scoring rows. "

@@ -118,7 +118,8 @@ def test_mixed_adapter_preserves_ordinary_affine() -> None:
             / "packs"
             / "basketball"
             / "eba"
-            / "players" / "eba_players.yaml"
+            / "players"
+            / "eba_players.yaml"
         )
     )
     prior = calculate_pri(

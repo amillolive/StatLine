@@ -3924,12 +3924,18 @@ def adapter_cache_info_cmd() -> None:
     engine = get_formula_engine()
     # Cache counters are numeric, not timestamps; bypass the generic CLI's
     # legacy datetime guesser (which interprets `hits` as matching `ts`).
-    typer.echo(json.dumps({
-        "adapters": adapter_cache_info(),
-        "formula": {
-            "compiled_expressions": str(engine.compile.cache_info()),
-        },
-    }, ensure_ascii=False, indent=2))
+    typer.echo(
+        json.dumps(
+            {
+                "adapters": adapter_cache_info(),
+                "formula": {
+                    "compiled_expressions": str(engine.compile.cache_info()),
+                },
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
 
 
 @adapter_app.command("list")

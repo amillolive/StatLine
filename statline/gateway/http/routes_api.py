@@ -132,7 +132,6 @@ def sniff(body: SniffIn) -> dict[str, list[str]]:
     return {"adapters": sniff_adapters(body.headers)}
 
 
-
 @api_router.get("/inspect/dataset", tags=["datasets"], summary="Inspect dataset compatibility")
 def inspect_dataset_compatibility(dataset: str) -> dict[str, Any]:
     from statline.core.adapters.inspect import inspect_dataset

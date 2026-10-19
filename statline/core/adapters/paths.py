@@ -59,9 +59,11 @@ def iter_adapter_paths(*, include_deprecated: bool = False) -> Iterable[Path]:
             forbidden = {"workspace", "data", "schema", "dataset", "inputs", "db"}
             if not include_deprecated:
                 forbidden.add("retired")
-            if (forbidden & set(relative.parts) or
-                    any(part.startswith(".") for part in relative.parts) or
-                    path.name == "metadata.yaml"):
+            if (
+                forbidden & set(relative.parts)
+                or any(part.startswith(".") for part in relative.parts)
+                or path.name == "metadata.yaml"
+            ):
                 continue
             resolved = path.resolve()
             if path.is_file() and resolved not in seen:

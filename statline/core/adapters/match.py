@@ -132,5 +132,5 @@ __all__ = [
     "dataset_name",
     "resolve_dataset_path",
     "resolve_scoring_target",
-    "normalize_dataset"
+    "normalize_dataset",
 ]
