@@ -10,19 +10,20 @@ from statline.core.adapters.load import load_spec
 from statline.core.relate import PairwiseError, load_pairwise_rows, score_pairwise
 from statline.core.scoring.score import calculate_pri
 from statline.core.statpacks import manifest_statpack, render_statpack
+from statline.core.types.adapters import CompiledAdapter
 
 ROOT = Path(__file__).resolve().parents[1] / "examples" / "pairwise_race"
 
 
-def adapter():
+def adapter() -> CompiledAdapter:
     return compile_adapter(load_spec(ROOT / "race_elo.yaml"))
 
 
-def source_rows():
+def source_rows() -> tuple[list[dict[str, object]], list[dict[str, object]]]:
     return (load_pairwise_rows(ROOT / "ratings.json"), load_pairwise_rows(ROOT / "results.json"))
 
 
-def test_evaluator_reproduces_six_driver_javascript_elo():
+def test_evaluator_reproduces_six_driver_javascript_elo() -> None:
     old, new = source_rows()
     out = score_pairwise(adapter(), old=old, new=new)
     assert [round(r["output"]["eloChange"], 2) for r in out] == [
@@ -37,7 +38,7 @@ def test_evaluator_reproduces_six_driver_javascript_elo():
     assert [r["scores"]["ELO"] for r in out] == [1623, 1609, 1508, 1492, 1383, 1355]
 
 
-def test_selected_head_to_head_does_not_change_group_math():
+def test_selected_head_to_head_does_not_change_group_math() -> None:
     old, new = source_rows()
     selected = score_pairwise(
         adapter(), old=old, new=new, selected_ids=["DriverA", "DriverB"], include_pairs=True
@@ -47,7 +48,7 @@ def test_selected_head_to_head_does_not_change_group_math():
     assert len(selected[0]["pairs"]) == 5
 
 
-def test_missing_old_and_duplicate_ids_rejected():
+def test_missing_old_and_duplicate_ids_rejected() -> None:
     old, new = source_rows()
     with pytest.raises(PairwiseError, match="previous-state"):
         score_pairwise(adapter(), old=old[:-1], new=new)
@@ -57,7 +58,7 @@ def test_missing_old_and_duplicate_ids_rejected():
         score_pairwise(adapter(), old=old, new=new + new[:1])
 
 
-def test_finite_group_limits_and_single_participant():
+def test_finite_group_limits_and_single_participant() -> None:
     old, new = source_rows()
     with pytest.raises(PairwiseError, match="limit"):
         score_pairwise(adapter(), old=old, new=new, max_pairs=3)
@@ -66,12 +67,12 @@ def test_finite_group_limits_and_single_participant():
     assert one[0]["output"]["eloChange"] == 0
 
 
-def test_pairwise_only_adapter_rejects_ordinary_pri_path():
+def test_pairwise_only_adapter_rejects_ordinary_pri_path() -> None:
     with pytest.raises(ValueError, match="score_pairwise"):
         calculate_pri([{}], adapter())
 
 
-def test_statpack_section_survives_manifest_and_render(tmp_path: Path):
+def test_statpack_section_survives_manifest_and_render(tmp_path: Path) -> None:
     # manifest expects dataset metadata; pairwise source defaults remain external.
     example = ROOT / "race_elo.yaml"
     pack = manifest_statpack(example, tmp_path / "elo.statpack")
@@ -81,7 +82,7 @@ def test_statpack_section_survives_manifest_and_render(tmp_path: Path):
     assert "race_elo" in spec.pairwise
 
 
-def test_bad_formula_fails_on_execution():
+def test_bad_formula_fails_on_execution() -> None:
     from dataclasses import replace
 
     compiled = adapter()
@@ -93,7 +94,7 @@ def test_bad_formula_fails_on_execution():
         score_pairwise(compiled, old=old, new=new)
 
 
-def test_profile_may_name_pairwise_output_pri():
+def test_profile_may_name_pairwise_output_pri() -> None:
     from dataclasses import replace
 
     prepared = adapter()
@@ -105,7 +106,7 @@ def test_profile_may_name_pairwise_output_pri():
     assert result[0]["pri"] == 1600
 
 
-def test_mixed_adapter_preserves_ordinary_affine():
+def test_mixed_adapter_preserves_ordinary_affine() -> None:
     from dataclasses import replace
 
     from statline.core.adapters.compile import compile_adapter
@@ -114,12 +115,10 @@ def test_mixed_adapter_preserves_ordinary_affine():
     legacy = compile_adapter(
         load_spec(
             Path(__file__).resolve().parents[1]
-            / "statline"
-            / "core"
-            / "adapters"
-            / "schemas"
-            / "current"
-            / "eba_players.yaml"
+            / "packs"
+            / "basketball"
+            / "eba"
+            / "players" / "eba_players.yaml"
         )
     )
     prior = calculate_pri(
@@ -157,7 +156,7 @@ def test_mixed_adapter_preserves_ordinary_affine():
         )
 
 
-def test_two_distinct_race_groups_are_evaluated_independently():
+def test_two_distinct_race_groups_are_evaluated_independently() -> None:
     old, new = source_rows()
     other = [dict(x, race_id="2") for x in new]
     out = score_pairwise(adapter(), old=old, new=new + other)
@@ -165,7 +164,7 @@ def test_two_distinct_race_groups_are_evaluated_independently():
     assert out[0]["output"] == out[6]["output"]
 
 
-def test_statpack_dataset_used_without_running_embedded_python(tmp_path: Path):
+def test_statpack_dataset_used_without_running_embedded_python(tmp_path: Path) -> None:
     import zipfile
 
     file = tmp_path / "ratings.statpack"

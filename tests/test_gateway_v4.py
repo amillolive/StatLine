@@ -16,7 +16,7 @@ from statline.gateway.http.resources import adapter_catalog, adapter_document
 from statline.gateway.http.routes_api import _score_request, score
 
 ROOT = Path(__file__).resolve().parents[1]
-DEPRECATED = ROOT / "statline" / "core" / "adapters" / "schemas" / "deprecated"
+DEPRECATED = ROOT / "packs" / "retired"
 
 
 def test_gateway_catalog_hides_deprecated_adapters_and_paths() -> None:

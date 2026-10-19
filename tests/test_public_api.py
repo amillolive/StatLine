@@ -15,7 +15,7 @@ from statline import (
 )
 
 ROOT = Path(__file__).resolve().parents[1]
-DEPRECATED = ROOT / "statline" / "core" / "adapters" / "schemas" / "deprecated"
+DEPRECATED = ROOT / "packs" / "retired"
 DEMO_ADAPTER = DEPRECATED / "demo.yaml"
 VALORANT_ADAPTER = DEPRECATED / "valorant.yaml"
 
@@ -57,12 +57,15 @@ def test_every_registered_adapter_loads() -> None:
     for name in names:
         adapter = load_adapter(name)
         assert adapter.key
-        assert adapter.score_profiles, f"{adapter.key} must define score_profiles"
+        # Native RELATE pairwise adapters need not define ordinary weighted profiles.
+        assert adapter.score_profiles or adapter.native_pairwise is not None, (
+            f"{adapter.key} must define scoring profiles or a native pairwise plan"
+        )
 
 
 def test_dataset_listing_and_resolution() -> None:
     datasets = list_datasets()
-    assert "DEMO/demo.csv" in datasets
+    assert "examples/demo/data/sample/DEMO/demo.csv" in datasets
     assert load_dataset("demo", limit=1)
 
 

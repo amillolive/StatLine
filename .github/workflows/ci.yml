@@ -487,6 +487,8 @@ jobs:
             "https://x-access-token:${SYNC_TOKEN}@github.com/amillolive/StatLine-app.git"
           git remote add gateway \
             "https://x-access-token:${SYNC_TOKEN}@github.com/amillolive/StatLine-gateway.git"
+          git remote add portal \
+            "https://x-access-token:${SYNC_TOKEN}@github.com/amillolive/StatLine-portal.git"
 
       - name: Sync component mirrors
         run: |

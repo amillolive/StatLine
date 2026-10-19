@@ -7,7 +7,7 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path, PurePosixPath
 from typing import Any
 
-from statline.core.formula import FormulaError, StatLineFormulaEngine
+from statline.core.formula import FormulaError, get_formula_engine
 from statline.core.relate.errors import PairwiseError
 from statline.core.relate.sources import load_pairwise_rows
 from statline.core.types.adapters import NativePairwiseSpec
@@ -93,7 +93,7 @@ def score_native_pairwise(
         if identity not in prev:
             raise PairwiseError(f"a[{i}] participant {identity!r} missing from b")
         active.append((identity, row, prev[identity]))
-    engine = StatLineFormulaEngine()
+    engine = get_formula_engine()
     try:
         pair_plan = engine.compile_variables(spec.pair)
         result_plan = engine.compile_variables(spec.result)

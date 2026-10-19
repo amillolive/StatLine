@@ -38,6 +38,16 @@ def sha256(path: pathlib.Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def source_documents(source: pathlib.Path) -> list[dict[str, str]]:
+    """Hash present source documents; optional docs may not ship in all checkouts."""
+    paths = ("README.md", "statline/gateway/V4_API.md", "ARCHITECTURE.md")
+    return [
+        {"path": name, "sha256": sha256(source / name)}
+        for name in paths
+        if (source / name).is_file()
+    ]
+
+
 def describe_functions(module: object, names: list[str]) -> list[dict[str, str]]:
     functions: list[dict[str, str]] = []
     for name in names:
@@ -200,6 +210,11 @@ def generate(source: pathlib.Path, output: pathlib.Path) -> None:
                 packed_data.parent.mkdir(parents=True)
                 packed_data.write_bytes(dataset_path.read_bytes())
                 pack = statpacks.pack_statpack(tree, downloads / pack_file, overwrite=True)
+                # Keep a canonical, runnable bundle next to the authorable YAML.
+                # Temporary --output generation must not modify the source checkout.
+                if output.resolve() == (source / "portal").resolve():
+                    target = schema_path.with_suffix(".statpack")
+                    target.write_bytes(pack.read_bytes())
                 report = statpacks.inspect_statpack(pack)
                 rendered = statpacks.render_statpack(pack, pathlib.Path(temp) / "rendered.yaml")
                 assert score(str(rendered), rows, mode="batch", weights="pri") == results
@@ -371,10 +386,7 @@ def generate(source: pathlib.Path, output: pathlib.Path) -> None:
                 **project.get("urls", {}),
                 "Repository": "https://github.com/amillolive/StatLine/tree/next",
             },
-            "source_documents": [
-                {"path": path, "sha256": sha256(source / path)}
-                for path in ["README.md", "statline/gateway/V4_API.md", "ARCHITECTURE.md"]
-            ],
+            "source_documents": source_documents(source),
         }
         write_json(output / "data" / "product.json", manifest)
         write_json(downloads / "product.json", manifest)

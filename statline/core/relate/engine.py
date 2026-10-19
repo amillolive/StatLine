@@ -13,7 +13,7 @@ from collections import defaultdict
 from collections.abc import Iterable, Mapping, Sequence
 from typing import Any, cast
 
-from statline.core.formula import FormulaError, StatLineFormulaEngine
+from statline.core.formula import FormulaError, get_formula_engine
 from statline.core.relate.errors import PairwiseError
 from statline.core.types.adapters import (
     AdapterSpec,
@@ -98,7 +98,7 @@ def score_pairwise(
     if max_pairs <= 0:
         raise PairwiseError("max_pairs must be positive")
 
-    engine = StatLineFormulaEngine()
+    engine = get_formula_engine()
     try:
         plan_vars = engine.compile_variables(spec.variables)
         plan_pair = engine.compile_variables(spec.calculate)

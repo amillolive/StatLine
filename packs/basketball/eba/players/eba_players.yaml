@@ -3,7 +3,7 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # AUTO-GENERATED RUNTIME ADAPTER — DO NOT EDIT DIRECTLY
 # Source: C:\Users\amillo\Documents\Python Projects\StatLine StatPack Site\eba_players.statpack
-# Output: statline/core/adapters/schemas/current/eba_players.yaml
+# Output: packs/basketball/eba/players/eba_players.yaml
 # Version: 3.0.1
 #
 # This file is compiler-generated and verified for StatLine.
@@ -452,7 +452,12 @@ efficiency:
   - 0.0
   - 0.6
   min_den: 1
-  make: "no_score * 0.60 + scoreable\n  * max(0, (tpa/max(1e-6,fga)) - 0.70)\n  * max(0, 1.28 - ((fga - tpa))) / 1.28\n  * max(0, pps_fg - 1.22)\n  * min(1, 10/max(1e-6,fga))\n"
+  make: >-
+    no_score * 0.60 + scoreable
+    * max(0, (tpa/max(1e-6,fga)) - 0.70)
+    * max(0, 1.28 - ((fga - tpa))) / 1.28
+    * max(0, pps_fg - 1.22)
+    * min(1, 10/max(1e-6,fga))
   attempt: '1'
 - key: stocks_boost
   bucket: stocks
@@ -580,12 +585,12 @@ score_profiles:
   PRI:
     kind: affine
     lo: 40
-    hi: 125
+    hi: 123
     weights_profile: pri
   PRI-ALT:
     kind: affine
     lo: 40
-    hi: 125
+    hi: 123
     weights_profile: pri_alt
   PRI-W:
     kind: window

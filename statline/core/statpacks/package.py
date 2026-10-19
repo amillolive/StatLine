@@ -15,9 +15,11 @@ from typing import Any, cast
 
 import yaml
 
+from statline.core.adapters.compile import compile_adapter
 from statline.core.adapters.load import load_spec
-from statline.core.adapters.paths import current_adapter_dir
+from statline.core.adapters.paths import adapter_schema_root, current_adapter_dir
 from statline.core.datasets import dataset_root
+from statline.core.tools.yaml_codec import safe_dump, safe_load
 
 SECTION_ORDER = (
     "dimensions",
@@ -69,7 +71,7 @@ def _logical_dataset_path(value: object) -> PurePosixPath:
 
 def _yaml_mapping(path: Path, *, expected_key: str | None = None) -> dict[str, Any]:
     try:
-        loaded = yaml.safe_load(path.read_text(encoding="utf-8"))
+        loaded = safe_load(path.read_text(encoding="utf-8"))
     except yaml.YAMLError as error:
         raise ValueError(f"Invalid YAML in {path}: {error}") from error
     if not isinstance(loaded, Mapping):
@@ -81,7 +83,7 @@ def _yaml_mapping(path: Path, *, expected_key: str | None = None) -> dict[str, A
 
 
 def dump_yaml(data: Mapping[str, Any]) -> str:
-    dumped: str = yaml.safe_dump(
+    dumped: str = safe_dump(
         dict(data),
         sort_keys=False,
         allow_unicode=True,
@@ -169,8 +171,16 @@ def pack_statpack(
     if not root.is_dir():
         raise NotADirectoryError(f"StatPack source directory not found: {root}")
     _ensure_source_tree(root)
-    # Never create a native comparison pack with missing declared sources.
+    # Strictly validate every adapter before publishing, not only pairwise ones.
+    # The temporary YAML must be inside the source tree so native input paths
+    # remain relative to the authored workspace.
     tree = load_statpack_tree(root)
+    validation = root / ".statline-validation.yaml"
+    try:
+        validation.write_text(dump_yaml(tree), encoding="utf-8")
+        compile_adapter(load_spec(validation))
+    finally:
+        validation.unlink(missing_ok=True)
     if isinstance(tree.get("pairwise"), Mapping) and "version" in tree["pairwise"]:
         from statline.core.relate.native import portable_input
         from statline.core.relate.schema import parse_native_pairwise
@@ -189,6 +199,13 @@ def _find_dataset_for_yaml(source: Path, logical: PurePosixPath) -> Path | None:
         source.parent / "dataset" / relative,
         dataset_root() / relative,
     ]
+    # Canonical packs/<game>/<org>/{workspace/<impl>,data/<impl>,<impl>}.
+    from statline.core.datasets import resolve_dataset
+
+    try:
+        candidates.append(resolve_dataset(logical.as_posix(), allow_external=False))
+    except (FileNotFoundError, ValueError):
+        pass
     for ancestor in (source.parent, *source.parents):
         candidates.extend(
             [
@@ -282,15 +299,32 @@ def manifest_statpack(
     raise ValueError("manifest source must be a StatPack directory or adapter YAML")
 
 
+_MAX_STATPACK_FILES = 2048
+_MAX_STATPACK_MEMBER = 128 * 1024 * 1024
+_MAX_STATPACK_TOTAL = 512 * 1024 * 1024
+
+
 def _safe_archive_members(archive: zipfile.ZipFile) -> list[zipfile.ZipInfo]:
     members: list[zipfile.ZipInfo] = []
+    seen: set[str] = set()
+    total = 0
     for info in archive.infolist():
         member = _normalize_member(info.filename)
         if member != info.filename.replace("\\", "/").lstrip("./"):
             raise ValueError(f"Non-canonical StatPack entry: {info.filename!r}")
+        if member.casefold() in seen:
+            raise ValueError(f"Duplicate StatPack entry: {info.filename!r}")
+        seen.add(member.casefold())
         mode = (info.external_attr >> 16) & 0o170000
         if mode == 0o120000:
             raise ValueError(f"StatPack cannot contain symlinks: {info.filename}")
+        if info.file_size > _MAX_STATPACK_MEMBER:
+            raise ValueError(f"StatPack member exceeds size limit: {info.filename}")
+        total += info.file_size
+        if total > _MAX_STATPACK_TOTAL or len(seen) > _MAX_STATPACK_FILES:
+            raise ValueError("StatPack exceeds total size or file count limit")
+        if info.file_size > 1024 * 1024 and info.file_size > 200 * max(1, info.compress_size):
+            raise ValueError(f"StatPack member has suspicious compression ratio: {info.filename}")
         members.append(info)
     names = {info.filename for info in members if not info.is_dir()}
     missing = [name for name in _REQUIRED_ROOT if name not in names]
@@ -353,6 +387,104 @@ def unpack_statpack(
         shutil.rmtree(target, ignore_errors=True)
         raise
 
+
+
+
+def _path_segment(value: str, label: str) -> str:
+    """Accept one portable, lowercase layout segment (never a path)."""
+    import re
+
+    if not re.fullmatch(r"[a-z0-9][a-z0-9_-]*", value):
+        raise ValueError(f"{label} must be a lowercase slug (letters, numbers, - or _)")
+    if value in {"data", "workspace", "retired", "db", "schema", "inputs", "dataset"}:
+        raise ValueError(f"{label} is reserved: {value}")
+    return value
+
+
+def deploy_statpack(
+    pack: str | Path,
+    game: str,
+    organization: str,
+    implementation: str,
+    *,
+    overwrite: bool = False,
+    packs_root: str | Path | None = None,
+) -> Path:
+    """Install a verified pack at packs/<game>/<org>/<impl>/, preserving workspace.
+
+    The deployed directory contains the StatPack's canonical metadata/schema,
+    original portable inputs and an auto-rendered discoverable adapter YAML.
+    Dataset resources are mirrored under org/data/<impl>/ so ordinary datasets
+    and native pairwise snapshots have one consistent organizational boundary.
+    No runner is executed by installation.
+    """
+    game = _path_segment(game, "game")
+    organization = _path_segment(organization, "organization")
+    implementation = _path_segment(implementation, "implementation")
+    archive = Path(pack).expanduser().resolve()
+    base = Path(packs_root).expanduser().resolve() if packs_root else adapter_schema_root()
+    owner = base / game / organization
+    owner.mkdir(parents=True, exist_ok=True)
+    deployed = owner / implementation
+    data = owner / "data" / implementation
+    published = owner / f"{implementation}.statpack"
+    if not overwrite and any(p.exists() for p in (deployed, data, published)):
+        raise FileExistsError(f"Implementation already installed: {deployed}")
+
+    with tempfile.TemporaryDirectory(prefix=f".{implementation}-stage-", dir=owner) as raw:
+        stage = Path(raw)
+        prepared = unpack_statpack(archive, stage / "implementation")
+        tree = load_statpack_tree(prepared)
+        validation = prepared / ".statline-validation.yaml"
+        try:
+            validation.write_text(dump_yaml(tree), encoding="utf-8")
+            compile_adapter(load_spec(validation))
+            if isinstance(tree.get("pairwise"), Mapping) and "version" in tree["pairwise"]:
+                from statline.core.relate.native import portable_input
+                from statline.core.relate.schema import parse_native_pairwise
+
+                spec = parse_native_pairwise(tree["pairwise"], tree.get("expressions"))
+                for descriptor in spec.inputs.values():
+                    portable_input(prepared, descriptor["path"])
+        finally:
+            validation.unlink(missing_ok=True)
+        # Flatten only once at install; the original sections stay intact.
+        output = prepared / f"{implementation}.yaml"
+        output.write_text(_render_text(tree, source=archive, output=deployed / output.name), encoding="utf-8")
+        mirror = stage / "data"
+        if (prepared / "dataset").is_dir():
+            shutil.copytree(prepared / "dataset", mirror)
+        shutil.copy2(archive, stage / "published.statpack")
+
+        # Validate first, then replace. Restore the previous install on errors.
+        destinations = [(prepared, deployed), (mirror, data), (stage / "published.statpack", published)]
+        backups: list[tuple[Path, Path]] = []
+        installed: list[Path] = []
+        try:
+            for _source, destination in destinations:
+                if destination.exists():
+                    backup = stage / f"backup-{len(backups)}"
+                    os.replace(destination, backup)
+                    backups.append((backup, destination))
+            for source_path, destination in destinations:
+                if source_path.exists():
+                    destination.parent.mkdir(parents=True, exist_ok=True)
+                    os.replace(source_path, destination)
+                    installed.append(destination)
+        except Exception:
+            for destination in reversed(installed):
+                if destination.is_dir():
+                    shutil.rmtree(destination)
+                else:
+                    destination.unlink(missing_ok=True)
+            for backup, destination in reversed(backups):
+                os.replace(backup, destination)
+            raise
+    if base.resolve() == adapter_schema_root().resolve():
+        from statline.core.adapters import refresh_adapters
+
+        refresh_adapters()
+    return deployed
 
 def load_statpack_tree(root: Path) -> dict[str, Any]:
     _ensure_source_tree(root)
@@ -429,9 +561,12 @@ def render_statpack(
     with tempfile.TemporaryDirectory(prefix="statline-render-") as temporary:
         root = unpack_statpack(source, Path(temporary) / source.stem)
         data = load_statpack_tree(root)
-        validation_path = Path(temporary) / "validation.yaml"
-        validation_path.write_text(dump_yaml(data), encoding="utf-8")
-        load_spec(validation_path)
+        validation_path = root / ".statline-validation.yaml"
+        try:
+            validation_path.write_text(dump_yaml(data), encoding="utf-8")
+            compile_adapter(load_spec(validation_path))
+        finally:
+            validation_path.unlink(missing_ok=True)
         text = _render_text(data, source=source, output=target)
 
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -453,7 +588,7 @@ def inspect_statpack(pack: str | Path) -> dict[str, Any]:
     with zipfile.ZipFile(source, "r") as archive:
         members = _safe_archive_members(archive)
         metadata_raw = archive.read("metadata.yaml").decode("utf-8")
-        metadata_loaded = yaml.safe_load(metadata_raw)
+        metadata_loaded = safe_load(metadata_raw)
         metadata: dict[str, Any] = {}
         if isinstance(metadata_loaded, Mapping):
             loaded_root = cast(Mapping[object, object], metadata_loaded)
@@ -528,6 +663,7 @@ __all__ = [
     "SECTION_ORDER",
     "STANDARD_RUNNER",
     "dump_yaml",
+    "deploy_statpack",
     "execute_statpack",
     "inspect_statpack",
     "load_statpack_tree",

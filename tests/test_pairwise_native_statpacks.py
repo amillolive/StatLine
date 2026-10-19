@@ -18,17 +18,17 @@ from statline.core.statpacks import (
     render_statpack,
     unpack_statpack,
 )
-from statline.core.types.adapters import CompiledAdapter
+from statline.core.types.adapters import CompiledAdapter, NativePairwiseSpec
 from statline.sdk import run_statpack
 
 ROOT = Path(__file__).resolve().parents[1] / "examples" / "native_pairwise_v1"
 
 
-def spec():
+def spec() -> NativePairwiseSpec | None:
     return compile_adapter(load_spec(ROOT / "pairwise-elo.yaml")).native_pairwise
 
 
-def test_exact_typescript_parity_and_join_independent_of_row_order():
+def test_exact_typescript_parity_and_join_independent_of_row_order() -> None:
     model = spec()
     assert model is not None
     a, b = read_inputs(model, ROOT)
@@ -45,7 +45,7 @@ def test_exact_typescript_parity_and_join_independent_of_row_order():
     assert results == score_native_pairwise(model, a, list(reversed(b)))
 
 
-def test_single_driver_duplicate_and_missing_history():
+def test_single_driver_duplicate_and_missing_history() -> None:
     model = spec()
     assert model is not None
     a, b = read_inputs(model, ROOT)
@@ -62,7 +62,7 @@ def test_single_driver_duplicate_and_missing_history():
         score_native_pairwise(model, a, b, max_pairs=2)
 
 
-def test_statpack_manifest_unpack_render_run_and_csv(tmp_path: Path):
+def test_statpack_manifest_unpack_render_run_and_csv(tmp_path: Path) -> None:
     pack = manifest_statpack(ROOT / "pairwise-elo.yaml", tmp_path / "compare.statpack")
     contents = inspect_statpack(pack)["files"]
     assert "inputs/next-match.statpack" in contents
@@ -79,7 +79,7 @@ def test_statpack_manifest_unpack_render_run_and_csv(tmp_path: Path):
     )
 
 
-def test_profile_can_name_native_result_without_changing_math(tmp_path: Path):
+def test_profile_can_name_native_result_without_changing_math(tmp_path: Path) -> None:
     text = (ROOT / "pairwise-elo.yaml").read_text(encoding="utf-8")
     text += "\nscore_profiles:\n  ELO: {kind: pairwise, model: native, value: newElo}\n"
     target = tmp_path / "adapter.yaml"
@@ -91,7 +91,7 @@ def test_profile_can_name_native_result_without_changing_math(tmp_path: Path):
     assert rows[0]["ELO"] == rows[0]["newElo"] == 1623
 
 
-def test_path_escape_and_invalid_native_structure_rejected(tmp_path: Path):
+def test_path_escape_and_invalid_native_structure_rejected(tmp_path: Path) -> None:
     text = (ROOT / "pairwise-elo.yaml").read_text(encoding="utf-8")
     for change in ["../previous-match.statpack", "/etc/passwd", "C:/secrets.statpack"]:
         corrupted = text.replace("inputs/previous-match.statpack", change)

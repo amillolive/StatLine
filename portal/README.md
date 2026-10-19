@@ -40,8 +40,7 @@ portal API URL and restores the previous setting when stopped.
 Public pages require no authentication. Saved EBA examples, docs and downloads
 work without contacting the API. Choose **Check API** to contact the configured
 service; live scoring needs an approved key under existing Gateway policy.
-Browser integration registration has been removed. The previously reported
-application-access prompt remains unverified on the deployed service.
+Browser integration registration has been removed. The deployed service and any third-party OAuth flows must still be inspected separately for prompts.
 
 The homepage, explorer and playground show engine-produced helped/limited factors
 and an expandable input/normalization/weight/profile trace. Influences refer to
@@ -74,13 +73,14 @@ Gateway. Actual DNS, tunnel, access gates and TLS settings need verification in
 your deployment. Use the public deployment template for informational pages;
 the private Caddy example is explicitly for a private preview.
 
-Read the root `RC6_CHANGES.md` and `RC6_VERIFICATION.md` for migration and checks.
+See `packs/README.md` and `scripts/README.md` for rc6 migration and launch instructions.
 
 ## API connection troubleshooting (local vs deployed)
 
-The portal checks the **browser-configured** API on load, every minute while the tab
-is visible, and when you press **Check API**. `Not checked` and `Checking` are not
-outages. A healthy local Uvicorn log is not proof that a remotely configured API
+The portal checks the **browser-configured** API only after you explicitly select
+**Check API**; it never makes background API requests or probes localhost on a public page. `Not checked` and `Checking` are not
+outages. The deployed website can call only `https://api.statline.dev`; it
+cannot access a visitor’s local network, device keys, or installed applications. A healthy local Uvicorn log is not proof that a remotely configured API
 is reachable from the browser.
 
 The joint launcher rebuilds the portal automatically when source changed (or the

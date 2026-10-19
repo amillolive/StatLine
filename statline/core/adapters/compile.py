@@ -10,8 +10,8 @@ from types import MappingProxyType
 from typing import SupportsFloat, SupportsIndex, TypeAlias, cast
 
 from statline.core.adapters.hooks import get as get_hooks
-from statline.core.formula import StatLineFormulaEngine
-from statline.core.formula._legacy import (
+from statline.core.formula import StatLineFormulaEngine, get_formula_engine
+from statline.core.formula._compat import (
     _DATASET_AGGREGATES_KEY,
     _DATASET_FUNCTIONS,
     _DATASET_OPERATIONS,
@@ -166,6 +166,15 @@ def _sanitize_row(raw: Mapping[str, object]) -> dict[str, object]:
     return {str(key): _num(value) for key, value in raw.items()}
 
 
+def _compile_numeric_expression(expr: str) -> Callable[[Mapping[str, object], float], float]:
+    """Reject syntax errors before they become silent zero compatibility scores."""
+    try:
+        ast.parse(expr, mode="eval")
+    except (SyntaxError, ValueError) as error:
+        raise ValueError(f"Invalid adapter expression: {error}") from error
+    return StatLineFormulaEngine.compile_compat(expr)
+
+
 def _compile_source(source: SourceSpec) -> MetricEvaluator:
     if source.kind == "field":
         field = (source.field or "").strip()
@@ -181,7 +190,7 @@ def _compile_source(source: SourceSpec) -> MetricEvaluator:
         expression = (source.expr or "").strip()
         if not expression:
             raise ValueError("Expression source requires a non-empty expr.")
-        evaluator = StatLineFormulaEngine.compile_legacy(expression)
+        evaluator = _compile_numeric_expression(expression)
         return lambda context: _finite(evaluator(context, cast(float, context.get("x", 0.0))))
     raise ValueError(f"Unsupported source kind: {source.kind}")
 
@@ -195,7 +204,7 @@ def _compile_transform(spec: TransformSpec | None) -> _TransformEvaluator:
         expression = str(params.get("expr", "")).strip()
         if not expression:
             raise ValueError("Expression transform requires a non-empty expr.")
-        evaluator = StatLineFormulaEngine.compile_legacy(expression)
+        evaluator = _compile_numeric_expression(expression)
         return lambda value, context: _finite(evaluator(context, value))
     if spec.kind == "affine":
         scale = _num(params.get("scale", params.get("a", 1.0)))
@@ -256,8 +265,8 @@ def _compile_metric(metric: MetricSpec) -> CompiledMetric:
 
 
 def _compile_efficiency(efficiency: EffSpec) -> CompiledEfficiency:
-    make = StatLineFormulaEngine.compile_legacy(efficiency.make)
-    attempt = StatLineFormulaEngine.compile_legacy(efficiency.attempt)
+    make = _compile_numeric_expression(efficiency.make)
+    attempt = _compile_numeric_expression(efficiency.attempt)
     transform = _compile_transform(efficiency.transform)
     minimum = float(efficiency.min_den)
     if not math.isfinite(minimum) or minimum <= 0:
@@ -376,7 +385,7 @@ def compile_adapter(spec: AdapterSpec) -> CompiledAdapter:
     # Validate the strict formula language at adapter compilation, not after
     # the first race has started. Legacy expressions keep their old semantics.
     if spec.pairwise:
-        strict_engine = StatLineFormulaEngine()
+        strict_engine = get_formula_engine()
         for model_name, pairwise in spec.pairwise.items():
             for section, formulas in (
                 ("variables", pairwise.variables),
@@ -409,5 +418,5 @@ def compile_adapter(spec: AdapterSpec) -> CompiledAdapter:
     )
 
 
-compile_expr = StatLineFormulaEngine.compile_legacy
+compile_expr = StatLineFormulaEngine.compile_compat
 __all__ = ["build_dataset_context", "compile_adapter", "compile_expr", "map_raw"]

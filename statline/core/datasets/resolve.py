@@ -5,7 +5,14 @@ from __future__ import annotations
 from pathlib import Path
 
 PathLike = str | Path
-_DATASET_ROOT = Path(__file__).resolve().parent
+# Source checkouts use /packs; installed wheels include statline/packs.
+# Data is owned by each organization at packs/<game>/<org>/data/<implementation>/.
+_REPO = Path(__file__).resolve().parents[3]
+_DATASET_ROOT = (
+    _REPO / "packs"
+    if (_REPO / "packs").is_dir()
+    else Path(__file__).resolve().parents[2] / "packs"
+)
 
 
 def dataset_root() -> Path:
@@ -24,13 +31,26 @@ def _inside_root(path: Path, root: Path) -> bool:
         return False
 
 
+def _iter_csv(base: Path, *, canonical: bool) -> list[Path]:
+    if not base.is_dir():
+        return []
+    # Restrict global catalog to organization-owned data; never publish drafts,
+    # unpacked StatPack datasets, or retired/scratch CSVs.
+    return sorted(
+        path for path in base.rglob("*.csv")
+        if path.is_file() and (
+            not canonical or (
+                len(path.relative_to(base).parts) >= 5
+                and path.relative_to(base).parts[2] == "data"
+            )
+        )
+    )
+
+
 def list_datasets(*, root: PathLike | None = None) -> list[str]:
     base = _resolved_root(root)
-    if not base.exists():
-        return []
-    return sorted(
-        path.relative_to(base).as_posix() for path in base.rglob("*.csv") if path.is_file()
-    )
+    return [path.relative_to(base).as_posix()
+            for path in _iter_csv(base, canonical=base == _DATASET_ROOT.resolve())]
 
 
 def _candidate_dataset_paths(
@@ -59,12 +79,13 @@ def _candidate_dataset_paths(
             candidates.append((base / f"{relative.as_posix()}.csv").resolve())
 
     normalized = relative.as_posix().casefold().removesuffix(".csv").strip("/")
-    for item in base.rglob("*.csv"):
-        relative_name = item.relative_to(base).as_posix()
-        if (
-            relative_name.casefold().removesuffix(".csv") == normalized
-            or item.stem.casefold() == normalized
-        ):
+    for item in _iter_csv(base, canonical=base == _DATASET_ROOT.resolve()):
+        relative_name = item.relative_to(base).as_posix().casefold().removesuffix(".csv")
+        # Full canonical names are preferred; legacy org/dataset keys are accepted
+        # only when they uniquely identify a file in an org's data directory.
+        if (relative_name == normalized
+                or relative_name.endswith("/" + normalized)
+                or item.stem.casefold() == normalized):
             candidates.append(item.resolve())
 
     seen: set[Path] = set()

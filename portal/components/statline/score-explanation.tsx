@@ -21,19 +21,21 @@ export type Explanation = {
 };
 const number = (value: number) => value.toLocaleString("en-US", { maximumFractionDigits: 6 });
 
-export function ScoreExplanation({ explanation, context, primary, input }: {
+export function ScoreExplanation({ explanation, context, primary, input, selectedProfile, onProfileChange }: {
   explanation?: Explanation; context?: ExplanationContext; primary: string; input?: Record<string, unknown>;
+  selectedProfile?: string; onProfileChange?: (profile: string) => void;
 }) {
   const [selected, setSelected] = useState(primary);
   if (!explanation || !context) return <p className="small muted">Precise attribution is unavailable in this response. Request <code>output.show_explanation</code> on a compatible gateway.</p>;
-  const profile = explanation.profiles[selected] ? selected : primary;
+  const requested = selectedProfile ?? selected;
+  const profile = explanation.profiles[requested] ? requested : primary;
   const result = explanation.profiles[profile];
   if (!result) return <p className="small muted">Attribution for this profile is unavailable.</p>;
   const labels = (keys: string[]) => keys.map(key => context.metrics[key]?.label ?? key).join(", ");
   const keys = Object.keys(result.contributions).sort((a, b) => Math.abs(result.relative_influence[b]) - Math.abs(result.relative_influence[a]));
   return <section className="score-explanation" aria-label="Why this score">
     <h4>Why {result.final_score}?</h4>
-    {Object.keys(explanation.profiles).length > 1 && <label>Score profile <select value={profile} onChange={event => setSelected(event.target.value)}>{Object.keys(explanation.profiles).map(name => <option key={name}>{name}</option>)}</select></label>}
+    {Object.keys(explanation.profiles).length > 1 && !onProfileChange && <label>Score profile <select value={profile} onChange={event => setSelected(event.target.value)}>{Object.keys(explanation.profiles).map(name => <option key={name}>{name}</option>)}</select></label>}
     {result.unscoreable_override ? <p>The engine marked this row unscoreable and set its raw aggregate to zero. Metric influences below describe the inputs before that override.</p> : <>
       <p><strong>Helped:</strong> {result.helped.length ? labels(result.helped) : "No material influence above the reference."}</p>
       <p><strong>Limited:</strong> {result.limited.length ? labels(result.limited) : "No material influence below the reference."}</p>

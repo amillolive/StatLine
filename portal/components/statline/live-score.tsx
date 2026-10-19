@@ -7,6 +7,7 @@ import type { EbaSnapshot } from "./eba-data";
 import { ScoreExplanation } from "./score-explanation";
 import { expandedResults, resultLabel, type ScoreResponse } from "@/lib/score-response";
 import product from "@/data/product.json";
+import { gatewayRequest } from "@/lib/gateway-client";
 
 export function LiveScore({ source }: { source: EbaSnapshot }) {
   const { baseUrl, status, spec, specSource } = useApi();
@@ -27,19 +28,12 @@ export function LiveScore({ source }: { source: EbaSnapshot }) {
   const payload = { adapter: source.adapter, rows: source.rows.map(row => row.input), weights: "pri", input_kind: "raw", caps_mode: "batch", include_mapped: true, response_format: "compact", output: { show_explanation: true, show_components: true, show_buckets: true } };
   async function request(path: string, method: "GET" | "POST", body?: object) {
     setBusy(true); setError(""); setResponse(null);
-    const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), 20000);
+    const controller = new AbortController();
     try {
-      const result = await fetch(baseUrl + path, { method, credentials: "omit", cache: "no-store", signal: controller.signal,
-        headers: { Authorization: `Bearer ${key.trim()}`, ...(body ? { "Content-Type": "application/json" } : {}) }, body: body ? JSON.stringify(body) : undefined });
-      const text = await result.text(); let data: unknown;
-      try { data = JSON.parse(text); } catch { throw new Error(`Gateway returned HTTP ${result.status} without a JSON response.`); }
-      if (!result.ok) {
-        const detail = data && typeof data === "object" && "detail" in data ? JSON.stringify(data.detail) : "Request rejected";
-        throw new Error(`Gateway HTTP ${result.status}: ${detail}${result.status === 401 || result.status === 403 ? " Use an approved userbase key and the server's required authentication mode." : ""}`);
-      }
+      const data = await gatewayRequest<unknown>(baseUrl, path, { method, key, body, signal: controller.signal });
       setResponse(data); setSelectedRow(0); setResponseLabel(`${method} ${path} · ${new Date().toLocaleString()}`);
-    } catch (failure) { setError(failure instanceof Error && failure.name !== "TypeError" ? failure.message : "The gateway could not be reached. Saved results remain available."); }
-    finally { clearTimeout(timer); setBusy(false); }
+    } catch (failure) { setError(failure instanceof Error ? failure.message : "The gateway could not be reached. Saved results remain available."); }
+    finally { setBusy(false); }
   }
   return <div className="live-score"><ApiStatus/>
     <h4>Use the existing gateway.</h4><p>Send the complete saved <code>{source.adapter}</code> input batch ({source.count} rows) to StatLine’s own scoring endpoint. The browser does not map, normalize or calculate scores.</p>

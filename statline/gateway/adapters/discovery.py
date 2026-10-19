@@ -8,6 +8,7 @@ from typing import Any, cast
 
 import yaml as yaml_module
 
+from statline.core.tools.yaml_codec import safe_load
 from statline.gateway.adapters.types import AdapterConfig, ResolvedYaml, YamlError
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -76,7 +77,7 @@ _yaml_cache: dict[Path, AdapterConfig] = {}
 
 def _yaml_load(text: str) -> AdapterConfig:
     try:
-        obj = yaml_module.safe_load(text)
+        obj = safe_load(text)
     except yaml_module.YAMLError as e:  # pragma: no cover
         raise YamlError(f"Failed to parse YAML: {e}") from e
 

@@ -1,6 +1,7 @@
-"""Compatibility evaluator: preserve rc6 AST and numeric semantics exactly.
+"""Internal compiled numeric compatibility backend for StatLineFormulaEngine.
 
-New authorable formulas use StatLineFormulaEngine's strict mode instead.
+Compiles allowlisted AST into a safe callable once and caches by expression.
+This is not a second formula entrypoint: consumers use StatLineFormulaEngine.
 """
 
 from __future__ import annotations
@@ -154,7 +155,7 @@ def _lower_expr_node(node: ast.AST) -> ast.expr:
 
 
 @lru_cache(maxsize=512)
-def compile_legacy(expr: str) -> ExpressionEvaluator:
+def compile_compat(expr: str) -> ExpressionEvaluator:
     """Compile and cache one restricted expression."""
     try:
         parsed = ast.parse(expr, mode="eval")
@@ -190,7 +191,7 @@ def compile_legacy(expr: str) -> ExpressionEvaluator:
 def _eval_expr(  # pyright: ignore[reportUnusedFunction]
     expr: str, context: Mapping[str, object]
 ) -> float:
-    return _finite(compile_legacy(expr)(context, _num(context.get("x", 0.0))))
+    return _finite(compile_compat(expr)(context, _num(context.get("x", 0.0))))
 
 
 __all__ = [
@@ -202,5 +203,5 @@ __all__ = [
     "_finite",
     "_num",
     "_safe_div",
-    "compile_legacy",
+    "compile_compat",
 ]

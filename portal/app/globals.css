@@ -170,4 +170,19 @@ input,select,textarea{width:100%;border:1px solid #38543f;border-radius:5px;back
 
 .score-explanation{border-top:1px solid var(--border);padding:18px 0;margin-top:18px}.score-explanation h4{font-size:18px;margin-bottom:12px}.score-explanation p{font-size:13px;line-height:1.65;margin:8px 0}.score-explanation select{width:100%;margin:6px 0 12px}.score-explanation details{margin-top:12px}.score-explanation summary{cursor:pointer;font-size:13px;color:var(--mint)}.attribution-scroll{overflow:auto;margin-top:12px}.attribution-table{border-collapse:collapse;font-size:11px;width:100%}.attribution-table td,.attribution-table th{padding:8px 6px;border-bottom:1px solid var(--border);text-align:right;white-space:nowrap}.attribution-table th:first-child{text-align:left}.attribution-json{max-height:300px;overflow:auto;font-size:11px;white-space:pre-wrap}
 
-.release-strip{padding:10px 20px;text-align:center;font-size:12px;line-height:1.6;color:var(--muted);border-bottom:1px solid var(--border);background:var(--panel)}.release-strip a{color:var(--mint)}.release-strip span{margin:0 8px}@media(max-width:600px){.release-strip{font-size:11px;padding:8px}.score-explanation h4{font-size:16px}}
+.release-strip{padding:11px 20px;text-align:center;font-size:13px;font-weight:500;line-height:1.6;color:#e0f0e4;border-bottom:1px solid #52695a;background:#162a20}.release-strip a{color:#a5f9c3;text-decoration:underline;text-underline-offset:3px;font-weight:650}.release-strip a:hover,.release-strip a:focus-visible{color:#fff;outline-offset:3px}.release-strip span{margin:0 8px;color:#bfdfca}@media(max-width:600px){.release-strip{font-size:12px;padding:9px}.score-explanation h4{font-size:16px}}
+
+/* RC6: long query routes, credential forms, docs, and responsive alignment. */
+.playground, .playground-main, .playground-input, .playground-result, .dashboard-content,
+.docs-layout, .docs-content, .docs-sidebar, .docs-toc { min-width: 0; }
+.playground-input textarea, .dashboard-panel input { max-width: 100%; }
+.docs-content pre, .playground-result pre { max-width: 100%; overflow-x: auto; }
+.nav-wrap { align-items: center; }
+.nav-links { align-items: center; }
+.btn, .feature-card, .nav-dropdown a { transition: transform 180ms ease, background-color 180ms ease, border-color 180ms ease; }
+@media (hover:hover) and (prefers-reduced-motion:no-preference) {
+  .feature-card:hover { transform: translateY(-3px); }
+  .btn:hover { transform: translateY(-1px); }
+}
+@media (max-width:800px) { .docs-layout, .dashboard-layout { width: 100%; } .api-status { overflow-wrap:anywhere; } }
+@media (prefers-reduced-motion:reduce) { .btn, .feature-card, .nav-dropdown a { transition: none; } }

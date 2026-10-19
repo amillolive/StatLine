@@ -170,6 +170,104 @@
         ]
       }
     },
+    "/v4/inspect/dataset": {
+      "get": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "Inspect dataset compatibility",
+        "operationId": "inspect_dataset_compatibility_v4_inspect_dataset_get",
+        "security": [
+          {
+            "StatLineApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "dataset",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dataset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Inspect Dataset Compatibility V4 Inspect Dataset Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v4/inspect/adapter": {
+      "get": {
+        "tags": [
+          "adapters"
+        ],
+        "summary": "Inspect adapter dataset linkage",
+        "operationId": "inspect_adapter_compatibility_v4_inspect_adapter_get",
+        "security": [
+          {
+            "StatLineApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "adapter",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Adapter"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Inspect Adapter Compatibility V4 Inspect Adapter Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v4/datasets": {
       "get": {
         "tags": [
@@ -3236,8 +3334,8 @@
   ],
   "x-statline-snapshot": {
     "source_release": "4.0.0rc6",
-    "generated_at": "2026-10-12T22:16:15.093838+00:00",
-    "source_sha256": "98e65d3d9f31b76336f81f96429c8d49bd663c38a5b981b3dd690d0d92c8160e",
+    "generated_at": "2026-10-19T19:42:22.321653+00:00",
+    "source_sha256": "9f8adc1abd7350ea2b9fb5c824de15747c7b0dd03f1961eaeb18f016bb66816f",
     "response_format": "compact opt-in; legacy default"
   }
 }

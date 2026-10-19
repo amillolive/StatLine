@@ -3899,6 +3899,39 @@ def _wire_format_to_path(path: Path, data: Any, *, fmt: str, include_headers: bo
     raise typer.BadParameter("--fmt must be json, jsonl, or csv when --out is used.")
 
 
+@adapter_app.command("inspect")
+def adapter_inspect_cmd(adapter: str = typer.Argument(...)) -> None:
+    """Inspect an adapter's source, required headers and declared dataset (JSON)."""
+    from statline.core.adapters.inspect import inspect_adapter
+
+    _print_payload(inspect_adapter(adapter))
+
+
+@adapter_app.command("compatible")
+def adapter_compatible_cmd(dataset: str = typer.Argument(...)) -> None:
+    """Report all declared and header-compatible adapters for a CSV dataset."""
+    from statline.core.adapters.inspect import inspect_dataset
+
+    _print_payload(inspect_dataset(dataset))
+
+
+@adapter_app.command("cache-info")
+def adapter_cache_info_cmd() -> None:
+    """Display adapter and compiled formula cache statistics."""
+    from statline.core.adapters.registry import adapter_cache_info
+    from statline.core.formula import get_formula_engine
+
+    engine = get_formula_engine()
+    # Cache counters are numeric, not timestamps; bypass the generic CLI's
+    # legacy datetime guesser (which interprets `hits` as matching `ts`).
+    typer.echo(json.dumps({
+        "adapters": adapter_cache_info(),
+        "formula": {
+            "compiled_expressions": str(engine.compile.cache_info()),
+        },
+    }, ensure_ascii=False, indent=2))
+
+
 @adapter_app.command("list")
 def adapter_list(
     source: str = typer.Option("auto", "--source", help="auto|local|remote", case_sensitive=False),
@@ -4727,6 +4760,22 @@ def statpack_inspect_cmd(
     from statline.core.statpacks import inspect_statpack
 
     typer.echo(json.dumps(inspect_statpack(pack), ensure_ascii=False, indent=2))
+
+
+@statpack_app.command("deploy")
+def statpack_deploy_cmd(
+    pack: Path = typer.Argument(..., exists=True, dir_okay=False, readable=True),
+    game: str = typer.Option(..., "--game", help="Game or implementation family slug."),
+    org: str = typer.Option(..., "--org", help="Organization slug."),
+    impl: str = typer.Option(..., "--impl", help="Implementation slug."),
+    force: bool = typer.Option(False, "--force", help="Replace installed implementation."),
+) -> None:
+    """Unpack, validate and install a StatPack under the canonical org layout."""
+    ensure_banner()
+    from statline.core.statpacks import deploy_statpack
+
+    result = deploy_statpack(pack, game, org, impl, overwrite=force)
+    typer.secho(f"Deployed: {result}", fg=typer.colors.GREEN, bold=True)
 
 
 @statpack_app.command("register")

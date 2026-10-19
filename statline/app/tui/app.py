@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
-from typing import ClassVar
+import json
+from typing import ClassVar, cast
 
+from textual import work
 from textual.app import App, ComposeResult
 from textual.binding import BindingType
 from textual.containers import Vertical
-from textual.widgets import Footer, Header, Input, RichLog, Static
+from textual.widgets import DataTable, Footer, Header, Input, RichLog, Static
 
 from statline.app.session import StatLineSession
 
@@ -31,6 +33,13 @@ class StatLineOS(App[None]):
         padding: 1;
     }
 
+    #score-table {
+        height: 35%;
+        min-height: 6;
+        border: round $primary;
+        display: none;
+    }
+
     #command {
         dock: bottom;
         margin: 0 1 1 1;
@@ -51,6 +60,7 @@ class StatLineOS(App[None]):
         with Vertical():
             yield Static("Starting StatLine OS…", id="session-status")
             yield RichLog(id="output", wrap=True, highlight=False, markup=False)
+            yield DataTable(id="score-table", zebra_stripes=True, cursor_type="row")
             yield Input(
                 placeholder="statline> paste or type any StatLine CLI command", id="command"
             )
@@ -76,17 +86,74 @@ class StatLineOS(App[None]):
         event.input.value = ""
         if not command:
             return
-
         output = self.query_one("#output", RichLog)
         output.write(f"statline> {command}")
-        result = await self.session.execute(command)
+        self._execute_command(command)
+
+    @work(exclusive=True, group="scoring-command")
+    async def _execute_command(self, command: str) -> None:
+        """Keep the UI event loop live while the CLI scores in its worker thread."""
+        status = self.query_one("#session-status", Static)
+        status.update("Working · scoring / command in progress…")
+        try:
+            result = await self.session.execute(command)
+        except Exception as error:
+            self.query_one("#output", RichLog).write(f"Command failed: {error}")
+            self._refresh_status()
+            return
+        output = self.query_one("#output", RichLog)
         if result.clear:
             output.clear()
         elif result.text:
-            output.write(result.text)
+            if not self._render_json_table(result.text):
+                output.write(result.text)
         self._refresh_status()
         if result.quit:
             self.exit()
+
+    def _render_json_table(self, text: str) -> bool:
+        """Display machine-readable scoring rows in a responsive DataTable.
+
+        Non-JSON and unstructured output keeps the usual RichLog path. The
+        untruncated command result is still available through normal CLI exports.
+        """
+        try:
+            payload: object = json.loads(text)
+        except (ValueError, TypeError):
+            return False
+        if isinstance(payload, dict):
+            rows: object = cast(dict[str, object], payload).get("results")
+        else:
+            rows = payload
+        if not isinstance(rows, list) or not rows:
+            return False
+        items: list[dict[str, object]] = []
+        for row in cast(list[object], rows):
+            if not isinstance(row, dict):
+                return False
+            items.append(cast(dict[str, object], row))
+        names = list(items[0])
+        if not names:
+            return False
+        table = cast(DataTable[str], self.query_one("#score-table", DataTable))
+        table.clear(columns=True)
+        table.add_columns(*names)
+        table.add_rows(
+            [self._table_cell(item.get(name)) for name in names]
+            for item in items[:500]
+        )
+        table.display = True
+        self.query_one("#output", RichLog).write(
+            f"Rendered {min(len(items), 500)} of {len(items)} scoring rows. "
+            "Use --out to export the full result."
+        )
+        return True
+
+    @staticmethod
+    def _table_cell(value: object) -> str:
+        if isinstance(value, (dict, list)):
+            return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+        return str(value) if value is not None else ""
 
     def action_clear_output(self) -> None:
         self.query_one("#output", RichLog).clear()

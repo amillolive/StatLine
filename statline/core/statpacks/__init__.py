@@ -3,6 +3,7 @@
 from statline.core.statpacks.package import (
     SECTION_ORDER,
     STANDARD_RUNNER,
+    deploy_statpack,
     dump_yaml,
     execute_statpack,
     inspect_statpack,
@@ -19,6 +20,7 @@ __all__ = [
     "SECTION_ORDER",
     "STANDARD_RUNNER",
     "dump_yaml",
+    "deploy_statpack",
     "execute_statpack",
     "inspect_statpack",
     "load_statpack_tree",

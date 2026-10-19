@@ -36,6 +36,7 @@ def source_fingerprint(source: Path) -> str:
     }
     for directory in (
         "statline",
+        "packs",
         "scripts",
         "portal/app",
         "portal/components",
@@ -47,7 +48,9 @@ def source_fingerprint(source: Path) -> str:
             for path in (source / directory).rglob("*")
             if path.is_file()
             and path.suffix in extensions
-            and not {"secrets", "log", "__pycache__"}.intersection(path.relative_to(source).parts)
+            and not {"secrets", "log", "__pycache__", "workspace", "retired"}.intersection(
+                path.relative_to(source).parts
+            )
         )
     fingerprint = hashlib.sha256()
     for path in sorted(files):

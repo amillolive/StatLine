@@ -42,7 +42,7 @@ def command(api_port: int, portal_port: int) -> list[str]:
     prefix = (
         ["bash", str(ROOT / "launch.sh")]
         if os.name == "posix"
-        else [sys.executable, str(ROOT / "portal/scripts/local.py")]
+        else [sys.executable, str(ROOT / "scripts/serve.py")]
     )
     return [*prefix, "--api-port", str(api_port), "--portal-port", str(portal_port)]
 

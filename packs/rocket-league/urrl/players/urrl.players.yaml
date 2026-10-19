@@ -2,8 +2,8 @@
 # StatLine Adapter Schema
 # ─────────────────────────────────────────────────────────────────────────────
 # AUTO-GENERATED RUNTIME ADAPTER — DO NOT EDIT DIRECTLY
-# Source: statline/public/statpacks/packed/urrl.players.statpack
-# Output: statline/core/adapters/schemas/current/urrl.players.yaml
+# Source: packs/rocket-league/urrl/players/urrl.players.statpack
+# Output: packs/rocket-league/urrl/urrl.players.yaml
 # Version: 1.0.0
 #
 # This file is compiler-generated and verified for StatLine.

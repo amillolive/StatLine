@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import cast
 
-from statline.core.formula import FormulaError, StatLineFormulaEngine
+from statline.core.formula import FormulaError, get_formula_engine
 from statline.core.types.adapters import NativePairwiseSpec
 
 
@@ -96,7 +96,7 @@ def parse_native_pairwise(pairwise: object, expressions: object) -> NativePairwi
         raise ValueError("Pairwise formulas cannot redefine reserved context names")
     if ref[5:] not in pair:
         raise ValueError(f"pairwise.expression references unknown formula {ref!r}")
-    engine = StatLineFormulaEngine()
+    engine = get_formula_engine()
     try:
         engine.compile_variables(pair)
         engine.compile_variables(result)

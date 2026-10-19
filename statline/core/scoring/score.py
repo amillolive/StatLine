@@ -12,7 +12,7 @@ from typing import (
 )
 
 # Reuse the exact legacy numeric semantics without depending on re-exports.
-from statline.core.formula._legacy import _finite as _finite_num
+from statline.core.formula._compat import _finite as _finite_num
 from statline.core.types.adapters import FilterSpec, ScoreProfileSpec  # typed schema
 
 from .explain import explain_row, explanation_context

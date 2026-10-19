@@ -2,6 +2,7 @@
 
 from statline.core.adapters.compile import compile_adapter, map_raw
 from statline.core.adapters.hooks import available, clear, get, register
+from statline.core.adapters.inspect import inspect_adapter, inspect_dataset
 from statline.core.adapters.registry import (
     adapter_cache_info,
     adapter_source,
@@ -35,6 +36,8 @@ __all__ = [
     "clear",
     "compile_adapter",
     "get",
+    "inspect_adapter",
+    "inspect_dataset",
     "list_adapters",
     "load_adapter",
     "load_adapter_spec",

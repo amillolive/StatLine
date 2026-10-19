@@ -13,11 +13,15 @@ from statline.gateway.auth.service import HDR_DEVICE_ID, HDR_NONCE, HDR_SIGNATUR
 
 def configure_portal_cors(app: FastAPI) -> None:
     """Allow explicit portal origins without changing authentication or adding routes."""
-    origins = [
-        value.strip().rstrip("/")
-        for value in os.getenv("STATLINE_PORTAL_ORIGINS", "").split(",")
-        if value.strip()
-    ]
+    origins = list(dict.fromkeys([
+        "https://statline.dev",
+        "https://www.statline.dev",
+        *[
+            value.strip().rstrip("/")
+            for value in os.getenv("STATLINE_PORTAL_ORIGINS", "").split(",")
+            if value.strip()
+        ],
+    ]))
     for origin in origins:
         parsed = urlsplit(origin)
         if (

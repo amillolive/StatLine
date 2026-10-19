@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from threading import RLock
+from time import perf_counter
 from typing import TypeVar
 
 from statline.core.adapters.compile import compile_adapter
@@ -17,6 +18,9 @@ _compiled_cache: dict[str, CompiledAdapter] = {}
 _spec_cache: dict[str, AdapterSpec] = {}
 _source_cache: dict[str, Path] = {}
 _generation = 0
+_cache_hits = 0
+_cache_misses = 0
+_last_rebuild_ms = 0.0
 _LOCK = RLock()
 
 
@@ -90,15 +94,20 @@ def _build_registry() -> tuple[
 
 def _discover(*, force: bool = False) -> None:
     global _compiled_cache, _spec_cache, _source_cache, _generation
+    global _cache_hits, _cache_misses, _last_rebuild_ms
     with _LOCK:
         if _compiled_cache and not force:
+            _cache_hits += 1
             return
+        started = perf_counter()
         compiled, specs, sources = _build_registry()
         # Replace the registry atomically only after every adapter loaded and compiled.
         _compiled_cache = compiled
         _spec_cache = specs
         _source_cache = sources
         _generation += 1
+        _cache_misses += 1
+        _last_rebuild_ms = (perf_counter() - started) * 1000.0
 
 
 def _normalized_or_error(name: str) -> str:
@@ -165,12 +174,15 @@ def refresh_adapters() -> None:
     _discover(force=True)
 
 
-def adapter_cache_info() -> dict[str, int]:
+def adapter_cache_info() -> dict[str, int | float]:
     """Return small, JSON-safe process-cache diagnostics."""
     _discover()
     with _LOCK:
         return {
             "generation": _generation,
+            "hits": _cache_hits,
+            "misses": _cache_misses,
+            "last_rebuild_ms": round(_last_rebuild_ms, 3),
             "adapters": len({adapter.key for adapter in _compiled_cache.values()}),
             "names": len(_compiled_cache),
             "specs": len({id(spec) for spec in _spec_cache.values()}),

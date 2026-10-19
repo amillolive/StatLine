@@ -5,13 +5,13 @@ from __future__ import annotations
 from pathlib import Path, PurePosixPath
 
 from statline.core.adapters.registry import list_adapters, load_adapter
-from statline.core.datasets import dataset_root
+from statline.core.datasets import dataset_root, resolve_dataset
 from statline.core.types.adapters import CompiledAdapter
 
 PathLike = str | Path
 
 
-def _normalize_dataset(value: object) -> str:
+def normalize_dataset(value: object) -> str:
     """Return a case-insensitive portable dataset name."""
     raw = str(value or "").strip().replace("\\", "/")
     if not raw:
@@ -30,18 +30,14 @@ def _inside_root(path: Path, root: Path) -> Path:
 
 
 def resolve_dataset_path(value: PathLike) -> Path:
-    """Resolve an explicit or dataset-root-relative CSV path."""
+    """Resolve canonical org data or unambiguous legacy dataset aliases."""
     root = dataset_root().resolve()
     supplied = Path(value).expanduser()
-
-    candidate = supplied if supplied.is_absolute() else root / supplied
-    resolved = _inside_root(candidate, root)
-
-    if not resolved.is_file():
-        raise FileNotFoundError(f"Dataset does not exist: {resolved}")
+    if supplied.is_absolute():
+        _inside_root(supplied, root)
+    resolved = resolve_dataset(str(value), allow_external=False)
     if resolved.suffix.casefold() != ".csv":
         raise ValueError(f"Dataset must be a CSV file: {resolved}")
-
     return resolved
 
 
@@ -65,14 +61,18 @@ def dataset_for_adapter(adapter: str | CompiledAdapter) -> Path:
 def adapter_for_dataset(dataset: PathLike) -> CompiledAdapter:
     """Return the single adapter declaring the supplied dataset."""
     relative = dataset_name(dataset)
-    target = _normalize_dataset(relative)
+    target = resolve_dataset_path(dataset)
     matches: list[CompiledAdapter] = []
 
     for name in list_adapters():
         adapter = load_adapter(name)
         declared = adapter.metadata.dataset
-        if declared and _normalize_dataset(declared) == target:
-            matches.append(adapter)
+        if declared:
+            try:
+                if resolve_dataset_path(declared) == target:
+                    matches.append(adapter)
+            except (FileNotFoundError, ValueError):
+                continue
 
     if not matches:
         raise ValueError(
@@ -132,4 +132,5 @@ __all__ = [
     "dataset_name",
     "resolve_dataset_path",
     "resolve_scoring_target",
+    "normalize_dataset"
 ]

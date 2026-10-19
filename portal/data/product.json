@@ -1,6 +1,6 @@
 {
   "engine_version": "4.0.0rc6",
-  "generated_at": "2026-10-12T22:16:15.093838+00:00",
+  "generated_at": "2026-10-19T19:42:22.321653+00:00",
   "release_channels": {
     "stable": {
       "line": "v3",
@@ -14,7 +14,7 @@
     }
   },
   "requires_python": ">=3.10,<3.15",
-  "source_sha256": "98e65d3d9f31b76336f81f96429c8d49bd663c38a5b981b3dd690d0d92c8160e",
+  "source_sha256": "9f8adc1abd7350ea2b9fb5c824de15747c7b0dd03f1961eaeb18f016bb66816f",
   "release_highlights": [
     "The Gateway supports opt-in `response_format=\"compact\"`, moving equal context, weights and explanation configuration into `shared` without changing scored values. Legacy remains the default.",
     "Results preserve original `source_index` and an adapter identity `source_id` (PLAYER or TEAM for EBA), including through raw and mapped filtering.",
@@ -38,7 +38,7 @@
     "Deprecated adapter schemas are no longer discoverable through CLI/API lists or sniffing; an explicit local YAML path is required to use one."
   ],
   "openapi_version": "3.1.0",
-  "operation_count": 34,
+  "operation_count": 36,
   "schema_count": 21,
   "paths": {
     "api_index": "/",
@@ -46,6 +46,8 @@
     "list_adapters_v4": "/v4/adapters",
     "get_adapter_v4": "/v4/adapters/{adapter}",
     "sniff_adapters_v4": "/v4/adapters/sniff",
+    "inspect_dataset_compatibility_v4_inspect_dataset_get": "/v4/inspect/dataset",
+    "inspect_adapter_compatibility_v4_inspect_adapter_get": "/v4/inspect/adapter",
     "list_datasets_v4": "/v4/datasets",
     "get_dataset_v4": "/v4/datasets/{dataset}",
     "score_v4": "/v4/score",
@@ -112,6 +114,13 @@
         "dataset": null
       },
       {
+        "key": "example.pairwise_elo",
+        "title": "Six-Driver Pairwise Elo",
+        "version": "1.0.0",
+        "aliases": [],
+        "dataset": null
+      },
+      {
         "key": "urrl.players",
         "title": "United Rogue Rocket League - Players",
         "version": "1.0.0",
@@ -123,55 +132,58 @@
     ],
     "cache": {
       "generation": 1,
-      "adapters": 4,
-      "names": 14,
-      "specs": 4,
-      "compiled": 4
+      "hits": 29,
+      "misses": 1,
+      "last_rebuild_ms": 33.942,
+      "adapters": 5,
+      "names": 16,
+      "specs": 5,
+      "compiled": 5
     }
   },
   "dataset_catalog": {
     "datasets": [
       {
-        "path": "DBA/dba_s0.csv",
+        "path": "basketball/eba/data/e302/EBA_Elevate302/e302.s1.players.csv",
         "adapters": []
       },
       {
-        "path": "DEMO/demo.csv",
-        "adapters": []
-      },
-      {
-        "path": "EBA_Elevate302/e302.s1.players.csv",
-        "adapters": []
-      },
-      {
-        "path": "EBA_Elevate302/eba_hybrid_s1_players.csv",
+        "path": "basketball/eba/data/players/EBA_Elevate302/eba_hybrid_s1_players.csv",
         "adapters": [
           "e302.players",
           "eba.players"
         ]
       },
       {
-        "path": "EBA_Elevate302/eba_hybrid_s1_teams.csv",
+        "path": "basketball/eba/data/players/EBA_Elevate302/eba_players_gp3_plus.csv",
         "adapters": []
       },
       {
-        "path": "EBA_Elevate302/eba_players_gp3_plus.csv",
+        "path": "basketball/eba/data/players/EBA_Elevate302/eba_s1_players.csv",
         "adapters": []
       },
       {
-        "path": "EBA_Elevate302/eba_s1_players.csv",
+        "path": "basketball/eba/data/players/EBA_Elevate302/statline-players(1).csv",
         "adapters": []
       },
       {
-        "path": "EBA_Elevate302/eba_s1_teams.csv",
+        "path": "basketball/eba/data/teams/EBA_Elevate302/eba_hybrid_s1_teams.csv",
         "adapters": []
       },
       {
-        "path": "EBA_Elevate302/statline-players(1).csv",
+        "path": "basketball/eba/data/teams/EBA_Elevate302/eba_s1_teams.csv",
         "adapters": []
       },
       {
-        "path": "URRL/S20/RB/FINAL.csv",
+        "path": "examples/demo/data/sample/DEMO/demo.csv",
+        "adapters": []
+      },
+      {
+        "path": "other/dba/data/players/DBA/dba_s0.csv",
+        "adapters": []
+      },
+      {
+        "path": "rocket-league/urrl/data/players/URRL/S20/RB/FINAL.csv",
         "adapters": [
           "urrl.players"
         ]
@@ -230,6 +242,11 @@
       "name": "dump_yaml",
       "signature": "(data: 'Mapping[str, Any]') -> 'str'",
       "description": ""
+    },
+    {
+      "name": "deploy_statpack",
+      "signature": "(pack: 'str | Path', game: 'str', organization: 'str', implementation: 'str', *, overwrite: 'bool' = False, packs_root: 'str | Path | None' = None) -> 'Path'",
+      "description": "Install a verified pack at packs/<game>/<org>/<impl>/, preserving workspace.\n\nThe deployed directory contains the StatPack's canonical metadata/schema,\noriginal portable inputs and an auto-rendered discoverable adapter YAML.\nDataset resources are mirrored under org/data/<impl>/ so ordinary datasets\nand native pairwise snapshots have one consistent organizational boundary.\nNo runner is executed by installation."
     },
     {
       "name": "execute_statpack",

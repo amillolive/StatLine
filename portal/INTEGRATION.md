@@ -31,24 +31,29 @@ Live mode sends the editable request to the responding Gateway's `score_v4` oper
 
 The current Gateway has no anonymous scoring endpoint. Public visitors can inspect saved examples; approved users can score through the existing API. A bearer-only playground cannot satisfy a deployment that additionally requires device proof; use its approved signed client in that mode. No key or new public endpoint is embedded to bypass this constraint.
 
-## Dashboard
+## Browser privacy and dashboard
 
-Bearer connection reads the existing identity and scopes. Device connection imports the user's existing unencrypted Ed25519 PKCS#8 `DEVICEKEY` locally through Web Crypto, and uses the existing device ID. HTTPS or localhost and browser Ed25519 support are required. The imported signing key is non-extractable, is kept in memory, and is never sent to the API.
+The portal never invokes local device permission APIs (USB, Bluetooth, HID,
+Serial, camera, microphone, local applications) and never asks users to upload
+private keys. The dashboard supports **read-only bearer identity/scopes**;
+key management and signed device administration stay in the local CLI.
+The public portal accepts **only** `https://api.statline.dev` as a browser API
+origin. Only a portal hosted on loopback may opt in to a loopback API. This
+prevents public webpages from triggering browser local-network permission
+prompts, even with an accidental runtime-config override. No Gateway probes
+are performed on page load: the user must click Check API or take a specific
+credentialed action. If a Gateway operation requires device proof, the browser
+cannot satisfy it and the user must use an approved CLI client.
 
-The dashboard signs the exact existing envelope:
-
-```text
-METHOD\nTARGET_PATH_AND_QUERY\nUNIX_TIMESTAMP\nNONCE\nBODY_SHA256
-```
-
-It sends `X-SL-Device`, `X-SL-Timestamp`, `X-SL-Nonce`, and `X-SL-Signature` with a fresh nonce for each operation. The Gateway decides whether the device is approved and the request is valid.
-
-Supported operations are identity, scopes, verified device, key list/revoke, key request/list, and approved-key claim. Revocation requires a second explicit UI action. Claimed keys are hidden initially, can be copied/revealed, and must be saved by the user before leaving. There is no billing, subscription, metering, or invented account system.
-
-No credential is written to localStorage, sessionStorage, cookies, generated files, or a portal server. Credentials and imported keys clear with the page or Clear session. New-device registration and administrator approval continue through the existing workflow.
+No API key is stored in localStorage, sessionStorage, cookies, generated files,
+or a portal server. A key entered for a request remains in ephemeral page state.
 
 ## Availability
 
-Public health and contract checks run on load, on request, and periodically. Browser failures are described as unavailability from this browser, which can also result from CORS or connectivity. Source-generated docs, downloads, and saved examples remain available offline.
+Public health and contract checks run **only on user action**. Browser failures
+can result from CORS, TLS, connectivity or Gateway downtime; they must not be
+presented as proof of a service outage. Source-generated docs, downloads, and
+saved examples remain available without an API connection.
 
-This update changes only portal files. Existing StatLine code, route contracts, scopes, authentication, and device policy are preserved.
+The Python Gateway's auth contract remains unchanged. The portal deliberately
+exposes fewer administrative features than the CLI.

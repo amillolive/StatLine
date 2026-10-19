@@ -290,8 +290,11 @@ include = [
   "statline/**/*.yaml",
   "statline/**/*.yml",
   "statline/**/*.json",
-  "statline/core/adapters/defs/*.yaml",
-  "statline/core/datasets/**/*.csv",
+  "packs/**/*.yaml",
+  "packs/**/*.yml",
+  "packs/**/*.yaml",
+  "packs/**/*.yml",
+  "packs/**/*.csv",
 ]
 
 exclude = [
@@ -333,6 +336,27 @@ packages = ["statline"]
 [tool.hatch.build.targets.wheel.force-include]
 "statline/RELEASE" = "statline/RELEASE"
 "assets/statpack-icon-main.png" = "statline/assets/statpack-icon-main.png"
+"packs/basketball/eba/e302/E302.players.yaml" = "statline/packs/basketball/eba/e302/E302.players.yaml"
+"packs/basketball/eba/players/eba_players.yaml" = "statline/packs/basketball/eba/players/eba_players.yaml"
+"packs/basketball/eba/teams/eba_teams.yaml" = "statline/packs/basketball/eba/teams/eba_teams.yaml"
+"packs/retired/demo.yaml" = "statline/packs/retired/demo.yaml"
+"packs/retired/example.yaml" = "statline/packs/retired/example.yaml"
+"packs/retired/valorant.yaml" = "statline/packs/retired/valorant.yaml"
+"packs/rocket-league/urrl/players/urrl.players.yaml" = "statline/packs/rocket-league/urrl/players/urrl.players.yaml"
+"packs/basketball/eba/players/eba_players.statpack" = "statline/packs/basketball/eba/players/eba_players.statpack"
+"packs/basketball/eba/teams/eba_teams.statpack" = "statline/packs/basketball/eba/teams/eba_teams.statpack"
+"packs/examples/native-elo/pairwise/native-elo.statpack" = "statline/packs/examples/native-elo/pairwise/native-elo.statpack"
+"packs/rocket-league/urrl/players/urrl.players.statpack" = "statline/packs/rocket-league/urrl/players/urrl.players.statpack"
+"packs/basketball/eba/data/e302/EBA_Elevate302/e302.s1.players.csv" = "statline/packs/basketball/eba/data/e302/EBA_Elevate302/e302.s1.players.csv"
+"packs/basketball/eba/data/players/EBA_Elevate302/eba_hybrid_s1_players.csv" = "statline/packs/basketball/eba/data/players/EBA_Elevate302/eba_hybrid_s1_players.csv"
+"packs/basketball/eba/data/players/EBA_Elevate302/eba_players_gp3_plus.csv" = "statline/packs/basketball/eba/data/players/EBA_Elevate302/eba_players_gp3_plus.csv"
+"packs/basketball/eba/data/players/EBA_Elevate302/eba_s1_players.csv" = "statline/packs/basketball/eba/data/players/EBA_Elevate302/eba_s1_players.csv"
+"packs/basketball/eba/data/players/EBA_Elevate302/statline-players(1).csv" = "statline/packs/basketball/eba/data/players/EBA_Elevate302/statline-players(1).csv"
+"packs/basketball/eba/data/teams/EBA_Elevate302/eba_hybrid_s1_teams.csv" = "statline/packs/basketball/eba/data/teams/EBA_Elevate302/eba_hybrid_s1_teams.csv"
+"packs/basketball/eba/data/teams/EBA_Elevate302/eba_s1_teams.csv" = "statline/packs/basketball/eba/data/teams/EBA_Elevate302/eba_s1_teams.csv"
+"packs/examples/demo/data/sample/DEMO/demo.csv" = "statline/packs/examples/demo/data/sample/DEMO/demo.csv"
+"packs/other/dba/data/players/DBA/dba_s0.csv" = "statline/packs/other/dba/data/players/DBA/dba_s0.csv"
+"packs/rocket-league/urrl/data/players/URRL/S20/RB/FINAL.csv" = "statline/packs/rocket-league/urrl/data/players/URRL/S20/RB/FINAL.csv"
 
 [tool.hatch.build.targets.sdist]
 
@@ -344,8 +368,12 @@ include = [
   "statline/**/*.yaml",
   "statline/**/*.yml",
   "statline/**/*.json",
-  "statline/core/adapters/defs/*.yaml",
-  "statline/core/datasets/**/*.csv",
+  "packs/**/*.yaml",
+  "packs/**/*.yml",
+  "packs/**/*.yaml",
+  "packs/**/*.yml",
+  "packs/**/*.csv",
+  "packs/**/*.statpack",
 
   "tests/**/*.py",
   "scripts/**/*.py",

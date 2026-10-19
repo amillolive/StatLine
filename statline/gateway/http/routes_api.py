@@ -61,7 +61,7 @@ def root(request: Request, response: Response) -> Response | dict[str, Any]:
             "<title>StatLine API</title><body><h1>StatLine API</h1>"
             f"<p>v{__version__} · release candidate</p>"
             "<p>You are on the API service. Visit <a href='https://statline.dev'>the product portal</a>, "
-            "<a href='/redoc'>API reference</a>, or <a href='/docs'>interactive documentation</a>.</p>"
+            "<a href='/rtfm'>branded API docs</a>, <a href='/redoc'>ReDoc</a>, or <a href='/docs'>Swagger</a>.</p>"
             "<p>Machine clients receive the JSON index by default or with Accept: application/json.</p></body></html>",
             headers={"Vary": "Accept"},
         )
@@ -130,6 +130,27 @@ def adapter(adapter: str) -> dict[str, Any]:
 )
 def sniff(body: SniffIn) -> dict[str, list[str]]:
     return {"adapters": sniff_adapters(body.headers)}
+
+
+
+@api_router.get("/inspect/dataset", tags=["datasets"], summary="Inspect dataset compatibility")
+def inspect_dataset_compatibility(dataset: str) -> dict[str, Any]:
+    from statline.core.adapters.inspect import inspect_dataset
+
+    try:
+        return inspect_dataset(dataset)
+    except (FileNotFoundError, ValueError) as error:
+        raise NotFound(f"Unknown dataset: {dataset}", detail=str(error)) from error
+
+
+@api_router.get("/inspect/adapter", tags=["adapters"], summary="Inspect adapter dataset linkage")
+def inspect_adapter_compatibility(adapter: str) -> dict[str, Any]:
+    from statline.core.adapters.inspect import inspect_adapter
+
+    try:
+        return inspect_adapter(adapter)
+    except (FileNotFoundError, ValueError) as error:
+        raise NotFound(f"Unknown adapter: {adapter}", detail=str(error)) from error
 
 
 @api_router.get(

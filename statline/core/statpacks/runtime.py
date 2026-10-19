@@ -28,6 +28,7 @@ from statline.core.presentation import (
 )
 from statline.core.scoring.map import score_rows_from_raw
 from statline.core.statpacks.package import dump_yaml, load_statpack_tree
+from statline.core.tools.yaml_codec import safe_load
 from statline.core.types.timing import StageTimes
 
 
@@ -49,7 +50,7 @@ def _portable_dataset(root: Path, value: object) -> Path:
 
 def _parse_scalar(value: str) -> Any:
     try:
-        return yaml.safe_load(value)
+        return safe_load(value)
     except yaml.YAMLError:
         return value
 

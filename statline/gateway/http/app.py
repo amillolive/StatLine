@@ -10,7 +10,7 @@ from typing import Any
 
 try:
     from fastapi import FastAPI
-    from fastapi.responses import JSONResponse
+    from fastapi.responses import HTMLResponse, JSONResponse
 except ModuleNotFoundError as error:
     raise RuntimeError(
         "StatLine Gateway requires optional dependencies. Install with: "
@@ -102,6 +102,34 @@ app = FastAPI(
         sqlite3.Error: _sqlite_error_handler,
     },
 )
+
+
+
+@app.get("/rtfm", include_in_schema=False)
+def styled_reference() -> HTMLResponse:
+    """Branded landing around the native interactive reference and ReDoc routes."""
+    return HTMLResponse("""<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>StatLine · API documentation</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+*{box-sizing:border-box}body{margin:0;background:#0b1410;color:#e3f3e8}
+header{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:18px;padding:16px clamp(18px,5vw,80px);border-bottom:1px solid #2f4938;background:#111f17}
+a{color:#b0ffcc;text-decoration:none}a:hover,a:focus-visible{text-decoration:underline}
+.brand{font-size:24px;font-weight:800;letter-spacing:-1px}.brand b{color:#a4ffc2}
+nav{display:flex;flex-wrap:wrap;gap:19px;font-size:14px}main{padding:16px clamp(18px,5vw,80px)}
+p{max-width:900px;line-height:1.55;color:#b2cbbb}
+iframe{display:block;width:100%;min-height:80vh;background:white;border:1px solid #2f4938;border-radius:8px}
+@media (max-width:600px){header{align-items:flex-start}iframe{min-height:80vh}}
+</style></head><body><header><a href="https://statline.dev" class="brand">statline<b>.</b></a>
+<nav aria-label="API resources"><a href="/rtfm" aria-current="page">API docs</a>
+<a href="/docs">Swagger · Authorize</a><a href="/redoc">ReDoc</a>
+<a href="/openapi.json">OpenAPI JSON</a><a href="https://statline.dev/docs/api?topic=authentication">Access guide</a>
+</nav></header><main><h1>StatLine API reference</h1>
+<p>Use the built-in Swagger Authorize control with an approved bearer API key. The interactive
+reference below remains the native FastAPI/Swagger UI; its security and scopes are enforced by the Gateway.</p>
+<iframe title="Interactive StatLine API documentation" src="/docs" loading="eager"></iframe>
+</main></body></html>""", headers={"Cache-Control": "no-store"})
 
 configure_portal_cors(app)
 

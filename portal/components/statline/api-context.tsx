@@ -3,10 +3,11 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import product from "@/data/product.json";
 import bundledSpec from "@/data/openapi.json";
+import { allowedGatewayBase } from "@/lib/api-policy";
 
 export type OpenApi = typeof bundledSpec;
 export type ApiState = { kind: "idle" | "checking" | "online" | "offline" | "unconfigured"; detail: string; version?: string };
-type ApiContextValue = { baseUrl: string; status: ApiState; spec: OpenApi; specSource: "gateway" | "snapshot"; schemaError: string; refresh: () => Promise<void> };
+type ApiContextValue = { baseUrl: string; status: ApiState; spec: OpenApi; specSource: "gateway" | "snapshot"; schemaError: string; refresh: () => Promise<void>; authorizedKey: string; authorize: (key: string) => void; signOut: () => void };
 const Context = createContext<ApiContextValue | null>(null);
 const configuredUrl = process.env.NEXT_PUBLIC_STATLINE_API_URL ?? "https://api.statline.dev";
 
@@ -21,6 +22,12 @@ export function ApiProvider({ children }: { children: React.ReactNode }) {
   const [spec, setSpec] = useState<OpenApi>(bundledSpec);
   const [specSource, setSpecSource] = useState<"gateway" | "snapshot">("snapshot");
   const [schemaError, setSchemaError] = useState("");
+  // A short-lived, in-memory bearer session shared by dashboard and playground only.
+  // Never persisted to cookies, localStorage, or server-side sessions.
+  const [authorizedKey, setAuthorizedKey] = useState("");
+  const authorize = useCallback((key: string) => setAuthorizedKey(key.trim()), []);
+  const signOut = useCallback(() => setAuthorizedKey(""), []);
+  useEffect(() => { setAuthorizedKey(""); }, [baseUrl]);
   const serial = useRef(0);
   const active = useRef<AbortController | null>(null);
   useEffect(() => {
@@ -32,11 +39,9 @@ export function ApiProvider({ children }: { children: React.ReactNode }) {
     if (!ready) return;
     const attempt = ++serial.current;
     active.current?.abort();
-    try {
-      const url = new URL(baseUrl);
-      if (!["http:", "https:"].includes(url.protocol) || url.username || url.password || url.search || url.hash) throw new Error("Invalid URL");
-    } catch {
-      setStatus({ kind: "unconfigured", detail: "Optional StatLine API is not configured. Saved results and source-generated docs remain available." });
+    const permitted = allowedGatewayBase(baseUrl, window.location.hostname);
+    if (!permitted) {
+      setStatus({ kind: "unconfigured", detail: "Only the public HTTPS StatLine Gateway is permitted from this website. Local API access is blocked on a public site; developers may opt in from localhost." });
       setSpec(bundledSpec); setSpecSource("snapshot"); setSchemaError(""); return;
     }
     setStatus({ kind: "checking", detail: "Checking the StatLine API…" });
@@ -45,13 +50,13 @@ export function ApiProvider({ children }: { children: React.ReactNode }) {
     const options = { signal: controller.signal, credentials: "omit" as const, cache: "no-store" as const, redirect: "error" as const };
     try {
       const results = await Promise.allSettled([
-        fetch(baseUrl + product.paths.health_v4, options).then(async response => {
+        fetch(permitted + product.paths.health_v4, options).then(async response => {
           if (!response.ok) throw new Error(`Health endpoint returned HTTP ${response.status}.`);
           const data = await response.json();
           if (data.ok !== true || typeof data.version !== "string") throw new Error("Health response does not match StatLine's health contract.");
           return data as { version: string };
         }),
-        fetch(baseUrl + product.documentation.openapi, options).then(async response => {
+        fetch(permitted + product.documentation.openapi, options).then(async response => {
           if (!response.ok) throw new Error(`OpenAPI returned HTTP ${response.status}.`);
           const data = await response.json();
           if (typeof data.openapi !== "string" || typeof data.info?.title !== "string" || typeof data.info?.version !== "string" || !data.paths || typeof data.paths !== "object" || Array.isArray(data.paths)) throw new Error("No usable OpenAPI document was returned.");
@@ -71,7 +76,7 @@ export function ApiProvider({ children }: { children: React.ReactNode }) {
       setStatus(health.status === "fulfilled"
         ? { kind: "online", detail: contract.status === "fulfilled"
           ? "StatLine API is responding. Protected operations still require authorized credentials."
-          : "The API is responding, but live OpenAPI could not be loaded. Live scoring is paused until the API contract is accessible.", version: health.value.version }
+          : "The API is responding. Live OpenAPI is unavailable; protected operations use the checked-in source contract.", version: health.value.version }
         : { kind: "offline", detail: "StatLine API is unavailable from this browser. " + failure + " Saved results and local docs remain available." });
       if (contract.status === "fulfilled") {
         setSpec(contract.value); setSpecSource("gateway"); setSchemaError("");
@@ -81,18 +86,9 @@ export function ApiProvider({ children }: { children: React.ReactNode }) {
       }
     } finally { clearTimeout(timer); }
   }, [baseUrl, ready]);
-  // A local server can be healthy while the portal's browser request is blocked.
-  // Check from the actual browser on first load, and retry when the tab is visible.
-  useEffect(() => {
-    if (!ready) return;
-    void refresh();
-    const interval = window.setInterval(() => {
-      if (document.visibilityState === "visible") void refresh();
-    }, 60_000);
-    return () => window.clearInterval(interval);
-  }, [ready, refresh]);
+  // No automatic browser connection: the user must choose Check API.
   useEffect(() => () => { ++serial.current; active.current?.abort(); }, []);
-  const value = useMemo(() => ({ baseUrl, status, spec, specSource, schemaError, refresh }), [baseUrl, status, spec, specSource, schemaError, refresh]);
+  const value = useMemo(() => ({ baseUrl, status, spec, specSource, schemaError, refresh, authorizedKey, authorize, signOut }), [baseUrl, status, spec, specSource, schemaError, refresh, authorizedKey, authorize, signOut]);
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }
 

@@ -328,5 +328,20 @@ settings.local.*
 # Public example settings are safe to track.
 !**/.env.example
 !**/.env.sample
-launch.ps1
-launch.sh
+# Launch entrypoints are source code, not runtime output.
+!launch.ps1
+!launch.sh
+
+# rc6 local workspaces and transient caches
+/packs/workspace/**
+!/packs/workspace/.gitkeep
+/packs/db/**/*.db
+/packs/db/**/*.sqlite*
+/portal/tsconfig.tsbuildinfo
+**/*.tsbuildinfo
+/portal/.vinext/
+/portal/dist/
+/portal/.next/
+/portal/node_modules/
+**/.DS_Store
+/scripts/__pycache__/

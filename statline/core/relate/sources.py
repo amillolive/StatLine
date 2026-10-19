@@ -13,7 +13,7 @@ from collections.abc import Mapping
 from pathlib import Path, PurePosixPath
 from typing import cast
 
-import yaml
+from statline.core.tools.yaml_codec import safe_load
 
 
 def _csv_rows(text: str) -> list[dict[str, object]]:
@@ -63,7 +63,7 @@ def load_pairwise_rows(
     with zipfile.ZipFile(path) as archive:
         if "metadata.yaml" not in archive.namelist():
             raise ValueError("StatPack is missing metadata.yaml")
-        metadata_doc: object = yaml.safe_load(archive.read("metadata.yaml"))
+        metadata_doc: object = safe_load(archive.read("metadata.yaml"))
         if not isinstance(metadata_doc, Mapping):
             raise ValueError("StatPack metadata must be a mapping")  # noqa: TRY004
         metadata_value = cast(Mapping[str, object], metadata_doc).get("metadata")

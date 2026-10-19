@@ -1,0 +1,24 @@
+pairwise:
+  version: 1
+  inputs:
+    a:
+      kind: statpack
+      path: inputs/next-match.statpack
+      dataset: match.csv
+    b:
+      kind: statpack
+      path: inputs/previous-match.statpack
+      dataset: match.csv
+  join:
+    a_key: id
+    b_key: id
+    cardinality: one_to_one
+    missing_b: error
+  participants: a
+  opponents: a
+  exclude_self: true
+  preserve_order: true
+  expression: pair.delta
+  aggregate: sum
+  normalize: false
+  outputs: result

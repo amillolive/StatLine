@@ -2,7 +2,7 @@
 
 The standard-library AST is only a syntax tree. Every supported node is
 checked and interpreted explicitly. Attribute paths traverse dictionaries only.
-Legacy rc6 expressions are dispatched to the original evaluator unchanged.
+Existing numeric adapter formulas retain their historical semantics within the same engine.
 """
 
 from __future__ import annotations
@@ -14,7 +14,8 @@ from decimal import ROUND_HALF_UP, Decimal, localcontext
 from functools import lru_cache
 from typing import ClassVar, Literal, cast
 
-from statline.core.formula._legacy import _dataset_aggregate, _num, compile_legacy
+from statline.core.formula._compat import _dataset_aggregate, _num
+from statline.core.formula._compat import compile_compat as _compile_compat
 from statline.core.types.adapters import ExpressionEvaluator
 
 FormulaValue = int | float | str | bool | None
@@ -90,9 +91,13 @@ class StatLineFormulaEngine:
         self.max_exponent = max_exponent
 
     @staticmethod
-    def compile_legacy(expression: str) -> ExpressionEvaluator:
-        """Return the exact historical ``(context, x) -> float`` evaluator."""
-        return compile_legacy(expression)
+    def compile_compat(expression: str) -> ExpressionEvaluator:
+        """Return a cached, safe compiled numeric adapter formula (rc5 compatible)."""
+        return _compile_compat(expression)
+
+    # Kept as a migration alias for older public imports. All internal callers use
+    # compile_compat; the retired evaluator module is no longer imported.
+    compile_legacy = compile_compat
 
     @staticmethod
     @lru_cache(maxsize=512)
@@ -102,6 +107,7 @@ class StatLineFormulaEngine:
         except (SyntaxError, ValueError, RecursionError) as exc:
             raise FormulaError(f"Invalid formula syntax: {exc}") from exc
 
+    @lru_cache(maxsize=2048)
     def compile(self, expression: str) -> FormulaCallable:
         """Validate once, then return a callable accepting a data context.
 
@@ -113,7 +119,7 @@ class StatLineFormulaEngine:
         if len(expression) > self.max_chars:
             raise FormulaError(f"Expression exceeds {self.max_chars} characters")
         if self.mode == "legacy":
-            old_evaluator = self.compile_legacy(expression)
+            old_evaluator = self.compile_compat(expression)
             return lambda context: old_evaluator(context, _num(context.get("x", 0.0)))
 
         parsed = self._parse(expression)
@@ -133,8 +139,14 @@ class StatLineFormulaEngine:
         The returned callable evaluates in YAML declaration order. Results from
         earlier variables are made available to later expressions.
         """
+        return self._compile_variable_plan(tuple(variables.items()))
+
+    @lru_cache(maxsize=512)
+    def _compile_variable_plan(
+        self, variables: tuple[tuple[str, str], ...]
+    ) -> Callable[[Mapping[str, object]], dict[str, FormulaValue]]:
         plan: list[tuple[str, FormulaCallable]] = []
-        for name, expression in variables.items():
+        for name, expression in variables:
             if not name.isidentifier() or name.startswith("_") or name in self._FUNCTIONS:
                 raise FormulaError(f"Invalid variable name: {name!r}")
             try:

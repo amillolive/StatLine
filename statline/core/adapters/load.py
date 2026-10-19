@@ -15,6 +15,7 @@ import yaml
 
 from statline.core.adapters.paths import normalize_adapter_name, resolve_adapter_path
 from statline.core.adapters.validate import validate_adapter
+from statline.core.tools.yaml_codec import safe_load
 from statline.core.types.adapters import (
     AdapterMetadata,
     AdapterSpec,
@@ -451,7 +452,7 @@ def _read_yaml_for(source: str | Path) -> dict[str, object]:
     name = path.stem
 
     try:
-        loaded: object = yaml.safe_load(path.read_text(encoding="utf-8"))
+        loaded: object = safe_load(path.read_text(encoding="utf-8"))
     except yaml.YAMLError as error:
         raise ValueError(f"Invalid YAML in '{path.name}': {error}") from error
 

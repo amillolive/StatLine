@@ -147,19 +147,22 @@ def _canonical_dataset_name(path: Path) -> str:
 
 
 def dataset_catalog() -> dict[str, Any]:
-    linked: dict[str, list[str]] = {}
+    """Resolve adapter metadata to canonical paths before building reverse links."""
+    from statline.core.adapters.match import dataset_for_adapter
+
+    linked: dict[str, set[str]] = {}
     for adapter_name in list_adapters():
         adapter = load_adapter(adapter_name)
-        dataset = adapter.metadata.dataset
-        if dataset:
-            linked.setdefault(dataset.replace("\\", "/").casefold(), []).append(adapter.key)
+        if adapter.metadata.dataset:
+            try:
+                canonical = _canonical_dataset_name(dataset_for_adapter(adapter))
+            except (FileNotFoundError, ValueError):
+                continue
+            linked.setdefault(canonical, set()).add(adapter.key)
 
     return {
         "datasets": [
-            {
-                "path": name,
-                "adapters": sorted(linked.get(name.casefold(), [])),
-            }
+            {"path": name, "adapters": sorted(linked.get(name, set()))}
             for name in list_datasets()
         ]
     }

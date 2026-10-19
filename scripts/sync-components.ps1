@@ -56,6 +56,7 @@ function Sync-Component {
 Sync-Component -Prefix "statline/core" -Remote "core"
 Sync-Component -Prefix "statline/app" -Remote "app"
 Sync-Component -Prefix "statline/gateway" -Remote "gateway"
+Sync-Component -Prefix "portal" -Remote "portal"
 
 Write-Host ""
 Write-Host "StatLine component synchronization complete."

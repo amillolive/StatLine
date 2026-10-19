@@ -21,7 +21,7 @@ from statline.core.statpacks.runtime import run_statpack
 from typer.testing import CliRunner
 
 ROOT = Path(__file__).resolve().parents[1]
-EBA_PLAYERS = ROOT / "statline" / "core" / "adapters" / "schemas" / "current" / "eba_players.yaml"
+EBA_PLAYERS = ROOT / "packs" / "basketball" / "eba" / "players" / "eba_players.yaml"
 
 
 def test_manifest_render_unpack_and_run_round_trip(tmp_path: Path) -> None:

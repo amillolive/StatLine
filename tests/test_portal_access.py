@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Iterator
 
 import pytest
 from fastapi import FastAPI
@@ -15,7 +16,7 @@ from statline.gateway.http.routes_api import api_router, public_router
 
 
 @pytest.fixture
-def portal_client(monkeypatch: pytest.MonkeyPatch):
+def portal_client(monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClient]:
     monkeypatch.setenv(
         "STATLINE_PORTAL_ORIGINS",
         "http://localhost:3000,http://127.0.0.1:3000,https://statline.dev",

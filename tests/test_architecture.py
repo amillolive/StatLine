@@ -68,7 +68,7 @@ def test_removed_namespaces_are_not_present() -> None:
 
 def test_packaged_dataset_registry_is_canonical() -> None:
     names = list_datasets()
-    assert dataset_root() == ROOT / "statline" / "core" / "datasets"
+    assert dataset_root() == ROOT / "packs"
     assert names
     assert all((dataset_root() / name).is_file() for name in names)
 
@@ -185,7 +185,7 @@ def test_serve_omits_client_connectivity_preflight(
 def test_cli_hides_deprecated_adapters_but_allows_explicit_local_path() -> None:
     runner = CliRunner()
     listed = runner.invoke(app, ["--mode", "local", "--no-timing", "adapters"])
-    deprecated = ROOT / "statline" / "core" / "adapters" / "schemas" / "deprecated" / "demo.yaml"
+    deprecated = ROOT / "packs" / "retired" / "demo.yaml"
     scored = runner.invoke(
         app,
         [

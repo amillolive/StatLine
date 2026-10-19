@@ -10,7 +10,7 @@
     "check-generated": "node scripts/portal.mjs check-generated",
     "dev": "node scripts/portal.mjs dev",
     "build": "node scripts/portal.mjs build",
-    "start": "node scripts/preview.mjs",
+    "start": "python ../scripts/serve.py",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

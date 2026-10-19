@@ -1,12 +1,12 @@
 {
   "current": "4.0.0rc6",
-  "generated_at": "2026-10-12T22:16:15.093838+00:00",
+  "generated_at": "2026-10-19T19:42:22.321653+00:00",
   "versions": [
     {
       "version": "4.0.0rc6",
       "channel": "prerelease",
       "href": "/docs",
-      "source_sha256": "98e65d3d9f31b76336f81f96429c8d49bd663c38a5b981b3dd690d0d92c8160e"
+      "source_sha256": "9f8adc1abd7350ea2b9fb5c824de15747c7b0dd03f1961eaeb18f016bb66816f"
     }
   ]
 }

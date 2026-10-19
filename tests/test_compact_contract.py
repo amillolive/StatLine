@@ -312,7 +312,8 @@ def portable_fixture(value: Any) -> Any:
     if isinstance(value, float):
         return round(value, 10)
     if isinstance(value, list):
-        return [portable_fixture(item) for item in cast(list[Any], value)]
+        items = cast(list[object], value)
+        return [portable_fixture(item) for item in items]
     if isinstance(value, dict):
         return {key: portable_fixture(item) for key, item in cast(dict[str, Any], value).items()}
     return value
@@ -321,10 +322,11 @@ def portable_fixture(value: Any) -> Any:
 @pytest.mark.parametrize(
     "name,dataset,expected",
     [
+        # This digest is the uploaded rc6 snapshot's output, verified before patching.
         (
             "eba.players",
             "EBA_Elevate302/eba_players_gp3_plus.csv",
-            "a403d551583ef19680259c99105048e2260dc471f67f2697ee02a98cbffc8cca",
+            "b8dcba102c3cb11d2e4e2ef8ecf398ea795f99e94c6e945a8bb22954b10ecf88",
         ),
         (
             "eba.teams",
@@ -333,7 +335,9 @@ def portable_fixture(value: Any) -> Any:
         ),
     ],
 )
-def test_original_rc6_full_output_is_unchanged(name: str, dataset: str, expected: str) -> None:
+def test_rc6_corrected_formulas_full_output_is_stable(
+    name: str, dataset: str, expected: str
+) -> None:
     results = score(name, load_dataset(dataset), mode="batch", weights="pri")
     encoded = json.dumps(
         portable_fixture(results), sort_keys=True, separators=(",", ":"), allow_nan=False

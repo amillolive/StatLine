@@ -42,6 +42,7 @@ sync_component() {
 sync_component "statline/core" core
 sync_component "statline/app" app
 sync_component "statline/gateway" gateway
+sync_component "portal" portal
 
 echo
 echo "StatLine component synchronization complete."

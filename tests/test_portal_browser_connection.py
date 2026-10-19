@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-SCRIPT = Path(__file__).resolve().parents[1] / "portal/scripts/local.py"
+SCRIPT = Path(__file__).resolve().parents[1] / "scripts/serve.py"
 spec = importlib.util.spec_from_file_location("statline_portal_local", SCRIPT)
 assert spec is not None and spec.loader is not None
 local = importlib.util.module_from_spec(spec)

@@ -125,7 +125,7 @@ From a source checkout:
 
 ```bash
 statline --mode local score \
-  --adapter statline/core/adapters/schemas/deprecated/demo.yaml \
+  --adapter packs/retired/demo.yaml \
   DEMO/demo.csv \
   --fmt table \
   --limit 10
@@ -135,7 +135,7 @@ Include all detected profile columns and client-side percentiles:
 
 ```bash
 statline --mode local score \
-  --adapter statline/core/adapters/schemas/deprecated/demo.yaml \
+  --adapter packs/retired/demo.yaml \
   DEMO/demo.csv \
   --fmt table \
   --profile all \
@@ -146,7 +146,7 @@ Write JSON:
 
 ```bash
 statline --mode local score \
-  --adapter statline/core/adapters/schemas/deprecated/demo.yaml \
+  --adapter packs/retired/demo.yaml \
   DEMO/demo.csv \
   --fmt json \
   --pretty \
@@ -157,7 +157,7 @@ Write CSV:
 
 ```bash
 statline --mode local score \
-  --adapter statline/core/adapters/schemas/deprecated/demo.yaml \
+  --adapter packs/retired/demo.yaml \
   DEMO/demo.csv \
   --fmt csv \
   --out results.csv
@@ -183,7 +183,7 @@ Use an adapter-defined preset:
 
 ```bash
 statline --mode local score \
-  --adapter statline/core/adapters/schemas/deprecated/demo.yaml \
+  --adapter packs/retired/demo.yaml \
   DEMO/demo.csv \
   --weights-preset pri
 ```
@@ -209,7 +209,7 @@ Then run:
 
 ```bash
 statline --mode local score \
-  --adapter statline/core/adapters/schemas/deprecated/demo.yaml \
+  --adapter packs/retired/demo.yaml \
   DEMO/demo.csv \
   --weights weights.yaml
 ```
@@ -223,8 +223,8 @@ statline --mode local tools weights normalize aefg=3 tov_eff=2 two_way=1
 Resolve weights against an adapter:
 
 ```bash
-statline --mode local tools weights resolve --adapter statline/core/adapters/schemas/deprecated/demo.yaml --preset pri
-statline --mode local tools weights resolve --adapter statline/core/adapters/schemas/deprecated/demo.yaml --preset pri --override aefg=0.35
+statline --mode local tools weights resolve --adapter packs/retired/demo.yaml --preset pri
+statline --mode local tools weights resolve --adapter packs/retired/demo.yaml --preset pri --override aefg=0.35
 ```
 
 ---
@@ -237,7 +237,7 @@ Map one row:
 
 ```bash
 statline --mode local tools map row \
-  --adapter statline/core/adapters/schemas/deprecated/demo.yaml \
+  --adapter packs/retired/demo.yaml \
   --set name="Example Player" \
   --set ppg=24.5 \
   --set apg=6.2 \
@@ -256,7 +256,7 @@ Map a file:
 
 ```bash
 statline --mode local tools map batch \
-  --adapter statline/core/adapters/schemas/deprecated/demo.yaml \
+  --adapter packs/retired/demo.yaml \
   DEMO/demo.csv \
   --fmt json \
   --out mapped.json
@@ -272,7 +272,7 @@ Score one mapped row:
 
 ```bash
 statline --mode local tools calc row \
-  --adapter statline/core/adapters/schemas/deprecated/demo.yaml \
+  --adapter packs/retired/demo.yaml \
   --set ppg=24.5 \
   --set apg=6.2 \
   --set spg=1.5 \
@@ -289,7 +289,7 @@ statline --mode local tools calc row \
 Score mapped rows from a file:
 
 ```bash
-statline --mode local tools calc batch mapped.json --adapter statline/core/adapters/schemas/deprecated/demo.yaml --fmt json
+statline --mode local tools calc batch mapped.json --adapter packs/retired/demo.yaml --fmt json
 ```
 
 ---
@@ -312,7 +312,7 @@ from statline import load_dataset, score
 
 rows = load_dataset("DEMO/demo", limit=10)
 results = score(
-    "statline/core/adapters/schemas/deprecated/demo.yaml", rows, mode="batch", weights="pri"
+    "packs/retired/demo.yaml", rows, mode="batch", weights="pri"
 )
 
 for result in results:
@@ -339,7 +339,7 @@ row = {
     "loss": 8,
 }
 
-result = score_row("statline/core/adapters/schemas/deprecated/demo.yaml", row, weights="pri")
+result = score_row("packs/retired/demo.yaml", row, weights="pri")
 print(result)
 ```
 
@@ -362,8 +362,8 @@ raw = {
     "loss": 8,
 }
 
-mapped = map_row("statline/core/adapters/schemas/deprecated/demo.yaml", raw)
-result = score_row("statline/core/adapters/schemas/deprecated/demo.yaml", raw)
+mapped = map_row("packs/retired/demo.yaml", raw)
+result = score_row("packs/retired/demo.yaml", raw)
 ```
 
 ---
@@ -461,7 +461,7 @@ Admin and moderator commands require the appropriate scopes.
 Adapters live in:
 
 ```text
-statline/core/adapters/defs/<adapter>.yaml
+packs/<game>/<organization>/<adapter>.yaml
 ```
 
 A minimal adapter needs:

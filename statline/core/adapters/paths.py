@@ -1,4 +1,4 @@
-"""Canonical adapter schema path and discovery functions."""
+"""Discover named adapters from the canonical packs tree or installed wheel."""
 
 from __future__ import annotations
 
@@ -9,54 +9,62 @@ from typing import cast
 
 import yaml
 
-_SCHEMA_ROOT = Path(__file__).resolve().parent / "schemas"
-_CURRENT_ROOT = _SCHEMA_ROOT / "current"
-_DEPRECATED_ROOT = _SCHEMA_ROOT / "deprecated"
+from statline.core.tools.yaml_codec import safe_load
+
 _SEPARATOR_RE = re.compile(r"[._\-\s/\\]+")
+_ROOT = Path(__file__).resolve().parents[3]
+_CHECKOUT_PACKS = _ROOT / "packs"
+_PACKAGED_PACKS = Path(__file__).resolve().parents[2] / "packs"
 
 
 def normalize_adapter_name(value: object) -> str:
-    """Normalize adapter IDs, file stems, and aliases to one lookup form."""
-    raw = str(value or "").strip().casefold()
-    return _SEPARATOR_RE.sub(".", raw).strip(".")
+    return _SEPARATOR_RE.sub(".", str(value or "").strip().casefold()).strip(".")
 
 
 def adapter_schema_root() -> Path:
-    """Return the root containing current and deprecated adapter schemas."""
-    return _SCHEMA_ROOT
+    return _CHECKOUT_PACKS if _CHECKOUT_PACKS.is_dir() else _PACKAGED_PACKS
 
 
 def current_adapter_dir() -> Path:
-    """Return the canonical generated runtime adapter directory."""
-    return _CURRENT_ROOT
+    """Target for locally generated adapters; active by name after creation."""
+    return adapter_schema_root() / "custom" / "local" / "default"
 
 
 def deprecated_adapter_dir() -> Path:
-    """Return the compatibility adapter directory."""
-    return _DEPRECATED_ROOT
+    return adapter_schema_root() / "retired"
 
 
 def adapter_schema_dirs(*, include_deprecated: bool = False) -> tuple[Path, ...]:
-    """Return discoverable adapter search roots in precedence order.
-
-    Deprecated schemas are intentionally excluded from normal discovery.  They
-    remain loadable only by supplying an explicit filesystem path.
-    """
-    roots = [_CURRENT_ROOT]
-    if include_deprecated:
-        roots.append(_DEPRECATED_ROOT)
-    return tuple(roots)
+    root = adapter_schema_root()
+    roots = (
+        tuple(
+            p
+            for p in sorted(root.iterdir())
+            if p.is_dir() and p.name not in {"db", "retired", "workspace", "data"}
+        )
+        if root.exists()
+        else ()
+    )
+    return (*roots, root / "retired") if include_deprecated else roots
 
 
 def iter_adapter_paths(*, include_deprecated: bool = False) -> Iterable[Path]:
-    """Yield discoverable packaged adapter YAML files in deterministic order."""
+    """Walk active packs, ignoring workspace, datasets and retired models."""
     seen: set[Path] = set()
     for root in adapter_schema_dirs(include_deprecated=include_deprecated):
-        if not root.exists():
-            continue
-        for path in sorted((*root.glob("*.yaml"), *root.glob("*.yml"))):
+        for path in sorted((*root.rglob("*.yaml"), *root.rglob("*.yml"))):
+            # StatPack components and authoring workspaces are not runtime adapters.
+            # Only explicit paths can load a draft in an organization's workspace.
+            relative = path.relative_to(adapter_schema_root())
+            forbidden = {"workspace", "data", "schema", "dataset", "inputs", "db"}
+            if not include_deprecated:
+                forbidden.add("retired")
+            if (forbidden & set(relative.parts) or
+                    any(part.startswith(".") for part in relative.parts) or
+                    path.name == "metadata.yaml"):
+                continue
             resolved = path.resolve()
-            if resolved not in seen and path.is_file():
+            if path.is_file() and resolved not in seen:
                 seen.add(resolved)
                 yield path
 
@@ -64,13 +72,12 @@ def iter_adapter_paths(*, include_deprecated: bool = False) -> Iterable[Path]:
 def _metadata_names(path: Path) -> set[str]:
     names = {normalize_adapter_name(path.stem)}
     try:
-        loaded = yaml.safe_load(path.read_text(encoding="utf-8"))
+        loaded = safe_load(path.read_text(encoding="utf-8"))
     except (OSError, yaml.YAMLError):
         return names
     if not isinstance(loaded, Mapping):
         return names
-    root = cast(Mapping[object, object], loaded)
-    metadata = root.get("metadata")
+    metadata = cast(Mapping[object, object], loaded).get("metadata")
     if not isinstance(metadata, Mapping):
         return names
     meta = cast(Mapping[object, object], metadata)
@@ -79,33 +86,23 @@ def _metadata_names(path: Path) -> set[str]:
     if isinstance(aliases, str):
         names.add(normalize_adapter_name(aliases))
     elif isinstance(aliases, Sequence):
-        names.update(normalize_adapter_name(alias) for alias in cast(Sequence[object], aliases))
+        names.update(normalize_adapter_name(x) for x in cast(Sequence[object], aliases))
     return {name for name in names if name}
 
 
 def resolve_adapter_path(name_or_path: str | Path) -> Path:
-    """Resolve an explicit YAML path, adapter ID, file stem, or declared alias."""
     candidate = Path(name_or_path).expanduser()
     if candidate.is_file():
         return candidate.resolve()
-
     raw = str(name_or_path or "").strip()
     if not raw:
         raise ValueError("adapter name/path is required")
     wanted = normalize_adapter_name(raw)
-
-    direct_names = {raw, f"{raw}.yaml", f"{raw}.yml"}
-    for root in adapter_schema_dirs():
-        for direct in direct_names:
-            path = root / direct
-            if path.is_file():
-                return path.resolve()
-
     matches = [path for path in iter_adapter_paths() if wanted in _metadata_names(path)]
     if len(matches) == 1:
         return matches[0].resolve()
     if len(matches) > 1:
-        shown = ", ".join(path.name for path in matches)
+        shown = ", ".join(str(path) for path in matches)
         raise ValueError(f"Ambiguous adapter '{raw}'. Matches: {shown}")
     raise FileNotFoundError(f"Adapter spec not found: {raw}")
 

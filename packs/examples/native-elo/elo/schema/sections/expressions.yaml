@@ -1,0 +1,12 @@
+expressions:
+  pair:
+    k: 16 + 32 * exp(-abs(0.15) * self.old.roundsPlayed)
+    actual: 1 if count < 2 else (count - self.new.finishPosition) / (count - 1)
+    expected: 1 / (1 + pow(10, (other.old.eloScore - self.old.eloScore) / 400))
+    teammate: 0.5 if self.new.teamId and other.new.teamId and self.new.teamId == other.new.teamId else 1
+    delta: k * (actual - expected) * teammate
+  result:
+    playerId: self.new.id
+    oldElo: self.old.eloScore
+    newElo: js_round(self.old.eloScore + pairwise.total)
+    eloChange: js_fixed(pairwise.total, 2)

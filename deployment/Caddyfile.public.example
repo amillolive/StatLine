@@ -1,6 +1,9 @@
 # Product pages are public; API access is enforced by the Gateway.
 statline.dev {
     root * /srv/statline/portal/dist/client
+    # Defense in depth; the site itself also contains no device-permission APIs.
+    header Permissions-Policy "camera=(), microphone=(), geolocation=(), bluetooth=(), usb=(), serial=(), hid=(), local-network-access=()"
+    header X-Content-Type-Options "nosniff"
     file_server
 }
 api.statline.dev {
