@@ -405,14 +405,17 @@ jobs:
               f"eba.players adapter missing; got {adapters!r}"
           )
 
+          # Discovery returns canonical paths, not legacy aliases.
           datasets = list_datasets()
-          dataset_name = "EBA_Elevate302/eba_s1_players.csv"
+          dataset_name = "basketball/eba/data/players/EBA_Elevate302/eba_s1_players.csv"
           assert dataset_name in datasets, (
               f"{dataset_name} missing; got {datasets!r}"
           )
 
           adapter = load_adapter("eba.players")
-          row = load_dataset("EBA_Elevate302/eba_s1_players", limit=1)[0]
+          row = load_dataset(dataset_name, limit=1)[0]
+          legacy_row = load_dataset("EBA_Elevate302/eba_s1_players", limit=1)[0]
+          assert row == legacy_row, "Legacy EBA dataset alias no longer resolves correctly"
           result = score_row(adapter, row)
 
           assert isinstance(result["pri"], int), result
@@ -437,8 +440,8 @@ jobs:
               adapter = load_adapter(name)
 
               assert adapter.key
-              assert adapter.score_profiles, (
-                  f"{adapter.key} has no score profiles"
+              assert adapter.score_profiles or adapter.native_pairwise is not None, (
+                  f"{adapter.key} has neither score profiles nor a native pairwise plan"
               )
 
           print("Adapters OK:", ", ".join(names))
