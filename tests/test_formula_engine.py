@@ -190,3 +190,26 @@ def test_strict_scalar_comparison_regressions(
 def test_strict_order_rejects_mixed_or_non_numeric_operands(expression: str) -> None:
     with pytest.raises(FormulaError, match="Expected a number"):
         StatLineFormulaEngine().evaluate(expression, {})
+
+
+def test_formula_caches_are_bounded_and_release_unused_engines() -> None:
+    """Cached compilation must not retain abandoned formula engine objects."""
+    import gc
+    import weakref
+
+    def create_short_lived_engine() -> weakref.ReferenceType[StatLineFormulaEngine]:
+        engine = StatLineFormulaEngine()
+        first = engine.compile("1 + x")
+        assert first is engine.compile("1 + x")
+        assert first({"x": 2}) == 3
+        plan = engine.compile_variables({"a": "1 + x"})
+        assert plan is engine.compile_variables({"a": "1 + x"})
+        assert plan({"x": 2}) == {"a": 3}
+        assert "hits=" in str(engine.compile.cache_info())
+        return weakref.ref(engine)
+
+    previous_engine = create_short_lived_engine()
+    gc.collect()
+    assert previous_engine() is None
+    with pytest.raises(FormulaError, match="characters"):
+        StatLineFormulaEngine(max_chars=2).compile("1 + x")

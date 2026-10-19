@@ -27,4 +27,9 @@ def safe_dump(data: Any, **options: Any) -> str:
     return encoded
 
 
-__all__ = ["SAFE_LOADER", "SAFE_DUMPER", "safe_load", "safe_dump"]
+__all__ = [
+    "SAFE_DUMPER",
+    "SAFE_LOADER",
+    "safe_dump",
+    "safe_load",
+]

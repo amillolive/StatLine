@@ -11,8 +11,8 @@ import ast
 import math
 from collections.abc import Callable, Mapping
 from decimal import ROUND_HALF_UP, Decimal, localcontext
-from functools import lru_cache
-from typing import ClassVar, Literal, cast
+from functools import cached_property, lru_cache
+from typing import ClassVar, Literal, Protocol, cast
 
 from statline.core.formula._compat import _dataset_aggregate, _num
 from statline.core.formula._compat import compile_compat as _compile_compat
@@ -20,6 +20,24 @@ from statline.core.types.adapters import ExpressionEvaluator
 
 FormulaValue = int | float | str | bool | None
 FormulaCallable = Callable[[Mapping[str, object]], FormulaValue]
+
+
+class _CachedExpressionCompiler(Protocol):
+    """A bounded per-instance compiler retaining the public diagnostics API."""
+
+    def __call__(self, expression: str) -> FormulaCallable: ...
+
+    def cache_info(self) -> object: ...
+
+
+class _CachedVariableCompiler(Protocol):
+    """Cached variable plan callable held by one formula engine instance."""
+
+    def __call__(
+        self, variables: tuple[tuple[str, str], ...]
+    ) -> Callable[[Mapping[str, object]], dict[str, FormulaValue]]: ...
+
+    def cache_info(self) -> object: ...
 
 
 class FormulaError(ValueError):
@@ -107,8 +125,16 @@ class StatLineFormulaEngine:
         except (SyntaxError, ValueError, RecursionError) as exc:
             raise FormulaError(f"Invalid formula syntax: {exc}") from exc
 
-    @lru_cache(maxsize=2048)
-    def compile(self, expression: str) -> FormulaCallable:
+    @cached_property
+    def compile(self) -> _CachedExpressionCompiler:
+        """Keep the bounded expression cache on the owning engine instance.
+
+        A cached global method retains each previous engine through the cache
+        key. Keeping the wrapper on the instance lets unused engines be freed.
+        """
+        return cast(_CachedExpressionCompiler, lru_cache(maxsize=2048)(self._compile_uncached))
+
+    def _compile_uncached(self, expression: str) -> FormulaCallable:
         """Validate once, then return a callable accepting a data context.
 
         Strict mode throws FormulaError for any unknown variable/function or
@@ -141,8 +167,15 @@ class StatLineFormulaEngine:
         """
         return self._compile_variable_plan(tuple(variables.items()))
 
-    @lru_cache(maxsize=512)
-    def _compile_variable_plan(
+    @cached_property
+    def _compile_variable_plan(self) -> _CachedVariableCompiler:
+        """Cache formula chains only for the lifetime of their engine."""
+        return cast(
+            _CachedVariableCompiler,
+            lru_cache(maxsize=512)(self._compile_variable_plan_uncached),
+        )
+
+    def _compile_variable_plan_uncached(
         self, variables: tuple[tuple[str, str], ...]
     ) -> Callable[[Mapping[str, object]], dict[str, FormulaValue]]:
         plan: list[tuple[str, FormulaCallable]] = []

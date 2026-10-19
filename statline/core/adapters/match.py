@@ -130,7 +130,7 @@ __all__ = [
     "adapter_for_dataset",
     "dataset_for_adapter",
     "dataset_name",
+    "normalize_dataset",
     "resolve_dataset_path",
     "resolve_scoring_target",
-    "normalize_dataset",
 ]

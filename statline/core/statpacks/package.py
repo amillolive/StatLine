@@ -667,8 +667,8 @@ def write_statpack_report(pack: str | Path, output: str | Path) -> Path:
 __all__ = [
     "SECTION_ORDER",
     "STANDARD_RUNNER",
-    "dump_yaml",
     "deploy_statpack",
+    "dump_yaml",
     "execute_statpack",
     "inspect_statpack",
     "load_statpack_tree",

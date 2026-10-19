@@ -97,7 +97,7 @@ class StatLineOS(App[None]):
         status.update("Working · scoring / command in progress…")
         try:
             result = await self.session.execute(command)
-        except Exception as error:
+        except Exception as error:  # noqa: BLE001 - command failures must not crash TUI
             self.query_one("#output", RichLog).write(f"Command failed: {error}")
             self._refresh_status()
             return
@@ -121,10 +121,11 @@ class StatLineOS(App[None]):
             payload: object = json.loads(text)
         except (ValueError, TypeError):
             return False
-        if isinstance(payload, dict):
-            rows: object = cast(dict[str, object], payload).get("results")
-        else:
-            rows = payload
+        rows: object = (
+            cast(dict[str, object], payload).get("results")
+            if isinstance(payload, dict)
+            else payload
+        )
         if not isinstance(rows, list) or not rows:
             return False
         items: list[dict[str, object]] = []

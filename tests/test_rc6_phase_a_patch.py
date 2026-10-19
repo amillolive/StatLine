@@ -71,9 +71,8 @@ def test_cache_diagnostics_and_structured_stage_events() -> None:
         pass
     assert [event["phase"] for event in observed] == ["start", "end"]
     assert times.as_dict()["stages"]
-    with pytest.raises(RuntimeError):
-        with times.stage("failing"):
-            raise RuntimeError("expected")
+    with pytest.raises(RuntimeError), times.stage("failing"):
+        raise RuntimeError("expected")
     assert [event["phase"] for event in observed[-3:]] == ["start", "error", "end"]
 
 

@@ -3334,8 +3334,8 @@
   ],
   "x-statline-snapshot": {
     "source_release": "4.0.0rc6",
-    "generated_at": "2026-10-19T19:42:22.321653+00:00",
-    "source_sha256": "9f8adc1abd7350ea2b9fb5c824de15747c7b0dd03f1961eaeb18f016bb66816f",
+    "generated_at": "2026-10-19T20:06:43.759092+00:00",
+    "source_sha256": "45050d55882dbf5fe75dac32f380f4d79a1c7d2e2493259813ce724f4668ace1",
     "response_format": "compact opt-in; legacy default"
   }
 }
