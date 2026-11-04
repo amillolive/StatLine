@@ -3,6 +3,7 @@ import { ebaSnapshots } from "./eba-data";
 import { CodeBlock } from "./code-block";
 import { ApiStatus } from "./api-context";
 import product from "@/data/product.json";
+import { ReleaseHistory } from "./changelog";
 
 export function ExamplesPage() {
   return <main id="main-content" className="container feature-body"><div className="page-heading"><p className="eyebrow">REAL INPUTS. INSPECTABLE OUTPUTS.</p><h1>Start with the whole example.</h1><p>Data, adapter configuration, exact results, and a StatPack. These examples are generated from StatLine's own engine and checked across Python, Gateway, and rendered-package execution.</p></div>{ebaSnapshots.map(s => <section className="example-card" key={s.adapter}><span className="pill">SOURCE v{s.engine_version}</span><h2>{s.title}</h2><p><code>{s.adapter}</code> · {s.count} input records · {Object.keys(s.profiles).length} named profiles</p><CodeBlock label="REPRODUCE THROUGH THE API" text={JSON.stringify(s.api_request, null, 2)}/><div className="example-downloads">{[["Input CSV", s.dataset_file], ["Scored CSV", s.csv_file], ["Complete JSON", s.result_file], ["StatPack", s.pack_file]].map(([name, file]) => <a href={"/downloads/" + file} download key={file}><Download size={14}/>{name}</a>)}</div><details><summary>Verify the source fingerprints</summary><CodeBlock label="SOURCE HASHES · SHA-256" text={`Dataset: ${s.dataset_sha256}\nAdapter: ${s.schema_sha256}`}/></details></section>)}<a href="/playground" className="btn primary">Open the playground<ArrowRight size={16}/></a></main>;
@@ -17,7 +18,12 @@ export function OpenSourcePage() {
 }
 
 export function ChangelogPage() {
-  return <main id="main-content" className="container feature-body"><div className="page-heading"><p className="eyebrow">SOURCE CHANGELOG</p><h1>The current source.<br/>The actual changes.</h1><p>Release highlights are pulled from this checkout's README during portal generation. The version follows the product source.</p></div><section className="release-card"><span className="pill">{/(?:a|b|rc|dev)\d/.test(product.engine_version) ? "PRERELEASE" : "STABLE SOURCE"}</span><h2 style={{ marginTop: 18 }}>v{product.engine_version}</h2>{product.release_highlights.length ? <ul>{product.release_highlights.map((item, i) => <li key={i}>{item.replace(/\*\*|`/g, "")}</li>)}</ul> : <p className="muted">This source doesn't include a matching release-highlights section. Read the repository history for changes.</p>}<a className="text-link" href={"https://github.com/amillolive/StatLine/releases"} target="_blank" rel="noreferrer">Published releases<ArrowUpRight size={15}/></a></section></main>;
+  return <main id="main-content" className="container feature-body">
+    <div className="page-heading"><p className="eyebrow">SOURCE CHANGELOG</p><h1>Every release.<br/>Every recorded change.</h1>
+      <p>Version history and commit logs are read from the StatLine repository, back to its first tagged release. Choose any release to inspect its actual commits.</p>
+    </div>
+    <ReleaseHistory/>
+  </main>;
 }
 
 export function StatusPage() {

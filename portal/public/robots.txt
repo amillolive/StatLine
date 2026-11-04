@@ -1,0 +1,5 @@
+# StatLine public marketing, documentation and examples
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Sitemap: https://statline.dev/sitemap.xml
