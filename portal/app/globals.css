@@ -186,3 +186,39 @@ input,select,textarea{width:100%;border:1px solid #38543f;border-radius:5px;back
 }
 @media (max-width:800px) { .docs-layout, .dashboard-layout { width: 100%; } .api-status { overflow-wrap:anywhere; } }
 @media (prefers-reduced-motion:reduce) { .btn, .feature-card, .nav-dropdown a { transition: none; } }
+
+
+/* GitHub release-note Markdown: scoped to changelog cards, using the StatLine palette. */
+.release-notes{margin:18px 0 24px;border:1px solid #375744;border-radius:8px;background:#0d1913;overflow:hidden}
+.release-notes>summary{display:list-item;cursor:pointer;padding:15px 20px;color:#d8efdf;font-size:.85rem;font-weight:650;list-style-position:inside}
+.release-notes>summary:hover,.release-notes>summary:focus-visible{background:#172b20}
+.release-notes-format{float:right;margin-top:1px;font-size:.63rem;letter-spacing:.08em;text-transform:uppercase;color:#8db79b}
+.release-markdown{padding:21px 24px 25px;border-top:1px solid #314f3b;color:#c5dacb;font-size:.9rem;line-height:1.8;overflow-wrap:anywhere}
+.release-markdown>*:first-child{margin-top:0}
+.release-markdown>*:last-child{margin-bottom:0}
+.release-markdown h3,.release-markdown h4,.release-markdown h5,.release-markdown h6{color:#f1faf3;font-weight:700;line-height:1.35;margin:26px 0 12px}
+.release-markdown h3{font-size:1.3rem;border-bottom:1px solid #385746;padding-bottom:10px}
+.release-markdown h4{font-size:1.11rem}.release-markdown h5{font-size:1rem}.release-markdown h6{font-size:.91rem;color:#aadeb9}
+.release-markdown p{margin:11px 0;color:#c5dacb}
+.release-markdown a{color:#95ecb5;text-decoration:underline;text-decoration-color:#557861;text-underline-offset:3px}
+.release-markdown a:hover,.release-markdown a:focus-visible{color:#fff;text-decoration-color:#95ecb5}
+.release-markdown strong{color:#f4fff6;font-weight:700}
+.release-markdown ul,.release-markdown ol{margin:12px 0;padding-left:29px;list-style-position:outside}
+.release-markdown ul{list-style-type:disc}.release-markdown ol{list-style-type:decimal}
+.release-markdown li{color:#c5dacb;font-size:inherit;line-height:1.75;margin:5px 0}
+.release-markdown li>p{display:inline}
+.release-markdown li>ul,.release-markdown li>ol{margin:6px 0 10px}
+.release-markdown li input[type=checkbox]{width:auto;vertical-align:middle;accent-color:#7fe4ae;margin-right:9px}
+.release-markdown code{padding:2px 5px;border:1px solid #34523c;border-radius:4px;background:#1d3025;color:#b5f4c9;font-size:.83em;overflow-wrap:anywhere}
+.release-markdown pre{max-width:100%;overflow-x:auto;padding:18px;border:1px solid #385846;border-radius:7px;background:#08110d;margin:17px 0;line-height:1.55}
+.release-markdown pre code{padding:0;border:0;background:none;color:#d8f2dd;font-size:.81rem;overflow-wrap:normal}
+.release-markdown blockquote{margin:17px 0;padding:8px 20px;border-left:3px solid #7fe4ae;background:#15271c;color:#b3d8bf}
+.release-markdown blockquote p{margin:8px 0}
+.release-markdown hr{border:0;border-top:1px solid #3a5844;margin:26px 0}
+.release-markdown img{display:block;max-width:100%;height:auto;border:1px solid #3b5a44;border-radius:7px;margin:15px 0}
+.release-markdown-table{overflow-x:auto;margin:20px 0;border:1px solid #3e5d47;border-radius:7px}
+.release-markdown table{width:100%;border-collapse:collapse;font-size:.83rem}
+.release-markdown th,.release-markdown td{padding:10px 13px;border:1px solid #3e5d47;vertical-align:top}
+.release-markdown th{background:#1b3223;color:#f1fdf4;font-weight:700}
+.release-markdown tr:nth-child(even){background:#14251a}
+@media(max-width:640px){.release-notes>summary{padding:13px 14px}.release-markdown{padding:16px}.release-markdown h3{font-size:1.17rem}}

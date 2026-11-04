@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { ArrowUpRight, RefreshCw } from "lucide-react";
+import { ReleaseNotes } from "./release-markdown";
 
 const API = "https://api.github.com/repos/amillolive/StatLine";
 const REPOSITORY = "https://github.com/amillolive/StatLine";
@@ -114,9 +115,7 @@ export function ReleaseHistory() {
         <span className="pill">{entry.release?.prerelease ? "PRERELEASE" : entry.release ? "RELEASE" : "VERSION TAG"}</span>
         <h2 style={{ marginTop: 14 }}>{entry.release?.name || entry.tag}</h2>
         <p className="small muted">{prettyDate(entry.release?.published_at)} · <code>{entry.tag}</code></p>
-        {entry.release?.body && <details><summary>Published release notes</summary>
-          <p style={{ whiteSpace: "pre-wrap" }}>{entry.release.body}</p>
-        </details>}
+        {entry.release?.body && <ReleaseNotes source={entry.release.body} tag={entry.tag}/>}
         <p className="small">Commit log: {entry.previous ? `${entry.previous} → ${entry.tag}` : `repository inception → ${entry.tag}`}</p>
         <div className="form-actions">
           <button className="btn subtle" disabled={status === "loading"} onClick={() => { void loadCommits(entry); }}>
