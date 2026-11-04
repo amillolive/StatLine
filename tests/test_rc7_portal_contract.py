@@ -7,7 +7,6 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 from pytest import mark
-
 from statline import __version__
 from statline.gateway.http.app import app
 
