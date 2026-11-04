@@ -5,8 +5,8 @@ from __future__ import annotations
 import gc
 from pathlib import Path
 
-import pytest
 from fastapi.testclient import TestClient
+import pytest
 
 import statline
 from statline.gateway.http.app import app

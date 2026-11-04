@@ -21,9 +21,9 @@ from statline import __version__
 from statline.core.adapters import list_adapters
 from statline.gateway.http.errors import SlapiError, to_http_exception
 from statline.gateway.http.portal import configure_portal_cors
-from statline.gateway.http.rtfm import render_reference
 from statline.gateway.http.routes_api import api_router, public_router
 from statline.gateway.http.routes_auth import admin_router, auth_router, mod_router
+from statline.gateway.http.rtfm import render_reference
 
 _DESCRIPTION = """
 StatLine v4 exposes adapters, packaged datasets, and one scoring pipeline.
