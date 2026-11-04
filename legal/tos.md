@@ -2,7 +2,7 @@
 
 ## Effective Date: August 31, 2026
 
-These Terms of Service (the **“Terms”**) govern access to and use of the hosted StatLine services, SLAPI, managed integrations, Organization Profiles, SADE services, credentials, support, and other commercial services provided by **StatLine LLC** (**“StatLine,” “we,” “us,” or “our”**).
+These Terms of Service (the **“Terms”**) govern access to and use of the hosted StatLine services, SLAPI, managed integrations, Organization Profiles, SADE services, credentials, support, and other commercial services provided by **StatLine, Inc.** (**“StatLine,” “we,” “us,” or “our”**).
 
 Certain StatLine software is separately available as open-source software. Open-source rights are governed by the applicable open-source license and are not reduced by these Terms.
 
@@ -205,7 +205,7 @@ StatLine outputs, including PRI and other Score Profiles, are estimates or calcu
 
 An Organization may designate StatLine-generated rankings, ratings, awards, or outputs as official for a competition, league, team, or program that the Organization operates or is authorized to administer.
 
-You may not falsely state or imply that StatLine LLC independently sponsors, sanctions, certifies, governs, or endorses an Organization, competition, player, award, ranking, or outcome unless StatLine has expressly agreed to that representation.
+You may not falsely state or imply that StatLine, Inc. independently sponsors, sanctions, certifies, governs, or endorses an Organization, competition, player, award, ranking, or outcome unless StatLine has expressly agreed to that representation.
 
 ## 16. Third-Party Services and Data Sources
 

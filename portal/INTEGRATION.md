@@ -7,10 +7,10 @@ Browser requests go directly to the Gateway. The portal adds no API routes, prox
 The build defaults to `https://api.statline.dev`. An API URL can be selected without rebuilding in `dist/client/statline-config.js`:
 
 ```js
-window.STATLINE_PUBLIC_CONFIG = { apiUrl: "http://127.0.0.1:8000" };
+window.STATLINE_PUBLIC_CONFIG = { apiUrl: "https://api.statline.dev" };
 ```
 
-Preserve a setting through rebuilds in `public/statline-config.js`. An empty `apiUrl` disables live requests. The existing local launcher selects the local API for its session. Credentials must never be included in this file, a public environment setting, generated content, or the static bundle.
+Preserve a setting through rebuilds in `public/statline-config.js`. An empty `apiUrl` disables live requests. Invalid or disallowed URLs fall back to the public HTTPS Gateway; loopback overrides are honored only when the portal itself runs on loopback. The existing local launcher selects the local API for its session. Credentials must never be included in this file, a public environment setting, generated content, or the static bundle.
 
 A production portal and credentialed API connection need HTTPS. HTTP is supported for localhost. The browser sends credentials only to the configured API, only when the user chooses an operation. Credentialed requests reject redirects.
 

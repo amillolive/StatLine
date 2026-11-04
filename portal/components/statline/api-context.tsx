@@ -16,7 +16,7 @@ declare global {
 }
 
 export function ApiProvider({ children }: { children: React.ReactNode }) {
-  const [baseUrl, setBaseUrl] = useState(configuredUrl.trim().replace(/\/+$/, ""));
+  const [baseUrl, setBaseUrl] = useState("https://api.statline.dev");
   const [ready, setReady] = useState(false);
   const [status, setStatus] = useState<ApiState>({ kind: "idle", detail: "Choose Check API to contact the configured service. Saved examples and docs work without connecting." });
   const [spec, setSpec] = useState<OpenApi>(bundledSpec);
@@ -32,7 +32,14 @@ export function ApiProvider({ children }: { children: React.ReactNode }) {
   const active = useRef<AbortController | null>(null);
   useEffect(() => {
     const runtimeUrl = window.STATLINE_PUBLIC_CONFIG?.apiUrl;
-    if (typeof runtimeUrl === "string") setBaseUrl(runtimeUrl.trim().replace(/\/+$/, ""));
+    const selected = typeof runtimeUrl === "string" ? runtimeUrl.trim() : configuredUrl.trim();
+    if (selected === "") {
+      setBaseUrl(""); // An explicitly empty runtime setting disables the optional API.
+    } else {
+      // A bad local override must never make the public dashboard talk to a device.
+      // Fall back to the production HTTPS Gateway instead of stranding the visitor.
+      setBaseUrl(allowedGatewayBase(selected, window.location.hostname) ?? "https://api.statline.dev");
+    }
     setReady(true);
   }, []);
   const refresh = useCallback(async () => {

@@ -1,7 +1,7 @@
-# StatLine Gateway API v4 — rc6
+# StatLine Gateway API v4 — rc7
 
 This document describes the v4 preview on `next`. The stable v3 line remains on `main`.
-The patched source stays at **4.0.0rc6**; install this checkout to use its changes.
+The patched source stays at **4.0.0rc7**; install this checkout to use its changes.
 
 ## Hosts and public routes
 

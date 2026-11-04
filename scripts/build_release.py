@@ -42,9 +42,7 @@ ROOT_FILES = {
     "mypy-nice.ini",
     "launch.sh",
     "launch.ps1",
-    "RC6_CHANGES.md",
-    "RC6_VERIFICATION.md",
-    "RC6_BENCHMARKS.json",
+    "RC7_CHANGES.md",
 }
 BUILD_DIRECTORIES = {
     "dist",

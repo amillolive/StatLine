@@ -2014,7 +2014,7 @@ wheels = [
 
 [[package]]
 name = "statline"
-version = "4.0.0rc6"
+version = "4.0.0rc7"
 source = { editable = "." }
 dependencies = [
     { name = "pyyaml" },

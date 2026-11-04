@@ -1,6 +1,6 @@
 # StatLine HOWTO
 
-This guide shows the practical workflows for **StatLine v4.0.0rc6**: installing the right variant, scoring locally, using SLAPI, writing adapters, and preparing a release.
+This guide shows the practical workflows for **StatLine v4.0.0rc7**: installing the right variant, scoring locally, using SLAPI, writing adapters, and preparing a release.
 
 ---
 
@@ -739,9 +739,9 @@ pip-audit
 
 ---
 
-## 19. v4.0.0rc6 release checklist
+## 19. v4.0.0rc7 release checklist
 
-1. Confirm `project.version` in `pyproject.toml` is `4.0.0rc6`.
+1. Confirm `project.version` in `pyproject.toml` is `4.0.0rc7`.
 
 2. Confirm `statline/RELEASE` matches the v4 generation and intended component release counters.
 
@@ -755,7 +755,7 @@ pip-audit
    * all: `pip install "statline[all]"`
    * dev: `pip install -e ".[dev]"`
 
-## Launch this rc6 API and portal together
+## Launch this rc7 API and portal together
 
 From the extracted repository root, install `python -m pip install -e ".[gateway]"`. The archive includes a built portal. Run `./launch.sh` on Linux/macOS or `.\launch.ps1` on Windows. Open <http://localhost:3000>; the API runs on <http://127.0.0.1:8000>. Ctrl+C stops both processes.
 

@@ -1,16 +1,13 @@
-# rc6 validation
+# RC7 validation
 
-This rc6 revision updates the Python Gateway/scoring diagnostics, portal,
-launchers, release tooling, and documentation together. The authoritative
-completed checks are recorded in the root `RC6_VERIFICATION.md`.
+This source patch updates the Python package, generated Gateway contract, portal layout, read-only identity request UX, and operator name. RC6 remains the historical baseline for the original scoring fixtures.
 
-The original 118 tests and new contract, identity, attribution, CORS, packaging,
-and actual joint-process tests are included. Original default scoring output is
-protected by hashes from the supplied rc6 player/team fixtures. Generated
-examples compare expanded compact responses with local SDK/StatPack scoring.
+Verified for this uploaded source patch:
 
-Browser interaction and visual QA were not completed for this revision: the
-available browser could not connect to the local preview, and the local browser
-binary download was unavailable. Previous browser-validation claims do not
-apply to this revised build. Actual deployed permission prompts, hostname
-routing, and native Windows execution require deployment/platform checks.
+- Regeneration completed: 36 API operations, 2 EBA demos, 127 scored results.
+- `python portal/scripts/check-generated.py` passed the source fingerprint, API contract, and downloadable example checks.
+- `pytest -q --ignore=tests/test_session.py` passed: 252 passed, 3 skipped (the joint-launch tests require a built portal).
+
+Full-suite collection could not complete in this environment: `httpx2` is not installed, which `tests/test_session.py` requires. The TypeScript build, native Windows installer, deployed hostname routing, CORS with live credentials, and live browser testing have not been verified here.
+
+Earlier RC6 fixtures and tests retain their historical RC6 labels; that is not a current release version.

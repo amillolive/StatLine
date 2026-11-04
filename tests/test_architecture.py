@@ -226,14 +226,14 @@ def test_installer_strict_mode_keeps_inno_candidates_as_a_collection() -> None:
     assert "{app}\\assets\\statpack-icon-main.png" in text
 
 
-def test_source_tree_version_falls_back_to_rc6(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_source_tree_version_falls_back_to_rc7(monkeypatch: pytest.MonkeyPatch) -> None:
     def missing_distribution(_name: str) -> str:
         raise importlib.metadata.PackageNotFoundError
 
     monkeypatch.setattr(importlib.metadata, "version", missing_distribution)
     reloaded = importlib.reload(statline)
 
-    assert PACKAGE_VERSION == "4.0.0rc6"
+    assert PACKAGE_VERSION == "4.0.0rc7"
     assert reloaded.__version__ == PACKAGE_VERSION
 
 

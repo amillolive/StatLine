@@ -4,7 +4,7 @@
 
 Thank you for your interest in contributing to StatLine.
 
-This Contributor License Agreement (**“Agreement”**) is between you (**“Contributor,” “You,” or “Your”**) and **StatLine LLC** (**“StatLine,” “We,” “Us,” or “Our”**) and governs Contributions You intentionally submit to the StatLine project.
+This Contributor License Agreement (**“Agreement”**) is between you (**“Contributor,” “You,” or “Your”**) and **StatLine, Inc.** (**“StatLine,” “We,” “Us,” or “Our”**) and governs Contributions You intentionally submit to the StatLine project.
 
 ## 1. Definitions
 

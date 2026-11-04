@@ -4,7 +4,7 @@
 
 It can run completely locally for simple scoring workflows, or against **SLAPI**, the optional StatLine API layer for authenticated remote scoring, adapter inspection, and multi-client deployments.
 
-> **Release target:** **v4.0.0rc6** — preview on [`next`](https://github.com/amillolive/StatLine/tree/next).
+> **Release target:** **v4.0.0rc7** — preview on [`next`](https://github.com/amillolive/StatLine/tree/next).
 > **Stable line:** v3 on [`main`](https://github.com/amillolive/StatLine/tree/main). The APIs and examples in this checkout describe v4, not v3.
 > **Python:** **3.10 through 3.14**
 > **License:** **AGPL-3.0-or-later**, with separate trademark restrictions for the StatLine name and branding.
@@ -27,7 +27,7 @@ At a high level, StatLine provides:
 
 ---
 
-## v4.0.0rc6 highlights
+## v4.0.0rc7 highlights
 
 * The Gateway supports opt-in `response_format="compact"`, moving equal context, weights and explanation configuration into `shared` without changing scored values. Legacy remains the default.
 * Results preserve original `source_index` and an adapter identity `source_id` (PLAYER or TEAM for EBA), including through raw and mapped filtering.
@@ -55,16 +55,16 @@ At a high level, StatLine provides:
 
 ## Install
 
-This archive is a patched rc6 checkout. Use `python -m pip install -e ".[all]"` from this checkout to run these changes. Pinning an existing PyPI rc6 package does not apply local source edits. Read [RC6_CHANGES.md](RC6_CHANGES.md) for the compact response migration and [RC6_VERIFICATION.md](RC6_VERIFICATION.md) for completed checks.
+This archive is a patched rc7 checkout. Use `python -m pip install -e ".[all]"` from this checkout to run these changes. Pinning an existing PyPI rc7 package does not apply local source edits. Read [RC7_CHANGES.md](RC7_CHANGES.md) for this source patch and [portal/VALIDATION.md](portal/VALIDATION.md) for the validation status. Do not assume the corresponding version has already been published on PyPI.
 
-StatLine v4.0.0rc6 has five intended install variants. The StatLine repository is the canonical development and release-composition monorepo; standalone Core, App, and Gateway repositories are generated mirrors of their corresponding paths.
+StatLine v4.0.0rc7 has five intended install variants. The StatLine repository is the canonical development and release-composition monorepo; standalone Core, App, and Gateway repositories are generated mirrors of their corresponding paths.
 
 | Variant | Command | Capability set |
 | --- | --- | --- |
-| **core** | `pip install "statline==4.0.0rc6"` | Core Python API, scoring, adapters, datasets, and StatPack runtime. |
-| **app** | `pip install "statline[app]==4.0.0rc6"` | Core + CLI/application dependencies + Textual StatLine OS. |
-| **gateway** | `pip install "statline[gateway]==4.0.0rc6"` | Core + authentication, API, and SLAPI serving dependencies. |
-| **all** | `pip install "statline[all]==4.0.0rc6"` | Core + App + Gateway runtime capabilities. |
+| **core** | `pip install "statline==4.0.0rc7"` | Core Python API, scoring, adapters, datasets, and StatPack runtime. |
+| **app** | `pip install "statline[app]==4.0.0rc7"` | Core + CLI/application dependencies + Textual StatLine OS. |
+| **gateway** | `pip install "statline[gateway]==4.0.0rc7"` | Core + authentication, API, and SLAPI serving dependencies. |
+| **all** | `pip install "statline[all]==4.0.0rc7"` | Core + App + Gateway runtime capabilities. |
 | **dev** | `pip install -e ".[dev]"` | Core + App + Gateway plus tests, typing, docs, packaging, and release tooling. |
 
 For a source checkout, clone the monorepo normally:

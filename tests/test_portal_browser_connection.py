@@ -43,11 +43,11 @@ def fake_gateway(cors: bool = True) -> Generator[str, None, None]:
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self) -> None:
             if self.path == "/v4/health":
-                payload = {"ok": True, "version": "4.0.0rc6"}
+                payload = {"ok": True, "version": "4.0.0rc7"}
             elif self.path == "/openapi.json":
                 payload = {
                     "openapi": "3.1.0",
-                    "info": {"title": "StatLine", "version": "4.0.0rc6"},
+                    "info": {"title": "StatLine", "version": "4.0.0rc7"},
                     "paths": {},
                 }
             else:

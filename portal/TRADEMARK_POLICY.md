@@ -8,7 +8,7 @@ StatLine software may be separately distributed under open-source licenses, incl
 
 ## 1. StatLine Marks
 
-“StatLine,” the StatLine logo, and associated source-identifying branding are trademarks or claimed trademarks of StatLine LLC.
+“StatLine,” the StatLine logo, and associated source-identifying branding are trademarks or claimed trademarks of StatLine, Inc.
 
 StatLine may use the **™** symbol to identify claimed trademark rights. The **®** symbol will be used only for marks that are federally registered where such use is legally appropriate.
 
@@ -28,7 +28,7 @@ Examples of generally permitted uses include:
 * linking to the official StatLine project or Documentation; and
 * accurately describing a product or workflow as using StatLine.
 
-Such use must not falsely imply that StatLine LLC sponsors, operates, endorses, certifies, or controls your product, Organization, or project.
+Such use must not falsely imply that StatLine, Inc. sponsors, operates, endorses, certifies, or controls your product, Organization, or project.
 
 ## 3. “Powered by StatLine”
 
@@ -42,7 +42,7 @@ You may use the phrase **“Powered by StatLine”** to accurately describe a pr
 
 Use of Organization-specific Adapters, StatPacks, Score Profiles, weights, schemas, mappings, filters, or Organization Profiles does not by itself make a deployment ineligible to state that it is Powered by StatLine.
 
-“Powered by StatLine” must remain a secondary attribution. It may not be presented in a way that causes users to believe your independent product or Organization is itself StatLine LLC or an official StatLine product.
+“Powered by StatLine” must remain a secondary attribution. It may not be presented in a way that causes users to believe your independent product or Organization is itself StatLine, Inc. or an official StatLine product.
 
 StatLine may withdraw permission for misleading, deceptive, unlawful, or abusive uses of this phrase.
 
@@ -75,7 +75,7 @@ This restriction does not prohibit accurate referential statements such as:
 * “Compatible with StatLine”; or
 * “Originally derived from the StatLine project.”
 
-Such attribution must not imply that the modified version is maintained, approved, supported, or distributed by StatLine LLC.
+Such attribution must not imply that the modified version is maintained, approved, supported, or distributed by StatLine, Inc.
 
 ## 6. Prohibited and Restricted Uses
 
@@ -86,7 +86,7 @@ Without prior written permission from StatLine, you may not:
 * imitate StatLine’s branding in a manner likely to create confusion about source, sponsorship, affiliation, or endorsement;
 * register or use a domain name, social-media identifier, application name, package name, or similar identifier that misleadingly suggests it is an official StatLine property;
 * use StatLine branding to misrepresent unofficial software as an official release;
-* imply that StatLine LLC independently endorses or certifies an Organization, player, league, ranking, award, or competition without authorization; or
+* imply that StatLine, Inc. independently endorses or certifies an Organization, player, league, ranking, award, or competition without authorization; or
 * use StatLine marks in connection with unlawful, deceptive, malicious, or abusive activity.
 
 Minor spelling changes, phonetic equivalents, additional letters, prefixes, or suffixes do not necessarily avoid confusion. Names such as “StatLyne” or “StatLineX” may therefore require permission depending on their use and context.

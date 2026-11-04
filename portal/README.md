@@ -1,7 +1,7 @@
-# StatLine Portal — rc6
+# StatLine Portal — rc7
 
 This static Next/React portal presents **Core/SDK**, **App/local tools**, and
-**Gateway/API**. It describes v4.0.0rc6 on `next`; v3 on `main` is the stable line.
+**Gateway/API**. It describes v4.0.0rc7 on `next`; v3 on `main` is the stable line.
 
 ## Build and run locally
 
@@ -73,7 +73,7 @@ Gateway. Actual DNS, tunnel, access gates and TLS settings need verification in
 your deployment. Use the public deployment template for informational pages;
 the private Caddy example is explicitly for a private preview.
 
-See `packs/README.md` and `scripts/README.md` for rc6 migration and launch instructions.
+See `packs/README.md` and `scripts/README.md` for rc7 migration and launch instructions.
 
 ## API connection troubleshooting (local vs deployed)
 

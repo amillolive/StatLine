@@ -4,7 +4,7 @@ param(
 
     # Default: build the exact working tree this script lives under, including uncommitted changes.
 
-    # Use -Ref main / -Ref v4.0.0rc6 / -Ref <commit> to build an isolated Git snapshot instead.
+    # Use -Ref main / -Ref v4.0.0rc7 / -Ref <commit> to build an isolated Git snapshot instead.
 
     [Parameter(ParameterSetName = "Source")]
 
@@ -584,7 +584,7 @@ try {
 
 #define MyAppVersion "$version"
 
-#define MyAppPublisher "StatLine LLC"
+#define MyAppPublisher "StatLine, Inc."
 
 [Setup]
 

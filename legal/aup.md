@@ -112,7 +112,7 @@ Do not submit sensitive personal information unless it is reasonably necessary f
 
 An Organization may call StatLine-generated rankings, ratings, awards, or outputs “official” for a league, competition, team, or program that the Organization operates or is authorized to administer.
 
-You may not falsely claim that StatLine LLC independently sponsors, certifies, sanctions, governs, or endorses an Organization, competition, player, award, ranking, or outcome without written authorization.
+You may not falsely claim that StatLine, Inc. independently sponsors, certifies, sanctions, governs, or endorses an Organization, competition, player, award, ranking, or outcome without written authorization.
 
 You may not use StatLine trademarks, logos, or branding in a misleading manner or in violation of StatLine’s Trademark Policy.
 

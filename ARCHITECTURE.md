@@ -24,7 +24,7 @@ Deprecated adapter schemas remain packaged for explicit local compatibility path
 
 Legacy `statline.slapi`, flat scoring/dataset modules, `statline.tui`, `statline.services`, and `statline.utils` are removed rather than forwarded. No compatibility shims are part of the rebase.
 
-## v4.0.0rc6 repository boundaries
+## v4.0.0rc7 repository boundaries
 
 The canonical StatLine repository is a true monorepo with three Python component paths:
 
