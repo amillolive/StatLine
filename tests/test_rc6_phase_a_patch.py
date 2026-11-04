@@ -135,6 +135,7 @@ def test_inspection_api_still_requires_userbase_scope() -> None:
         assert response.status_code == 401
 
 
+@pytest.mark.skipif(not (Path(__file__).resolve().parents[1] / "portal" / "scripts").is_dir(), reason="Portal generator is excluded from the Python distribution")
 def test_portal_generator_ignores_missing_optional_documentation(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
