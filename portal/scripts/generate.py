@@ -89,6 +89,10 @@ def generate(source: pathlib.Path, output: pathlib.Path) -> None:
         from statline.sdk import run_statpack
 
         project = tomllib.loads((source / "pyproject.toml").read_text(encoding="utf-8"))["project"]
+        if __version__ != project["version"]:
+            raise RuntimeError(
+                f"Installed StatLine version {__version__} differs from source {project['version']}; install this checkout before generating."
+            )
         spec = dict(app.openapi())
         spec["x-statline-snapshot"] = {
             "source_release": __version__,

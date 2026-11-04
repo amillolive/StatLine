@@ -67,6 +67,9 @@ def test_all_active_yaml_numeric_formulas_are_parseable() -> None:
             ast.parse(efficiency.attempt, mode="eval")
 
 
+@pytest.mark.skipif(
+    not (ROOT / "portal").is_dir(), reason="Portal source is excluded from the Python distribution"
+)
 def test_public_portal_does_not_auto_probe_gateway_or_local_network() -> None:
     content = (ROOT / "portal/components/statline/api-context.tsx").read_text()
     assert "window.setInterval" not in content

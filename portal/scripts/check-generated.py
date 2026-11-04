@@ -4,7 +4,13 @@ from __future__ import annotations
 
 import csv
 import json
+import sys
 from pathlib import Path
+
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    import tomli as tomllib
 
 from source_contract import source_fingerprint
 
@@ -14,6 +20,14 @@ def main() -> int:
     source = portal.parent
     product = json.loads((portal / "data/product.json").read_text())
     actual = source_fingerprint(source)
+    expected_version = tomllib.loads((source / "pyproject.toml").read_text(encoding="utf-8"))[
+        "project"
+    ]["version"]
+    if product["engine_version"] != expected_version:
+        print(
+            f"Portal version {product['engine_version']} does not match source {expected_version}."
+        )
+        return 1
     if product["source_sha256"] != actual:
         print("Saved portal contract is stale. Run pnpm generate, then rebuild.")
         return 1
