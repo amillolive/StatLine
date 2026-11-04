@@ -25,7 +25,8 @@ def main() -> int:
     ]["version"]
     if product["engine_version"] != expected_version:
         print(
-            f"Portal version {product['engine_version']} does not match source {expected_version}."
+            f"Portal version {product['engine_version']} does not match source {expected_version}. "
+            "Run pnpm generate (or pnpm build) before checking the contracts."
         )
         return 1
     if product["source_sha256"] != actual:

@@ -2,16 +2,11 @@
 
 from __future__ import annotations
 
-from importlib.metadata import PackageNotFoundError, version
-
-from statline._version import PACKAGE_VERSION
-
-try:
-    __version__ = version("statline")
-except PackageNotFoundError:
-    __version__ = PACKAGE_VERSION
-
 import gc
+
+from statline._version import runtime_version
+
+__version__ = runtime_version(__file__)
 
 from statline.core.datasets import (
     dataset_root,
