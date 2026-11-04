@@ -121,7 +121,8 @@ def test_api_styled_docs_preserve_native_authorize() -> None:
     with TestClient(app) as client:
         response = client.get("/rtfm")
         assert response.status_code == 200
-        assert 'src="/docs"' in response.text
+        assert 'fetch("/openapi.json"' in response.text
+        assert "<iframe" not in response.text
         assert 'href="/redoc"' in response.text
         assert 'href="/openapi.json"' in response.text
         assert client.get("/docs").status_code == 200
@@ -135,7 +136,10 @@ def test_inspection_api_still_requires_userbase_scope() -> None:
         assert response.status_code == 401
 
 
-@pytest.mark.skipif(not (Path(__file__).resolve().parents[1] / "portal" / "scripts").is_dir(), reason="Portal generator is excluded from the Python distribution")
+@pytest.mark.skipif(
+    not (Path(__file__).resolve().parents[1] / "portal" / "scripts").is_dir(),
+    reason="Portal generator is excluded from the Python distribution",
+)
 def test_portal_generator_ignores_missing_optional_documentation(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

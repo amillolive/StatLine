@@ -37,13 +37,13 @@ def test_rtfm_serves_branded_live_openapi_reference() -> None:
 )
 def test_portal_has_live_history_rankings_and_crawl_policy() -> None:
     portal = ROOT / "portal"
-    assert 'User-agent: *' in (portal / "public/robots.txt").read_text()
+    assert "User-agent: *" in (portal / "public/robots.txt").read_text()
     assert "Disallow: /dashboard" in (portal / "public/robots.txt").read_text()
     assert "statline.dev/sitemap.xml" in (portal / "public/robots.txt").read_text()
     assert '"/changelog"' in (portal / "app/sitemap.ts").read_text()
     changelog = (portal / "components/statline/changelog.tsx").read_text()
     assert '"/releases"' in changelog and '"/tags"' in changelog
-    assert '/compare/' in changelog
+    assert "/compare/" in changelog
     rank = (portal / "lib/rank-results.ts").read_text()
     assert "row.pri" in rank
     for target in ("live-score.tsx", "playground.tsx"):

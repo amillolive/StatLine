@@ -20,9 +20,13 @@ def main() -> int:
     source = portal.parent
     product = json.loads((portal / "data/product.json").read_text())
     actual = source_fingerprint(source)
-    expected_version = tomllib.loads((source / "pyproject.toml").read_text(encoding="utf-8"))["project"]["version"]
+    expected_version = tomllib.loads((source / "pyproject.toml").read_text(encoding="utf-8"))[
+        "project"
+    ]["version"]
     if product["engine_version"] != expected_version:
-        print(f"Portal version {product['engine_version']} does not match source {expected_version}.")
+        print(
+            f"Portal version {product['engine_version']} does not match source {expected_version}."
+        )
         return 1
     if product["source_sha256"] != actual:
         print("Saved portal contract is stale. Run pnpm generate, then rebuild.")

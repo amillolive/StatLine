@@ -81,7 +81,9 @@ def test_deploy_rejects_unsafe_layout_segments(slug: str, tmp_path: Path) -> Non
         )
 
 
-@pytest.mark.skipif(not (ROOT / "portal").is_dir(), reason="Portal source is excluded from the Python distribution")
+@pytest.mark.skipif(
+    not (ROOT / "portal").is_dir(), reason="Portal source is excluded from the Python distribution"
+)
 def test_portal_no_device_prompts_and_real_brand_icon() -> None:
     portal = ROOT / "portal"
     # Browser-side code never exposes the prior private-key file picker or
