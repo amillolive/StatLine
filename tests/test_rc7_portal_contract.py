@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-import gc
+from gc import isenabled
 from pathlib import Path
 
 from fastapi.testclient import TestClient
-import pytest
+from pytest import mark
 
-import statline
+from statline import __version__
 from statline.gateway.http.app import app
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -16,8 +16,8 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def test_rc7_keeps_python_garbage_collection_disabled() -> None:
     # The import-time contract intentionally stays in rc7; custom GC belongs to rc8.
-    assert statline.__version__.startswith("4.0.0rc7")
-    assert not gc.isenabled()
+    assert __version__.startswith("4.0.0rc7")
+    assert not isenabled()
 
 
 def test_rtfm_serves_branded_live_openapi_reference() -> None:
@@ -31,7 +31,7 @@ def test_rtfm_serves_branded_live_openapi_reference() -> None:
     assert "<iframe" not in response.text
 
 
-@pytest.mark.skipif(
+@mark.skipif(
     not (ROOT / "portal").is_dir(),
     reason="Portal is separately built and excluded from the Python source distribution",
 )
