@@ -33,7 +33,10 @@ def test_rc7_source_version_is_consistent() -> None:
 def test_checkout_version_wins_over_older_installed_metadata(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(_version, "version", lambda _name: "3.0.0")
+    def stale_version(_name: str) -> str:
+        return "3.0.0"
+
+    monkeypatch.setattr(_version, "version", stale_version)
     checkout = tmp_path / "checkout"
     checkout.mkdir()
     (checkout / "pyproject.toml").write_text("[project]\nname='statline'\n", encoding="utf-8")

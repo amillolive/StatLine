@@ -106,9 +106,7 @@ def generate(source: pathlib.Path, output: pathlib.Path) -> None:
             )
         spec = dict(app.openapi())
         if spec.get("info", {}).get("version") != project["version"]:
-            raise RuntimeError(
-                "Gateway OpenAPI version does not match StatLine source version."
-            )
+            raise RuntimeError("Gateway OpenAPI version does not match StatLine source version.")
         spec["x-statline-snapshot"] = {
             "source_release": __version__,
             "generated_at": generated_at,
