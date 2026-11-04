@@ -73,7 +73,9 @@ def generate(source: pathlib.Path, output: pathlib.Path) -> None:
     with tempfile.TemporaryDirectory(prefix="statline-portal-auth-") as auth_dir:
         os.environ["STATLINE_DATA_DIR"] = auth_dir
         os.environ["STATLINE_SECRETS_DIR"] = str(pathlib.Path(auth_dir) / "secrets")
+        import statline
         from statline import __version__, load_dataset, public, score
+        from statline._version import PACKAGE_VERSION
         from statline.core import statpacks
         from statline.core.adapters.paths import resolve_adapter_path
         from statline.core.datasets import resolve_dataset
@@ -89,11 +91,24 @@ def generate(source: pathlib.Path, output: pathlib.Path) -> None:
         from statline.sdk import run_statpack
 
         project = tomllib.loads((source / "pyproject.toml").read_text(encoding="utf-8"))["project"]
-        if __version__ != project["version"]:
+        loaded = pathlib.Path(statline.__file__ or "").resolve()
+        expected = (source / "statline" / "__init__.py").resolve()
+        if loaded != expected:
             raise RuntimeError(
-                f"Installed StatLine version {__version__} differs from source {project['version']}; install this checkout before generating."
+                f"Portal generator loaded StatLine from {loaded}, expected {expected}. "
+                "Run using this checkout's Python environment."
+            )
+        if PACKAGE_VERSION != project["version"] or __version__ != project["version"]:
+            raise RuntimeError(
+                f"StatLine source version mismatch: runtime={__version__}, "
+                f"package={PACKAGE_VERSION}, pyproject={project['version']}. "
+                "Update source version metadata before generating."
             )
         spec = dict(app.openapi())
+        if spec.get("info", {}).get("version") != project["version"]:
+            raise RuntimeError(
+                "Gateway OpenAPI version does not match StatLine source version."
+            )
         spec["x-statline-snapshot"] = {
             "source_release": __version__,
             "generated_at": generated_at,
