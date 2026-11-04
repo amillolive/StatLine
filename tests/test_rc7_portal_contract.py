@@ -43,6 +43,11 @@ def test_portal_has_live_history_rankings_and_crawl_policy() -> None:
     changelog = (portal / "components/statline/changelog.tsx").read_text()
     assert '"/releases"' in changelog and '"/tags"' in changelog
     assert "/compare/" in changelog
+    assert "ReleaseNotes source={entry.release.body}" in changelog
+    markdown = (portal / "components/statline/release-markdown.tsx").read_text()
+    assert "lexer(source, { gfm: true, breaks: true })" in markdown
+    assert "dangerouslySetInnerHTML" not in markdown
+    assert "safeLink(" in markdown
     rank = (portal / "lib/rank-results.ts").read_text()
     assert "row.pri" in rank
     for target in ("live-score.tsx", "playground.tsx"):
